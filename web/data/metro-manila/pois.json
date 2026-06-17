@@ -1,0 +1,14 @@
+[
+  {
+    "id": "fort-santiago",
+    "name": "Fort Santiago",
+    "category": "heritage",
+    "lat": 14.5944,
+    "lng": 120.9718,
+    "open_time": "09:00",
+    "close_time": "18:00",
+    "closed_days": [],
+    "recommended_duration_minutes": 90,
+    "notes": "Last entry 17:30. Entrance fee required."
+  }
+]

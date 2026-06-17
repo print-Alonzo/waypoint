@@ -1,0 +1,6 @@
+{
+  "rizal-park": {
+    "fort-santiago": { "walk": 18, "jeepney": 8, "grab": 5 }
+  },
+  "fort-santiago": {}
+}

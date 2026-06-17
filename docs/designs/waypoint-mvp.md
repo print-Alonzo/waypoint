@@ -49,7 +49,7 @@ This is a structural trust advantage, not a positioning choice.
 | 3 | Transit estimate confidence label | XS | ACCEPTED | 'Estimated — verify with Google Maps' on each transit step; protects trust when estimates are off |
 | 4 | Start-location pre-set dropdown (4-5 landmarks) | XS | ACCEPTED | Eliminates silent coordinate errors; hardcoded landmarks, no geocoding API |
 | 5 | Day-of-week dropdown (Mon–Sun) on input form | XS | ACCEPTED | Required to evaluate closed_days red flags; without it, red flag feature is unimplementable for dynamic use |
-| 6 | Shareable URL (URL-encoded POI list) | S | DEFERRED | High value but not critical for first test cycle; V2 after behavioral evidence confirmed |
+| 6 | Shareable URL (URL-encoded POI list) | S | PROMOTED TO V1 | Eng review (D8): URL params replace sessionStorage as result-page handoff; eliminates hard-refresh failure, multi-tab clobber, and mobile tab-kill UX issues. Two implementations merged: URL-encoded result page state + shareable result URL. |
 
 ## Accepted Scope (full MVP build list)
 
@@ -108,23 +108,27 @@ a sibling field on the affected entry. No separate corrections file.
   multiplier and emit a `console.warn`. Do not throw or crash.
   Duration clamp: use `Math.max(poi.recommended_duration_minutes, 1)` when computing
   departure_time. Prevents a data-entry 0 from collapsing all downstream times.
-- `/lib/storage.ts`: exports `STORAGE_KEY = 'waypoint_last_selection'` and the `StoredSelection`
-  TypeScript type `{ poi_ids, start_time, transport_mode, start_location, day_of_week }`.
-  Both selector page and result page import from here — one source of truth, no magic strings.
-  Also exports `loadSelection(): StoredSelection | null` — wraps sessionStorage.getItem +
-  JSON.parse in try/catch; returns null and calls sessionStorage.removeItem(STORAGE_KEY) on
-  any failure (SyntaxError, QuotaExceededError). Never throws. Caller treats null as fresh session.
-- `/lib/scheduler.test.ts`: unit tests for algorithm. Happy path: 4 POIs, no conflicts.
+- `/lib/params.ts`: URL parameter encoder/decoder replacing sessionStorage as the selector→result handoff (eng review D8).
+  Exports `ScheduleParams` TypeScript type `{ poi_ids: string[], start_time: string, transport_mode: string, start_location: string, day_of_week: string }`.
+  Exports `encodeParams(params: ScheduleParams): URLSearchParams` — serializes all 5 fields for router.push.
+  Exports `decodeParams(params: URLSearchParams): ScheduleParams | null` — returns null if any required field is missing or invalid (poi_ids empty, start_time not HH:MM format). Never throws. Caller treats null as invalid URL.
+  All pages import ScheduleParams from here — one source of truth, no magic strings.
+- `/lib/scheduler.test.ts`: unit tests for algorithm (Vitest). Happy path: 4 POIs, no conflicts.
   Shadow paths: (a) all POIs have selected day in closed_days (all red-flagged, none dropped);
   result view renders all rows red + top-of-page banner: "All selected places are closed on this day."
   (b) start time leaves insufficient time for any POI (all yellow-flagged, schedule shown as-is)
   (c) single POI selected (trivial output: one row, no transit steps, algorithm exits after Step 0)
   (d) duration = 0 (clamped to 1; downstream times differ from arrival_time by ≥1 min)
-- `/lib/storage.test.ts`: unit tests for storage module.
-  (1) saveSelection + loadSelection round-trip returns same object
-  (2) loadSelection from empty storage returns null
-  (3) loadSelection recovers from corrupt JSON: returns null + clears STORAGE_KEY from storage
-  (4) STORAGE_KEY is a non-empty string
+  (e) tie-break: two POIs with transit delta < 5 min → earlier close_time wins; boundary: delta == 5 min exactly → nearest wins (eng review D5)
+  (f) Haversine fallback: POI pair absent from matrix → result computed (no throw), console.warn called with missing pair IDs (eng review D7)
+  (g) mixed flag state: some red + some yellow + some clear rows → each row has correct flag styling, no all-red banner
+  (h) yellow boundary: arrival_time == close_time → no yellow flag fires (strictly > required)
+- `/lib/params.test.ts`: unit tests for URL params module (Vitest) — replaces storage.test.ts.
+  (1) encodeParams → decodeParams round-trip: same ScheduleParams object returned
+  (2) decodeParams with empty URLSearchParams → returns null
+  (3) decodeParams with missing 'poi_ids' field → returns null
+  (4) decodeParams with missing 'start_time' field → returns null
+  (5) decodeParams with empty poi_ids array → returns null
 - Result view: ordered list with per-stop arrival time, visit duration, transit time, status flags.
   When all POIs carry a red flag: render schedule normally with all rows red; display a
   top-of-page banner: "All selected places are closed on this day."
@@ -146,20 +150,18 @@ a sibling field on the affected entry. No separate corrections file.
   V2 multi-city = add `data/cebu/` folder + update env var on Vercel. Zero code changes.
 - Vercel deploy (free tier, direct URL for testers)
 
-- Result page guard: on mount, if router state (itinerary) is absent, call `router.replace('/')`
-  immediately. Handles refresh, direct URL access, bookmark. User lands on selector form.
-  5-line check in result page useEffect.
-  Mobile tab-kill behavior (documented, not a bug): if a mobile browser kills the tab in
-  the background, user reopens to /result → guard fires → selector loads with previous POI
-  selections pre-filled via loadSelection() → user hits "Generate" again → result recomputes
-  identically. Tester brief should mention this so testers don't report it as a bug.
+- Result page guard: on mount, call `decodeParams(searchParams)` from `/lib/params.ts`.
+  If null (missing or invalid URL params): call `router.replace('/')` immediately.
+  If valid: compute itinerary from decoded params and render.
+  Handles direct URL access, bookmark, page refresh (URL still valid → re-computes identically).
+  Mobile tab-kill behavior: URL is preserved by the browser — user reopens /result, URL still has params, itinerary re-computes. No guard fires for a valid URL. Tester brief should note this is reliable, unlike sessionStorage.
 - React Error Boundary wrapping the result page component. On any uncaught render or computation
   error: show "Something went wrong. Go back and try again." with a link to '/'. Prevents white
   screen during evidence collection sessions. ~20-line component in `components/ErrorBoundary.tsx`.
 
-### Added by this review
+### Added by CEO review
 - Day-of-week dropdown (Mon–Sun) on input form. Required for closed_days red-flag logic.
-  Stored in sessionStorage alongside other inputs (see Edit back-link below).
+  Included in URL params on form submit (see params.ts).
 - Vercel Analytics: `import { Analytics } from '@vercel/analytics/react'` in root layout.
   Custom events: `track('schedule_generated', { poi_count: N })` on form submit;
   `track('result_viewed', { flag_count: N })` on result page mount;
@@ -170,21 +172,113 @@ a sibling field on the affected entry. No separate corrections file.
   Evidence collected: page views, unique visitors, return visits, completion rate (% of sessions reaching result view).
   Note: client-side only — no backend persistence. Self-reported survey data supplements what analytics cannot capture.
 - Edit this list button: `<button>` labeled 'Edit this list' on the result page.
-  On click: read `waypoint_last_selection` from sessionStorage, navigate to selector page,
-  selector mounts and restores all 4 fields: `{ poi_ids: string[], start_time: string,
-  transport_mode: string, start_location: string, day_of_week: string }`.
-  State written to sessionStorage on form submit; cleared on new submission. Session-local by design (V1).
-  Multi-tab behavior: opening a second tab clobbers the shared sessionStorage key — accepted V1 limitation; note in TODOS.md.
-  V2 Shareable URL (DEFERRED) will supersede sessionStorage with URL query params.
+  On click: call `router.push('/?' + encodeParams(currentSelection))` using the decoded params already in memory.
+  Selector page mounts, reads URL params on mount via `decodeParams(searchParams)`, pre-fills all 5 fields.
+  Multi-tab behavior: each tab has its own URL — no clobber. Share the /result URL to regenerate the same itinerary on any device.
 - Transit estimate label: uniform text 'Estimated — verify with Google Maps' below each transit
   step in the result view. Applies to all transport modes (walk, jeepney, Grab) identically.
   Error profile differences between modes are not surfaced in V1.
 - Start-location dropdown: 4-5 named Metro Manila landmarks (Rizal Park, Manila Hotel,
   SM Mall of Asia, Intramuros Gate, NAIA Terminal 3) with hardcoded WGS84 coordinates.
 
+### Added by Eng review
+- `'use client'` boundaries (eng review D1):
+  REQUIRED on: `app/page.tsx` (uses useState, event handlers), `app/result/page.tsx` (uses useEffect, useSearchParams, useRouter), `components/ErrorBoundary.tsx` (class component with componentDidCatch).
+  NOT needed on: `lib/scheduler.ts` (pure function, server-safe), `lib/params.ts` (pure function, server-safe).
+  Rule: any component using React hooks or browser APIs must have `'use client'` as its first line. Next.js App Router defaults to Server Components — missing this directive causes a cryptic error on Day 1.
+- Vitest test runner (eng review D2): add `vitest.config.ts` in Week 1 scaffold.
+  ```ts
+  import { defineConfig } from 'vitest/config'
+  export default defineConfig({ test: { environment: 'node' } })
+  ```
+  Add to `package.json`: `"test": "vitest run"`, `"test:watch": "vitest"`.
+  Run `npm install --save-dev vitest @testing-library/react` in Week 1.
+- `.env.local` (eng review D3): create in project root before any local development.
+  ```
+  NEXT_PUBLIC_CITY=metro-manila
+  ```
+  This file is gitignored by default (Next.js scaffold). Set the same var on the Vercel dashboard for production.
+  Without this, `process.env.NEXT_PUBLIC_CITY` is `undefined` locally and all data imports fail.
+- URL params as result-page handoff (eng review D8 — promoted from T1 V2):
+  Form submit → `router.push('/result?' + encodeParams(selection))`.
+  Result page reads URL params via `useSearchParams()` (Next.js hook) + `decodeParams()`.
+  Guard: if `decodeParams` returns null → `router.replace('/')` in useEffect.
+  Edit back-link: `router.push('/?' + encodeParams(currentParams))` — selector pre-fills from URL.
+  Shareable result: /result URL can be copied and opened on any device; itinerary re-computes.
+- `scheduler-integration.test.tsx` (eng review D6): @testing-library/react component tests.
+  (1) form submit with 2 POIs: URL params contain correct encoded values
+  (2) result page mounts with valid URL: renders itinerary rows in correct order
+  (3) result page mounts with invalid/empty URL: redirects to /
+  (4) Edit back-link: navigates to / with URL params that pre-fill selector form
+- Display time overflow guard: format HH:MM with clamp — if computed minutes > 1439, display "23:59+" rather than "25:30". Prevents nonsensical output for schedules that run past midnight (edge case, no user flow, but defensive).
+
+### Added by Design review
+
+**Design tokens (design review D5/D6):**
+```css
+/* app/globals.css */
+:root {
+  --color-primary: #0D9488;        /* teal-600 */
+  --color-primary-hover: #0F766E;  /* teal-700 */
+  --color-bg: #FFFFFF;
+  --color-text: #0F172A;           /* slate-900 */
+  --color-border: #E2E8F0;         /* slate-200 */
+}
+```
+Font: Plus Jakarta Sans (Google Fonts). Import in `app/layout.tsx` via `next/font/google`.
+Weights loaded: 400 (body), 600 (headings, CTA, category labels).
+Apply globally: `font-family: 'Plus Jakarta Sans', sans-serif` on `<body>`.
+Type scale: page heading 18px/600, category label 12px/600 uppercase+tracking, body text 16px/400, CTA button 16px/600.
+Page background: white. Body text: slate-900. Card/row borders: slate-200.
+
+**Selector page layout (design review D2/D3):**
+Primary interaction: POI checkbox list. Form inputs are secondary constraints.
+Layout order (top → bottom): [1] page heading "Where do you want to go?" [2] subtitle "Select the places you want to visit, then tap Generate." [3] POI checkbox list grouped by category [4] "── Trip details ──" divider [5] 4 form inputs in 2×2 grid (start time, transport mode, start location, day) [6] CTA button.
+No header image, no splash screen, no onboarding modal.
+
+**CTA button copy (design review D4):**
+Disabled state: "Select places to plan your day" (slate-400, cursor-not-allowed).
+Enabled state: "Plan my day (N selected) →" where N is the checked POI count. Color: var(--color-primary) bg, white text, 16px/600.
+Button is full-width on mobile, max-w-sm centered on desktop.
+Submit is enabled when N ≥ 1.
+
+**App header (design review D8):**
+All pages render a persistent header: "Waypoint" wordmark in teal-600, 16px/600, left-aligned, top of page.
+No navigation links, no hamburger menu, no logo image.
+On print: header appears at top of print output, acts as document title.
+Implementation: `<header>` in `app/layout.tsx`, above `{children}`.
+
+**Result page heading and layout (design review D4/D9):**
+Primary heading: "Here's your day — Metro Manila" (18px/600).
+Subheading line: "[day] · Starting from [landmark] · [mode]" + "N stops · ~Nh · N flagged" (16px/400 slate-600).
+All-red banner placement: between the subheading line and the first stop row (when all selected POIs are closed).
+Utility bar below header: "← Edit this list" (left) and "[Print itinerary]" (right), 14px, slate-600. Hides on print.
+
+**Result page stop row layout (design review D9/D10):**
+Each stop is a full-width row block, NOT a card (no rounded border around each stop).
+Line 1: stop number (14px slate-400) + arrival time (16px/600) + POI name (16px/600). All on one line.
+Line 2: "~N min · [status]" where status is "open until HH:MM" / "Check hours before visiting" / "Closed today".
+Line 3 (conditional): POI notes field if non-null. 14px italic slate-600. Omit line entirely if notes is null.
+Transit connector between rows: "↓ N min by [mode] ~est." centered, 14px slate-400. Not a row — just a separator line.
+Flag styling: same as existing spec (bg-yellow-100 row + ⚠ label / bg-red-100 row + ✕ label) PLUS flag icon preceding stop number on line 1 (⚠ or ✕).
+Print view: line 3 notes hidden on print (adds noise). Transit connector visible. Flag colors preserved (print-color-adjust: exact).
+
+**POI checkbox row HTML (design review D7):**
+```html
+<label class="flex items-center gap-3 py-2 cursor-pointer hover:bg-gray-50">
+  <input type="checkbox" class="h-5 w-5 accent-teal-600 rounded" />
+  <span class="text-base">Fort Santiago</span>
+</label>
+```
+Tap target: full row width × minimum 44px height (py-2 + 16px text = ~44px). Mobile-safe.
+Each category group: `<fieldset>` + `<legend>` matching category name (Heritage, Museums, Parks, Markets, Churches). Addresses WCAG 2.0 Level A screen reader requirement.
+
+**Loading and transition states:**
+No loading state required. Scheduler runs synchronously (<50ms). Form submit triggers `router.push('/result?...')` immediately; Next.js handles page transition.
+No skeleton, no spinner, no progress bar.
+
 ## Deferred to TODOS.md
-- Shareable URL: encode POI list + start time + transport mode as URL query params for
-  copy-paste sharing. V2 feature. Implement after first test cycle confirms behavioral intent.
+- ~~Shareable URL~~ — PROMOTED TO V1 (eng review D8). Now implemented as URL params in params.ts.
 - Map view: V2 feature (design doc explicit). Requires Google Maps JS API.
 - Multi-day scheduling: V3+
 - Live POI data (API-driven): V3+
@@ -221,7 +315,7 @@ Blocker status for dev: NOT a blocker. Build UI with placeholder coordinates; sc
 
 | Week | Milestone |
 |------|-----------|
-| 1 | Next.js scaffold + `/lib/scheduler.ts` + unit tests. WoZ Google Form live (parallel). City locked. Framework decision locked (Next.js or Vite+React). |
+| 1 | ✅ DONE (2026-06-17) — Next.js 16 scaffold in `web/` + `lib/scheduler.ts` + `lib/params.ts` + `lib/constants.ts` + 18 unit tests (all pass). Design tokens + Plus Jakarta Sans + Waypoint header in layout. Placeholder data JSON created. WoZ Google Form live (parallel). Framework gate: Next.js cleared. |
 | 2 | POI selector + day-of-week dropdown + static JSON structure. Transit matrix script run. Contact Interview 5. |
 | 3 | Result view + flag rendering + print stylesheet + transit estimate labels. Edit back-link. |
 | 4 | Analytics + start-location dropdown. Spot-check begins (transit matrix 20%). |
@@ -238,14 +332,9 @@ Blocker status for dev: NOT a blocker. Build UI with placeholder coordinates; sc
    Note: this overrides the approved design doc. The update is required to keep the two
    documents consistent.
 
-2. **Team Next.js familiarity?** HARD DECISION GATE — Week 1 Day 1, no extensions.
-   If neither MVP Lead has shipped a Next.js App Router project: downgrade to Vite+React.
-   Default if gate is not decided by end of Week 1 Day 1: Vite+React. No extensions.
-   Framework choice does not affect scheduler logic or data schemas — only the shell.
-   Vite+React feasibility: Vite has less boilerplate than Next.js App Router. The 7-week
-   timeline is achievable with either stack. If the gate fails, no timeline adjustment needed.
-   Note: this overrides the Implementation Decisions table if the gate fails — team familiarity
-   takes precedence over the theoretical completeness score advantage of Next.js.
+2. ~~**Team Next.js familiarity?** HARD DECISION GATE — Week 1 Day 1, no extensions.~~
+   **RESOLVED 2026-06-17:** Next.js 16 App Router scaffold built and passing production build.
+   Gate cleared — Next.js confirmed.
 
 3. **WoZ parallel track owner?** Assign to Evidence Lead or CD Lead. 2-hour setup.
    Owner handles manual schedule responses. Confirm assignment Week 1 Day 1.
@@ -277,25 +366,50 @@ rather than implementation blockers. They are noted for the team to be aware of,
    followed on a real trip) requires follow-up with testers post-trip. Plan for a 2-week follow-up
    message from Evidence Lead to Week 7 testers who confirmed intent to travel.
 
-2. **sessionStorage multi-tab note (accepted V1 limitation):** Opening Waypoint in two browser
-   tabs will cause the second tab to clobber the first tab's session state. This is documented
-   as accepted and deferred to V2 (Shareable URL supersedes sessionStorage).
+2. **sessionStorage multi-tab limitation — RESOLVED by eng review:** URL params replaced sessionStorage as the result-page handoff (D8). Each browser tab has its own URL; no clobber. The /result URL is shareable and bookmarkable. This concern is closed.
 
 3. **Transit multiplier calibration:** The assumed speed multipliers (walk 4 km/h, jeepney
    12 km/h, Grab 20 km/h) are reasonable estimates for Metro Manila but will diverge from
    real transit times in peak hours. ±15% acceptance threshold mitigates this but does not
    eliminate it. Testers should be briefed that transit times are estimates.
 
+## Build Log
+
+> All paths below are relative to `web/` (the Next.js project root within the repo).
+
+### Phase 1 — Week 1 (2026-06-17)
+
+| File | Status | Notes |
+|------|--------|-------|
+| `web/` scaffold | ✅ | Next.js 16.2.9, TypeScript, Tailwind v4, App Router |
+| `vitest.config.ts` | ✅ | `environment: 'node'` |
+| `.env.local` | ✅ | `NEXT_PUBLIC_CITY=metro-manila` |
+| `app/globals.css` | ✅ | Waypoint design tokens; dark-mode removed per spec |
+| `app/layout.tsx` | ✅ | Plus Jakarta Sans 400/600; persistent `Waypoint` header |
+| `lib/constants.ts` | ✅ | 5 start-location landmarks with WGS84 coords |
+| `lib/scheduler.ts` | ✅ | Nearest-neighbor + Haversine fallback + tie-break + formatTime |
+| `lib/params.ts` | ✅ | `encodeParams` / `decodeParams`; null on missing/invalid |
+| `lib/scheduler.test.ts` | ✅ | 12 tests: happy path, all-red, all-yellow, single, clamp, tie-break ×2, Haversine, mixed, yellow boundary, formatTime ×2 |
+| `lib/params.test.ts` | ✅ | 6 tests: round-trip, empty, missing fields ×2, empty array, bad format |
+| `data/metro-manila/pois.json` | ⏳ | 1 placeholder POI; full 25-30 POI curation in Week 2 |
+| `data/metro-manila/transit-matrix.json` | ⏳ | Placeholder; matrix generation script in Week 2 |
+
+**Test result:** 18/18 pass. Production build: clean.
+
+**Implementation note:** App lives in `web/` subdirectory (not repo root) to keep planning docs and source separated. All spec paths (`app/page.tsx`, `lib/scheduler.ts`, etc.) are relative to `web/`.
+
+---
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 6 proposals, 5 accepted, 1 deferred; 9 deep-review scope items added; 3 TODOs |
-| Outside Voice | Claude subagent | Independent 2nd opinion | 1 | issues_found | 6 issues raised; 2 real tensions resolved; 4 clarifications applied |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | — | Not yet run |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | Not yet run |
+| Outside Voice | Claude subagent | Independent 2nd opinion | 2 | issues_found | CEO: 6 issues; Eng: 5 issues raised, 2 real tensions resolved (D8 URL params, D9 Haversine accepted) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 9 decisions (D1–D10); 8 issues folded into plan; 0 unresolved; 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 4/10 → 9/10; 9 decisions (D2–D10); 0 unresolved; 2 TODOs added (T4, T5) |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | Not yet run |
 
-**VERDICT:** CEO review CLEAR (0 unresolved decisions, 0 critical gaps). Eng Review required before any code ships.
+**VERDICT:** CEO + ENG + DESIGN CLEARED — ready to implement.
 
 NO UNRESOLVED DECISIONS
