@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { reasonText } from './reason'
-import type { StopReason } from './scheduler'
+import { reasonText, reasonLine } from './reason'
+import type { ScheduledStop, StopReason } from './scheduler'
 
 function makeReason(overrides: Partial<StopReason>): StopReason {
   return {
@@ -73,5 +73,40 @@ describe('reasonText', () => {
         'grab',
       ),
     ).toContain('(10 min by Grab)')
+  })
+})
+
+describe('reasonLine (placement-aware, single source of truth for page + exports)', () => {
+  function makeStop(over: Partial<ScheduledStop>): ScheduledStop {
+    return {
+      poi: { id: 'x' } as ScheduledStop['poi'],
+      arrivalTime: 540,
+      departureTime: 600,
+      transitFromPrev: 8,
+      yellowFlag: false,
+      redFlag: false,
+      reason: makeReason({ prevName: 'Fort Santiago', tieGroupSize: 1, minTransit: 8 }),
+      ...over,
+    }
+  }
+
+  it('optimized (and undefined) placement shows the nearest-neighbor reason', () => {
+    expect(reasonLine(makeStop({ placement: 'optimized' }), 'grab')).toBe(
+      'Closest from Fort Santiago — 8 min by Grab.',
+    )
+    // undefined placement is treated as optimized
+    expect(reasonLine(makeStop({}), 'grab')).toBe('Closest from Fort Santiago — 8 min by Grab.')
+  })
+
+  it('a pinned stop never claims an algorithmic reason', () => {
+    const line = reasonLine(makeStop({ placement: 'locked' }), 'grab')
+    expect(line).toMatch(/pinned by you/i)
+    expect(line).not.toMatch(/closest|nearest/i)
+  })
+
+  it('a hand-arranged stop says the user placed it', () => {
+    const line = reasonLine(makeStop({ placement: 'manual' }), 'grab')
+    expect(line).toMatch(/you placed this stop/i)
+    expect(line).not.toMatch(/closest|nearest/i)
   })
 })

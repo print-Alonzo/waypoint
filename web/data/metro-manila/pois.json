@@ -9,7 +9,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 90,
-    "notes": "Last entry 17:30. Entrance fee required."
+    "notes": "Last entry 17:30. Entrance fee required.",
+    "image": "/images/poi/fort-santiago.jpg",
+    "image_credit": {
+      "author": "Vyacheslav Argenberg",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Manila,_Fort_Santiago,_Walled_city_of_Intramuros,_Philippines.jpg"
+    }
   },
   {
     "id": "casa-manila",
@@ -19,9 +26,18 @@
     "lng": 120.9745,
     "open_time": "09:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 60,
-    "notes": "Restored Spanish-era colonial house museum."
+    "notes": "Restored Spanish-era colonial house museum.",
+    "image": "/images/poi/casa-manila.jpg",
+    "image_credit": {
+      "author": "CNEcija12345",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Casa_Manila_121.jpg"
+    }
   },
   {
     "id": "baluarte-de-san-diego",
@@ -33,7 +49,14 @@
     "close_time": "17:00",
     "closed_days": [],
     "recommended_duration_minutes": 45,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/baluarte-de-san-diego.jpg",
+    "image_credit": {
+      "author": "Diego Delso",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Baluarte_de_San_Diego,_Manila,_Filipinas,_2023-08-27,_DD_69.jpg"
+    }
   },
   {
     "id": "bahay-tsinoy",
@@ -43,7 +66,9 @@
     "lng": 120.975,
     "open_time": "09:00",
     "close_time": "17:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 60,
     "notes": "Chronicles the Chinese in Filipino life."
   },
@@ -57,7 +82,14 @@
     "close_time": "19:00",
     "closed_days": [],
     "recommended_duration_minutes": 45,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/plaza-san-luis-complex.jpg",
+    "image_credit": {
+      "author": "CNEcija12345",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Plaza_San_Luis_Complex_CNE.jpg"
+    }
   },
   {
     "id": "intramuros-walls-walk",
@@ -79,9 +111,18 @@
     "lng": 120.981,
     "open_time": "09:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 120,
-    "notes": "Free admission. Home of the Spoliarium."
+    "notes": "Free admission. Home of the Spoliarium.",
+    "image": "/images/poi/national-museum-fine-arts.jpg",
+    "image_credit": {
+      "author": "PhiliptheNumber1",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:National_Museum_of_Fine_Arts_(Old_Legislative_Building)_at_night_(Manila,_Philippines)(09-06-2024).jpg"
+    }
   },
   {
     "id": "national-museum-natural-history",
@@ -91,9 +132,18 @@
     "lng": 120.9812,
     "open_time": "09:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 120,
-    "notes": "Free admission. The Tree of Life atrium."
+    "notes": "Free admission. The Tree of Life atrium.",
+    "image": "/images/poi/national-museum-natural-history.jpg",
+    "image_credit": {
+      "author": "RoyKabanlit",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:National_Museum_of_Natural_History_(Manila)_Facade_-_Front_View.jpg"
+    }
   },
   {
     "id": "national-museum-anthropology",
@@ -103,9 +153,18 @@
     "lng": 120.9806,
     "open_time": "09:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 90,
-    "notes": "Free admission."
+    "notes": "Free admission.",
+    "image": "/images/poi/national-museum-anthropology.jpg",
+    "image_credit": {
+      "author": "Bahnfrend",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Exterior_of_the_National_Museum_of_Anthropology_(Manila),_2025_(02).jpg"
+    }
   },
   {
     "id": "metropolitan-museum-manila",
@@ -115,9 +174,18 @@
     "lng": 120.979,
     "open_time": "10:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 90,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/metropolitan-museum-manila.jpg",
+    "image_credit": {
+      "author": "Judgefloro",
+      "license": "Public domain",
+      "license_url": "",
+      "source_url": "https://commons.wikimedia.org/wiki/File:05328jfMetropolitan_Museum_Manila_Roxas_Boulevard_Malate_Manilafvf_01.jpg"
+    }
   },
   {
     "id": "museo-pambata",
@@ -127,9 +195,18 @@
     "lng": 120.976,
     "open_time": "09:00",
     "close_time": "17:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 90,
-    "notes": "Interactive children's museum."
+    "notes": "Interactive children's museum.",
+    "image": "/images/poi/museo-pambata.jpg",
+    "image_credit": {
+      "author": "Edgar Dann Alcantara, Sheena Thea Alcantara, Sheera Thea Alcantara (Wikipedia Takes Manila participant)",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Entrance_of_Museo_Pambata_in_2011.jpg"
+    }
   },
   {
     "id": "bsp-money-museum",
@@ -139,9 +216,19 @@
     "lng": 120.9788,
     "open_time": "09:00",
     "close_time": "16:00",
-    "closed_days": ["Saturday", "Sunday"],
+    "closed_days": [
+      "Saturday",
+      "Sunday"
+    ],
     "recommended_duration_minutes": 60,
-    "notes": "Currency and numismatic collection."
+    "notes": "Currency and numismatic collection.",
+    "image": "/images/poi/bsp-money-museum.jpg",
+    "image_credit": {
+      "author": "Pi3.124",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bangko_Sentral_ng_Pilipinas_Money_Museum_salakot_display.jpg"
+    }
   },
   {
     "id": "ayala-museum",
@@ -151,7 +238,9 @@
     "lng": 121.0244,
     "open_time": "10:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 120,
     "notes": "In Makati. Gold of Ancestors collection."
   },
@@ -163,7 +252,9 @@
     "lng": 121.051,
     "open_time": "09:00",
     "close_time": "18:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 150,
     "notes": "In BGC. Timed-entry science museum."
   },
@@ -175,9 +266,18 @@
     "lng": 120.9893,
     "open_time": "08:00",
     "close_time": "17:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 45,
-    "notes": "Former circular cemetery turned garden."
+    "notes": "Former circular cemetery turned garden.",
+    "image": "/images/poi/paco-park.jpg",
+    "image_credit": {
+      "author": "Diego Delso",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Parque_Paco,_Manila,_Filipinas,_2023-08-26,_DD_49.jpg"
+    }
   },
   {
     "id": "arroceros-forest-park",
@@ -187,9 +287,18 @@
     "lng": 120.9817,
     "open_time": "06:00",
     "close_time": "17:00",
-    "closed_days": ["Monday"],
+    "closed_days": [
+      "Monday"
+    ],
     "recommended_duration_minutes": 45,
-    "notes": "Manila's last green lung."
+    "notes": "Manila's last green lung.",
+    "image": "/images/poi/arroceros-forest-park.jpg",
+    "image_credit": {
+      "author": "RFNirmala",
+      "license": "CC0",
+      "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Arroceros_Forest_Park_22Dec2025_01.jpg"
+    }
   },
   {
     "id": "manila-ocean-park",
@@ -201,7 +310,14 @@
     "close_time": "20:00",
     "closed_days": [],
     "recommended_duration_minutes": 150,
-    "notes": "Oceanarium complex. Ticketed attractions."
+    "notes": "Oceanarium complex. Ticketed attractions.",
+    "image": "/images/poi/manila-ocean-park.jpg",
+    "image_credit": {
+      "author": "Vyacheslav Argenberg",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Manila,_Manila_Ocean_Park,_Philippines.jpg"
+    }
   },
   {
     "id": "mehan-garden",
@@ -213,7 +329,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/mehan-garden.jpg",
+    "image_credit": {
+      "author": "Lawrence Ruiz",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Mehan_Garden_Gate.jpg"
+    }
   },
   {
     "id": "liwasang-bonifacio",
@@ -225,7 +348,14 @@
     "close_time": "20:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/liwasang-bonifacio.jpg",
+    "image_credit": {
+      "author": "PhiliptheNumber1",
+      "license": "CC0",
+      "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Liwasang_Bonifacio,_Ermita,_Manila_(February_14,_2024).jpg"
+    }
   },
   {
     "id": "quiapo-market",
@@ -237,7 +367,14 @@
     "close_time": "19:00",
     "closed_days": [],
     "recommended_duration_minutes": 60,
-    "notes": "Bustling street market near Quiapo Church."
+    "notes": "Bustling street market near Quiapo Church.",
+    "image": "/images/poi/quiapo-market.jpg",
+    "image_credit": {
+      "author": "Ralff Nestor Nacor",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Plaza_Miranda,_Quiapo,_Manila,_Feb_2025_(2).jpg"
+    }
   },
   {
     "id": "divisoria-168-mall",
@@ -249,7 +386,14 @@
     "close_time": "19:00",
     "closed_days": [],
     "recommended_duration_minutes": 90,
-    "notes": "Bargain shopping. Very crowded on weekends."
+    "notes": "Bargain shopping. Very crowded on weekends.",
+    "image": "/images/poi/divisoria-168-mall.jpg",
+    "image_credit": {
+      "author": "Ralff Nestor Nacor",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Divisoria_Mall,_San_Nicolas,_Manila,_Oct_2025.jpg"
+    }
   },
   {
     "id": "dangwa-flower-market",
@@ -261,7 +405,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 45,
-    "notes": "Wholesale cut-flower district."
+    "notes": "Wholesale cut-flower district.",
+    "image": "/images/poi/dangwa-flower-market.jpg",
+    "image_credit": {
+      "author": "Zarate123",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Dangwa_Flower_Market_Manila_17.jpg"
+    }
   },
   {
     "id": "salcedo-saturday-market",
@@ -271,7 +422,14 @@
     "lng": 121.024,
     "open_time": "07:00",
     "close_time": "14:00",
-    "closed_days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "closed_days": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
     "recommended_duration_minutes": 60,
     "notes": "In Makati. Open Saturdays only."
   },
@@ -285,7 +443,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": "Hours vary during Mass and weddings."
+    "notes": "Hours vary during Mass and weddings.",
+    "image": "/images/poi/manila-cathedral.jpg",
+    "image_credit": {
+      "author": "Markadan",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Manila_Cathedral,_Intramuros_Manila.jpg"
+    }
   },
   {
     "id": "san-agustin-church",
@@ -297,7 +462,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 45,
-    "notes": "UNESCO World Heritage Site. Adjacent museum is ticketed."
+    "notes": "UNESCO World Heritage Site. Adjacent museum is ticketed.",
+    "image": "/images/poi/san-agustin-church.jpg",
+    "image_credit": {
+      "author": "Anyo Niminus",
+      "license": "Public domain",
+      "license_url": "",
+      "source_url": "https://commons.wikimedia.org/wiki/File:San_Agustin_Church,_Intramuros,_Manila,_Philippines.jpg"
+    }
   },
   {
     "id": "quiapo-church",
@@ -309,7 +481,14 @@
     "close_time": "20:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": "Home of the Black Nazarene. Busiest on Fridays."
+    "notes": "Home of the Black Nazarene. Busiest on Fridays.",
+    "image": "/images/poi/quiapo-church.jpg",
+    "image_credit": {
+      "author": "Allan Jay Quesada",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Allan_Jay_Quesada-_Quiapo_Church_DSC_0065_The_Minor_Basilica_of_the_Black_Nazarene_or_Quiapo_Church,_Manila.JPG"
+    }
   },
   {
     "id": "binondo-church",
@@ -321,7 +500,14 @@
     "close_time": "19:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": "Minor Basilica of San Lorenzo Ruiz."
+    "notes": "Minor Basilica of San Lorenzo Ruiz.",
+    "image": "/images/poi/binondo-church.jpg",
+    "image_credit": {
+      "author": "Patrick Roque",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Binondo_Church_in_front_of_Plaza_San_Lorenzo_Ruiz,_Binondo,_Manila.jpg"
+    }
   },
   {
     "id": "malate-church",
@@ -333,6 +519,13 @@
     "close_time": "19:00",
     "closed_days": [],
     "recommended_duration_minutes": 30,
-    "notes": null
+    "notes": null,
+    "image": "/images/poi/malate-church.jpg",
+    "image_credit": {
+      "author": "patrickroque01",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Malate_Church_(MH_Del_Pilar,_Malate,_Manila;_01-01-2020).jpg"
+    }
   }
 ]

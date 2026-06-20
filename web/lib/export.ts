@@ -2,7 +2,7 @@ import type { ScheduledStop } from './scheduler'
 import { parseTime } from './scheduler'
 import type { ScheduleParams } from './params'
 import { modeLabel } from './constants'
-import { reasonText } from './reason'
+import { reasonLine } from './reason'
 
 // Share / export of a planned itinerary as copyable plain text and an RFC 5545
 // (.ics) calendar file. Kept PURE (no DOM, no ambient Date) so it is unit-testable
@@ -195,7 +195,7 @@ export function buildIcs(input: ExportInput, now: Date): string {
     const descParts = [
       stopStatusLine(stop),
       `From ${from}: ${stop.transitFromPrev} min by ${mode}`,
-      `Why this stop: ${reasonText(stop.reason, params.transport_mode)}`,
+      `Why this stop: ${reasonLine(stop, params.transport_mode)}`,
     ]
     if (stop.poi.notes) descParts.push(stop.poi.notes)
     descParts.push('Estimated — verify with Google Maps.')
@@ -264,7 +264,7 @@ export function buildItineraryText(input: ExportInput): string {
     const tag = stopTag(stop)
     out.push(`${i + 1}. ${wallClock(stop.arrivalTime)}  ${stop.poi.name}${tag ? '  ' + tag : ''}`)
     out.push(`   ~${stop.poi.recommended_duration_minutes} min · ${stopStatusLine(stop)}`)
-    out.push(`   Why this stop: ${reasonText(stop.reason, params.transport_mode)}`)
+    out.push(`   Why this stop: ${reasonLine(stop, params.transport_mode)}`)
     if (stop.poi.notes) out.push(`   ${stop.poi.notes}`)
   })
 

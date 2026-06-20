@@ -23,12 +23,13 @@ vi.mock('next/navigation', () => ({
 }))
 
 // Stub the schedule so we exercise the formatter-to-component seam for the
-// tie-group reason copy WITHOUT depending on (placeholder) dataset specifics —
-// parseTime/formatTime/types stay real.
+// tie-group reason copy WITHOUT depending on (placeholder) dataset specifics.
+// ResultView now schedules via scheduleAlong, so that's the seam to stub;
+// optimizeOrder (used to derive the order) and parseTime/types stay real.
 const stubbed = vi.hoisted(() => ({ stops: [] as ScheduledStop[] }))
 vi.mock('@/lib/scheduler', async (importActual) => {
   const actual = (await importActual()) as typeof import('@/lib/scheduler')
-  return { ...actual, scheduleItinerary: () => stubbed.stops }
+  return { ...actual, scheduleAlong: () => stubbed.stops }
 })
 
 describe('ResultView renders tie-group reason copy', () => {

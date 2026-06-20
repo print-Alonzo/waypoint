@@ -9,6 +9,15 @@ export type POI = {
   closed_days: string[]
   recommended_duration_minutes: number
   notes: string | null
+  // Optional featured photo (only curated landmarks have one). CC-licensed; the
+  // credit must be displayed wherever the image is shown.
+  image?: string
+  image_credit?: {
+    author: string
+    license: string
+    license_url: string
+    source_url: string
+  }
 }
 
 export type TransitMatrix = {
@@ -36,6 +45,15 @@ export type StopReason = {
   closeTime: string // winner's close_time (for the "closes earliest" clause)
 }
 
+// Who decided this stop's position. Drives the faithful "Why this stop" line:
+// only an 'optimized' stop may show the algorithm's nearest-neighbor reasoning.
+//   optimized → placed by the nearest-neighbor optimizer (carries a real reason)
+//   locked    → pinned to this position by the user; the optimizer worked around it
+//   manual    → the user hand-arranged this order (no algorithmic claim)
+// Optional so existing ScheduledStop literals (test factories) stay valid;
+// `undefined` is treated as 'optimized'.
+export type Placement = 'optimized' | 'locked' | 'manual'
+
 export type ScheduledStop = {
   poi: POI
   arrivalTime: number
@@ -44,6 +62,7 @@ export type ScheduledStop = {
   yellowFlag: boolean
   redFlag: boolean
   reason: StopReason
+  placement?: Placement
 }
 
 export function parseTime(hhmm: string): number {
@@ -99,6 +118,13 @@ type Selection = {
 }
 
 function selectNext(candidates: Array<{ poi: POI; transit: number }>): Selection {
+  // Defensive: an empty list would make Math.min(...[]) = Infinity and
+  // [].reduce(...) throw a raw "Reduce of empty array". optimizeOrder only ever
+  // hits this with duplicate POI ids (free Set < positions); callers dedupe their
+  // input, and ResultView additionally catches this to redirect gracefully.
+  if (candidates.length === 0) {
+    throw new Error('selectNext: no candidates (duplicate or empty POI input)')
+  }
   const minTransit = Math.min(...candidates.map((c) => c.transit))
   const tieGroup = candidates.filter((c) => c.transit - minTransit < 5)
   const maxTransit = Math.max(...tieGroup.map((c) => c.transit))
@@ -131,6 +157,128 @@ function selectNext(candidates: Array<{ poi: POI; transit: number }>): Selection
   }
 }
 
+// Greedy nearest-neighbor that fills the visit order, keeping any `lockedIds` POI
+// fixed at its index in `orderedPOIs` and slotting the rest nearest-next around
+// them. Pure. With an EMPTY lock set it reproduces scheduleItinerary's order and
+// per-stop reasons exactly (locked in by an equivalence test) — they share
+// `selectNext`, and candidates are filtered in `orderedPOIs` order so the
+// array-order tie-break is identical. Returns the resolved POI order plus, for
+// each optimizer-PLACED (free) stop, its faithful StopReason (locked stops are
+// pinned by the user, so they get no algorithmic reason).
+export function optimizeOrder(
+  orderedPOIs: POI[],
+  lockedIds: Set<string>,
+  transitMatrix: TransitMatrix,
+  startLocationId: string,
+  startLocationCoords: { lat: number; lng: number },
+  transportMode: TransportMode,
+): { order: POI[]; reasonById: Record<string, StopReason> } {
+  const lockedAt = new Map<number, POI>()
+  orderedPOIs.forEach((p, i) => {
+    if (lockedIds.has(p.id)) lockedAt.set(i, p)
+  })
+  const free = new Set(orderedPOIs.filter((p) => !lockedIds.has(p.id)).map((p) => p.id))
+
+  const order: POI[] = []
+  const reasonById: Record<string, StopReason> = {}
+  let prevId = startLocationId
+  let prevCoords: { lat: number; lng: number } = startLocationCoords
+  let prevName: string | null = null
+
+  for (let pos = 0; pos < orderedPOIs.length; pos++) {
+    const locked = lockedAt.get(pos)
+    if (locked) {
+      order.push(locked)
+      prevId = locked.id
+      prevCoords = { lat: locked.lat, lng: locked.lng }
+      prevName = locked.name
+      continue
+    }
+
+    const candidates = orderedPOIs
+      .filter((p) => free.has(p.id))
+      .map((poi) => ({
+        poi,
+        transit: getTransitTime(transitMatrix, prevId, poi.id, transportMode, prevCoords, poi),
+      }))
+
+    const sel = selectNext(candidates)
+    free.delete(sel.poi.id)
+    order.push(sel.poi)
+    reasonById[sel.poi.id] = {
+      prevName,
+      minTransit: sel.minTransit,
+      maxTransit: sel.maxTransit,
+      tieGroupSize: sel.tieGroupSize,
+      decidedByClose: sel.decidedByClose,
+      closeTime: sel.poi.close_time,
+    }
+    prevId = sel.poi.id
+    prevCoords = { lat: sel.poi.lat, lng: sel.poi.lng }
+    prevName = sel.poi.name
+  }
+
+  return { order, reasonById }
+}
+
+// Compute arrival/departure/transit/flags for a FIXED visit order (no reordering).
+// `decorate` supplies each stop's placement + reason from the caller's context
+// (who placed it); omitted ⇒ 'optimized' with a distance-only reason. Pure.
+export function scheduleAlong(
+  orderedPOIs: POI[],
+  transitMatrix: TransitMatrix,
+  startLocationId: string,
+  startLocationCoords: { lat: number; lng: number },
+  startTime: string,
+  transportMode: TransportMode,
+  dayOfWeek: string,
+  decorate?: (
+    poi: POI,
+    index: number,
+    prevName: string | null,
+    transit: number,
+  ) => { placement: Placement; reason: StopReason },
+): ScheduledStop[] {
+  let prevId = startLocationId
+  let prevCoords: { lat: number; lng: number } = startLocationCoords
+  let prevName: string | null = null
+  let currentTime = parseTime(startTime)
+
+  return orderedPOIs.map((poi, i) => {
+    const transit = getTransitTime(transitMatrix, prevId, poi.id, transportMode, prevCoords, poi)
+    const arrival = currentTime + transit
+    const departure = arrival + Math.max(poi.recommended_duration_minutes, 1)
+    const decorated = decorate?.(poi, i, prevName, transit) ?? {
+      placement: 'optimized' as Placement,
+      reason: {
+        prevName,
+        minTransit: transit,
+        maxTransit: transit,
+        tieGroupSize: 1,
+        decidedByClose: false,
+        closeTime: poi.close_time,
+      },
+    }
+    const stop: ScheduledStop = {
+      poi,
+      arrivalTime: arrival,
+      departureTime: departure,
+      transitFromPrev: transit,
+      yellowFlag: arrival > parseTime(poi.close_time),
+      redFlag: poi.closed_days.includes(dayOfWeek),
+      reason: decorated.reason,
+      placement: decorated.placement,
+    }
+    prevId = poi.id
+    prevCoords = { lat: poi.lat, lng: poi.lng }
+    prevName = poi.name
+    currentTime = departure
+    return stop
+  })
+}
+
+// Full optimize + schedule (the default, no locks). Thin wrapper over
+// optimizeOrder + scheduleAlong so there is ONE nearest-neighbor implementation.
 export function scheduleItinerary(
   selectedPOIs: POI[],
   transitMatrix: TransitMatrix,
@@ -142,89 +290,23 @@ export function scheduleItinerary(
 ): ScheduledStop[] {
   if (selectedPOIs.length === 0) return []
 
-  const startMinutes = parseTime(startTime)
+  const { order, reasonById } = optimizeOrder(
+    selectedPOIs,
+    new Set(),
+    transitMatrix,
+    startLocationId,
+    startLocationCoords,
+    transportMode,
+  )
 
-  // Step 0: find first stop (nearest from start location)
-  const step0Candidates = selectedPOIs.map((poi) => ({
-    poi,
-    transit: getTransitTime(
-      transitMatrix,
-      startLocationId,
-      poi.id,
-      transportMode,
-      startLocationCoords,
-      poi,
-    ),
-  }))
-
-  const first = selectNext(step0Candidates)
-  const unvisited = new Set(selectedPOIs.map((p) => p.id))
-  unvisited.delete(first.poi.id)
-
-  const result: ScheduledStop[] = []
-
-  const firstArrival = startMinutes + first.transit
-  const firstDeparture = firstArrival + Math.max(first.poi.recommended_duration_minutes, 1)
-  result.push({
-    poi: first.poi,
-    arrivalTime: firstArrival,
-    departureTime: firstDeparture,
-    transitFromPrev: first.transit,
-    yellowFlag: firstArrival > parseTime(first.poi.close_time),
-    redFlag: first.poi.closed_days.includes(dayOfWeek),
-    reason: {
-      prevName: null,
-      minTransit: first.minTransit,
-      maxTransit: first.maxTransit,
-      tieGroupSize: first.tieGroupSize,
-      decidedByClose: first.decidedByClose,
-      closeTime: first.poi.close_time,
-    },
-  })
-
-  let prevPoi = first.poi
-  let currentTime = firstDeparture
-
-  while (unvisited.size > 0) {
-    const candidates = selectedPOIs
-      .filter((p) => unvisited.has(p.id))
-      .map((poi) => ({
-        poi,
-        transit: getTransitTime(
-          transitMatrix,
-          prevPoi.id,
-          poi.id,
-          transportMode,
-          prevPoi,
-          poi,
-        ),
-      }))
-
-    const next = selectNext(candidates)
-    unvisited.delete(next.poi.id)
-
-    const arrival = currentTime + next.transit
-    const departure = arrival + Math.max(next.poi.recommended_duration_minutes, 1)
-    result.push({
-      poi: next.poi,
-      arrivalTime: arrival,
-      departureTime: departure,
-      transitFromPrev: next.transit,
-      yellowFlag: arrival > parseTime(next.poi.close_time),
-      redFlag: next.poi.closed_days.includes(dayOfWeek),
-      reason: {
-        prevName: prevPoi.name,
-        minTransit: next.minTransit,
-        maxTransit: next.maxTransit,
-        tieGroupSize: next.tieGroupSize,
-        decidedByClose: next.decidedByClose,
-        closeTime: next.poi.close_time,
-      },
-    })
-
-    prevPoi = next.poi
-    currentTime = departure
-  }
-
-  return result
+  return scheduleAlong(
+    order,
+    transitMatrix,
+    startLocationId,
+    startLocationCoords,
+    startTime,
+    transportMode,
+    dayOfWeek,
+    (poi) => ({ placement: 'optimized', reason: reasonById[poi.id] }),
+  )
 }
