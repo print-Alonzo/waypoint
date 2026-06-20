@@ -38,10 +38,17 @@ This item is no longer deferred.
 
 ---
 
-### T2: Map view
+### ~~T2: Map view~~ — DONE (2026-06-20)
 **Priority:** P3  
 **Effort:** M (human: ~8h / CC: ~1h)  
 **Depends on:** V1 complete + at least 1 tester requests 'can I see this on a map?'
+
+**Status:** Done. `web/components/MapView.tsx` renders the ordered itinerary on a Leaflet +
+OpenStreetMap map (no API key): a Start dot, one numbered pin per stop coloured by flag state
+(coral open / amber check-hours / red closed) so the map echoes the list, and a dashed route line
+through the stops in visit order. Loaded client-only via `next/dynamic({ ssr: false })` (Leaflet
+needs `window`); shown on `/result` above the list and hidden from print — the text list stays the
+print + accessible artifact. Pin styles are token-driven in `app/globals.css` (`.wp-pin*`).
 
 **What:** Show the ordered itinerary as numbered pins on an interactive map (Leaflet + OSM or
 Google Maps JS API). Pins labeled 1, 2, 3... in visit order. Lines connecting them.

@@ -14,6 +14,7 @@ source separated; all spec paths are relative to `web/`.
 
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4**
+- **Leaflet + OpenStreetMap** for the result-page route map (no API key)
 - **Vitest** for unit + component tests
 - No backend — scheduling runs client-side over static JSON data; deploys to Vercel.
 
@@ -46,11 +47,14 @@ app/                  App Router routes
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/ResultView)
   layout.tsx          Root layout: font + persistent header
   globals.css         Design tokens + print rules
-components/            Client components (Selector, ResultView, ErrorBoundary)
+components/            Client components (Selector, ResultView, MapView, ErrorBoundary)
+  MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
 lib/
-  scheduler.ts        Pure nearest-neighbor scheduler (data passed in as args)
+  scheduler.ts        Pure nearest-neighbor scheduler; emits per-stop reason data
+  reason.ts           Formats the "Why this stop" explanation from scheduler reason data
+  export.ts           Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
   params.ts           URL-param encode/decode (selector ⇄ result handoff)
-  constants.ts        Start landmarks, categories, days, transport modes
+  constants.ts        Start landmarks, categories, days, transport modes, modeLabel
   data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
 data/<city>/          pois.json + transit-matrix.json
 scripts/
