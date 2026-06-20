@@ -2,9 +2,10 @@ import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 
+// Plus Jakarta Sans stands in for Airbnb's proprietary "Cereal" typeface.
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['400', '600'],
+  weight: ['400', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={plusJakartaSans.className}>
-      <body className="min-h-screen flex flex-col">
-        <header className="px-4 py-3 border-b border-[var(--color-border)]">
-          <span className="text-base font-semibold text-[#0D9488]">Waypoint</span>
+      <body className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
+        <header className="sticky top-0 z-10 bg-[var(--color-bg)] border-b border-[var(--color-border)] px-5 py-4">
+          <span className="text-xl font-bold tracking-tight text-[var(--color-primary)]">
+            Waypoint
+          </span>
         </header>
         <main className="flex-1">{children}</main>
       </body>
