@@ -1,11 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #0D9488;
-  --color-primary-hover: #0F766E;
-  --color-bg: #FFFFFF;
-  --color-text: #0F172A;
-  --color-border: #E2E8F0;
+  /* Airbnb-inspired palette (pivot 2026-06-20) */
+  --color-primary: #ff385c; /* Airbnb "Rausch" */
+  --color-primary-hover: #e31c5f;
+  --color-text: #222222;
+  --color-text-muted: #717171;
+  --color-border: #dddddd;
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f7f7;
+
+  /* Semantic flag tints — background is the primary signal (WCAG-safe with dark text) */
+  --color-flag-warning-bg: #fff7e6;
+  --color-flag-warning-border: #e7a33e;
+  --color-flag-warning-text: #8a5a00;
+  --color-flag-error-bg: #fff0f1;
+  --color-flag-error-border: #ff385c;
+  --color-flag-error-text: #a3001b;
 }
 
 body {
@@ -16,5 +27,16 @@ body {
 @media print {
   .no-print {
     display: none !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+  /* Preserve flag-row tint backgrounds in print (Chrome + Safari) */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    size: portrait;
   }
 }

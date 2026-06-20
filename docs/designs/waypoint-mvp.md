@@ -134,8 +134,9 @@ a sibling field on the affected entry. No separate corrections file.
   top-of-page banner: "All selected places are closed on this day."
 - Flag types: yellow warning (arrival_time > close_time), red error (day_of_week in closed_days)
   Flag styling (accessibility): use row background color, not text/icon color alone.
-  Yellow flag row: `bg-yellow-100` background + dark text + ⚠ label "Check hours".
-  Red flag row: `bg-red-100` background + dark text + ✕ label "Closed".
+  Yellow flag card: warning tint background (`--color-flag-warning-bg`) + dark text + ⚠ label "Check hours".
+  Red flag card: error tint background (`--color-flag-error-bg`) + dark text + ✕ label "Closed".
+  (Airbnb pivot — were `bg-yellow-100` / `bg-red-100`.)
   Background shift is the primary signal — readable regardless of color perception.
   WCAG AA compliant (background contrast ratio sufficient for both flag states).
 - Print stylesheet (`window.print()`, no JS library). Print triggered by a `<button>`
@@ -214,22 +215,36 @@ a sibling field on the affected entry. No separate corrections file.
 
 ### Added by Design review
 
-**Design tokens (design review D5/D6):**
+> **⚠ Design pivot — Airbnb language (2026-06-20):** The project pivoted to an Airbnb-inspired design
+> language. This **supersedes the teal/slate tokens and the "not a card" decisions** in the
+> design-review items below — the originals are retained for provenance, struck through where relevant.
+> Net changes: primary → Airbnb "Rausch" coral `#FF385C` (hover `#E31C5F`); text `#222222`, muted
+> `#717171`, border `#DDDDDD`, subtle bg `#F7F7F7`; result stops are now **rounded cards with soft
+> shadow**; flag styling uses softened Airbnb semantic tints. Plus Jakarta Sans is retained as a
+> license-safe stand-in for Airbnb's proprietary "Cereal" typeface. **Accessibility is unchanged:**
+> the flag card **background remains the primary signal** (not color alone), and category groups keep
+> `<fieldset>`/`<legend>`. Implemented tokens live in `web/app/globals.css`.
+
+**Design tokens (design review D5/D6 — palette superseded by the Airbnb pivot above):**
 ```css
-/* app/globals.css */
+/* app/globals.css — current (Airbnb) */
 :root {
-  --color-primary: #0D9488;        /* teal-600 */
-  --color-primary-hover: #0F766E;  /* teal-700 */
+  --color-primary: #FF385C;        /* Airbnb "Rausch" */
+  --color-primary-hover: #E31C5F;
   --color-bg: #FFFFFF;
-  --color-text: #0F172A;           /* slate-900 */
-  --color-border: #E2E8F0;         /* slate-200 */
+  --color-text: #222222;
+  --color-text-muted: #717171;
+  --color-border: #DDDDDD;
+  --color-bg-subtle: #F7F7F7;
 }
+/* Original design-review palette (superseded): teal-600 #0D9488 / #0F766E,
+   slate-900 text #0F172A, slate-200 border #E2E8F0 */
 ```
 Font: Plus Jakarta Sans (Google Fonts). Import in `app/layout.tsx` via `next/font/google`.
 Weights loaded: 400 (body), 600 (headings, CTA, category labels).
 Apply globally: `font-family: 'Plus Jakarta Sans', sans-serif` on `<body>`.
 Type scale: page heading 18px/600, category label 12px/600 uppercase+tracking, body text 16px/400, CTA button 16px/600.
-Page background: white. Body text: slate-900. Card/row borders: slate-200.
+Page background: white. Body text: #222222. Card/row borders: #DDDDDD. (Airbnb pivot — was slate-900 / slate-200.)
 
 **Selector page layout (design review D2/D3):**
 Primary interaction: POI checkbox list. Form inputs are secondary constraints.
@@ -243,7 +258,7 @@ Button is full-width on mobile, max-w-sm centered on desktop.
 Submit is enabled when N ≥ 1.
 
 **App header (design review D8):**
-All pages render a persistent header: "Waypoint" wordmark in teal-600, 16px/600, left-aligned, top of page.
+All pages render a persistent header: "Waypoint" wordmark in coral `--color-primary` (#FF385C), bold, left-aligned, top of page. (Airbnb pivot — was teal-600.)
 No navigation links, no hamburger menu, no logo image.
 On print: header appears at top of print output, acts as document title.
 Implementation: `<header>` in `app/layout.tsx`, above `{children}`.
@@ -255,12 +270,12 @@ All-red banner placement: between the subheading line and the first stop row (wh
 Utility bar below header: "← Edit this list" (left) and "[Print itinerary]" (right), 14px, slate-600. Hides on print.
 
 **Result page stop row layout (design review D9/D10):**
-Each stop is a full-width row block, NOT a card (no rounded border around each stop).
+Each stop is a **rounded card** (rounded-xl + soft shadow), per the Airbnb pivot — this supersedes the original "full-width row block, NOT a card" decision.
 Line 1: stop number (14px slate-400) + arrival time (16px/600) + POI name (16px/600). All on one line.
 Line 2: "~N min · [status]" where status is "open until HH:MM" / "Check hours before visiting" / "Closed today".
 Line 3 (conditional): POI notes field if non-null. 14px italic slate-600. Omit line entirely if notes is null.
 Transit connector between rows: "↓ N min by [mode] ~est." centered, 14px slate-400. Not a row — just a separator line.
-Flag styling: same as existing spec (bg-yellow-100 row + ⚠ label / bg-red-100 row + ✕ label) PLUS flag icon preceding stop number on line 1 (⚠ or ✕).
+Flag styling: Airbnb semantic tints (warning tint card + ⚠ label / error tint card + ✕ label) PLUS flag icon preceding stop number on line 1 (⚠ or ✕). (Airbnb pivot — were bg-yellow-100 / bg-red-100.)
 Print view: line 3 notes hidden on print (adds noise). Transit connector visible. Flag colors preserved (print-color-adjust: exact).
 
 **POI checkbox row HTML (design review D7):**

@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Waypoint — web app
 
-## Getting Started
+Waypoint is a single-city trip-itinerary optimizer. You pick the places you want to visit;
+the algorithm optimizes only the **order** of your day and shows all its work — flagging stops
+that are closed or hard to reach in time instead of silently dropping them. The trust comes from
+transparency: you choose *what*, Waypoint sequences *when*.
 
-First, run the development server:
+This is the Next.js front-end. The product spec lives at
+[`../docs/designs/waypoint-mvp.md`](../docs/designs/waypoint-mvp.md), and deferred work is in
+[`../TODOS.md`](../TODOS.md). The app lives in this `web/` subdirectory to keep planning docs and
+source separated; all spec paths are relative to `web/`.
+
+## Stack
+
+- **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- **Tailwind CSS v4**
+- **Vitest** for unit + component tests
+- No backend — scheduling runs client-side over static JSON data; deploys to Vercel.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The selector page (`/`) lets you pick POIs and trip details, then routes to `/result` with the
+itinerary encoded in the URL (shareable, bookmarkable, refresh-safe).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | What it does |
+|--------|--------------|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run test` | Run all unit + component tests once |
+| `npm run test:watch` | Tests in watch mode |
+| `npm run gen:matrix` | Regenerate `transit-matrix.json` from `pois.json` (Haversine × per-mode speed) |
+| `npm run lint` | ESLint |
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/                  App Router routes
+  page.tsx            Selector (Suspense → components/Selector)
+  result/page.tsx     Result view (ErrorBoundary → Suspense → components/ResultView)
+  layout.tsx          Root layout: font + persistent header
+  globals.css         Design tokens + print rules
+components/            Client components (Selector, ResultView, ErrorBoundary)
+lib/
+  scheduler.ts        Pure nearest-neighbor scheduler (data passed in as args)
+  params.ts           URL-param encode/decode (selector ⇄ result handoff)
+  constants.ts        Start landmarks, categories, days, transport modes
+  data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
+data/<city>/          pois.json + transit-matrix.json
+scripts/
+  generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduler.ts)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Data / cities
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The active city is chosen at build time via `NEXT_PUBLIC_CITY` (see `.env.local`,
+default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop in a new
+`data/<slug>/` folder, register it in `lib/data.ts`, and set the env var — no other code changes.
 
-## Deploy on Vercel
+> **Note:** the current `data/metro-manila/` POIs are **placeholder** data for build and demo.
+> Real POI curation is owned by the venture lead (spec open question #1), and transit-matrix
+> values are computed estimates pending the spot-check pass (spec Weeks 4–5).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Design language
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The UI follows an **Airbnb-inspired** design language (coral `#FF385C` primary, rounded cards,
+soft shadows, generous whitespace), using **Plus Jakarta Sans** as a license-safe stand-in for
+Airbnb's proprietary Cereal typeface. See the design tokens in `app/globals.css` and the design
+pivot note in the spec.
