@@ -39,6 +39,11 @@ export const TRANSPORT_MODES = [
   { value: 'grab', label: 'Grab' },
 ] as const
 
+// The fixed lunch window reserved by the "lunch break" toggle (minutes from
+// midnight: 12:00–13:30). Shared so the result page, what-if drawer, and the
+// compare view all reserve the same block.
+export const LUNCH_WINDOW = { start: 12 * 60, end: 13 * 60 + 30 } as const
+
 // Human label for a transport mode value. Shared by the transit connector and the
 // reason line so mode wording stays consistent on a single card.
 export function modeLabel(value: string): string {

@@ -160,6 +160,40 @@ Airbnb's proprietary **Cereal** typeface.
   `TRANSP:TRANSPARENT` (we avoid `STATUS:CANCELLED`, which some clients drop — hiding a stop would
   break the transparency guarantee).
 
+## Power features (feature-flagged)
+
+All of the below are gated by [`lib/features.ts`](lib/features.ts) — one boolean each; setting it
+`false` removes the entry point and tree-shakes the code out. They preserve the transparency thesis:
+nothing is dropped, and every estimate is shown as a labelled range.
+
+- **"Adjust your day" panel** ([`components/ResultView.tsx`](components/ResultView.tsx)): a bordered
+  `no-print` section grouping the result-page options — a **lunch break** checkbox (reserves
+  `LUNCH_WINDOW` 12:00–13:30; later arrivals shift, with a centered "🍴 Lunch …" pill in the list), a
+  **"Fit my day to a time limit"** checkbox + range slider (`fitToHours`), and a **"Compare walk /
+  jeepney / Grab"** disclosure (`aria-expanded`).
+- **Fit to hours** ([`lib/fit.ts`](lib/fit.ts)): over-budget stops are **greyed (`opacity-60`) with a
+  "Beyond your Nh" pill — never removed** — plus an honest summary line ("N stops fall beyond your Nh
+  budget…", or "getting back to {start} would run past your Nh budget"). `budget` lives in the URL.
+- **Fare estimator** ([`lib/fare.ts`](lib/fare.ts)): a `~₱low–high` range in the header and on each
+  transit connector (walking is "Free"); ranges only, never false precision. Speeds match the scheduler.
+- **What-if drawer** ([`components/WhatIfDrawer.tsx`](components/WhatIfDrawer.tsx)): a small table
+  comparing the same places **re-optimized per mode** (ends / length / flagged / fare), with a "Use {mode}"
+  action; figures are recomputed by the real scheduler, labelled estimates.
+- **Live mode** ([`components/LiveView.tsx`](components/LiveView.tsx), `/live`): device-clock companion —
+  a coral "right now" card (at / on the way to / done), countdowns, an **"I'm running late (+15 min)"**
+  shift, and a dimmed/✓ timeline. Clock read in an effect (no hydration drift).
+- **Compare plans** ([`components/CompareView.tsx`](components/CompareView.tsx), `/compare`): two saved
+  plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Plans are saved to
+  `localStorage` ([`lib/saved-plans.ts`](lib/saved-plans.ts)) via **Save plan** on the result page.
+- **Presets** ([`lib/presets.ts`](lib/presets.ts)): landing-page cards that deep-link to a ready-made
+  `/result` URL — no special-casing, fully editable on arrival.
+- **Offline** ([`public/sw.js`](public/sw.js)): a service worker (network-first pages, stale-while-
+  revalidate assets; cross-origin tiles/fonts untouched), registered only in production and only when
+  the flag is on — and **unregistered when the flag is off**.
+- **Group vote** ([`components/VoteView.tsx`](components/VoteView.tsx), `/vote`): **off by default** —
+  a single-device thumbs-up tally that plans the winners. Multi-device voting would need a backend,
+  which Waypoint deliberately omits; the flag and route make this explicit.
+
 ## Accessibility
 
 - Category groups use `<fieldset>` + `<legend>` so screen readers announce POIs by category.

@@ -63,7 +63,13 @@ export type ScheduledStop = {
   redFlag: boolean
   reason: StopReason
   placement?: Placement
+  // When a reserved lunch window was taken immediately before this stop, the block
+  // (minutes from midnight) so the UI/exports can show it. Absent ⇒ no lunch here.
+  lunchBefore?: { start: number; end: number }
 }
+
+// A fixed reserved break (minutes from midnight) threaded into scheduleAlong.
+export type LunchWindow = { start: number; end: number }
 
 export function parseTime(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
@@ -78,7 +84,7 @@ export function formatTime(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}${suffix}`
 }
 
-const SPEED_KMH: Record<TransportMode, number> = { walk: 4, jeepney: 12, grab: 20 }
+export const SPEED_KMH: Record<TransportMode, number> = { walk: 4, jeepney: 12, grab: 20 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371
@@ -90,6 +96,20 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Straight-line transit estimate (minutes) between two points for a mode. This is
+// the SAME haversine + speed model getTransitTime falls back to and the matrix
+// generator uses, exported so the return-leg estimate (fit.ts) can't drift from it.
+// The matrix is one-directional (start→POI, POI→POI only), so the trip *home* has
+// no matrix row — this is the honest estimate for it.
+export function estimateTransitMinutes(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  mode: TransportMode,
+): number {
+  const distKm = haversineKm(from.lat, from.lng, to.lat, to.lng)
+  return Math.ceil((distKm / SPEED_KMH[mode]) * 60)
 }
 
 function getTransitTime(
@@ -104,8 +124,7 @@ function getTransitTime(
   if (entry) return entry[mode]
 
   console.warn('Missing transit matrix entry', { from: fromId, to: toId, mode })
-  const distKm = haversineKm(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng)
-  return Math.ceil((distKm / SPEED_KMH[mode]) * 60)
+  return estimateTransitMinutes(fromCoords, toCoords, mode)
 }
 
 type Selection = {
@@ -238,15 +257,37 @@ export function scheduleAlong(
     prevName: string | null,
     transit: number,
   ) => { placement: Placement; reason: StopReason },
+  // Optional reserved lunch window. The break is taken once, immediately before the
+  // first stop you'd otherwise reach at/after `start`; subsequent arrivals shift
+  // later by the time it consumes. Pure: same inputs ⇒ same schedule.
+  lunch?: LunchWindow | null,
 ): ScheduledStop[] {
   let prevId = startLocationId
   let prevCoords: { lat: number; lng: number } = startLocationCoords
   let prevName: string | null = null
   let currentTime = parseTime(startTime)
+  let lunchTaken = false
 
   return orderedPOIs.map((poi, i) => {
     const transit = getTransitTime(transitMatrix, prevId, poi.id, transportMode, prevCoords, poi)
-    const arrival = currentTime + transit
+    let arrival = currentTime + transit
+
+    // Reserve the lunch window before the first stop that would land at/after it.
+    // If lunchtime has already passed by the time we get here, mark it done without
+    // inserting a block (no point reserving a window in the past).
+    let lunchBefore: LunchWindow | undefined
+    if (lunch && !lunchTaken && arrival >= lunch.start) {
+      lunchTaken = true
+      if (currentTime < lunch.end) {
+        // Display the break from when the traveler is ACTUALLY free (just finished
+        // the prior stop / the day's start) — never earlier than that, so we don't
+        // claim a lunch that began before the trip or during the previous visit.
+        lunchBefore = { start: Math.max(lunch.start, currentTime), end: lunch.end }
+        currentTime = lunch.end
+        arrival = currentTime + transit
+      }
+    }
+
     const departure = arrival + Math.max(poi.recommended_duration_minutes, 1)
     const decorated = decorate?.(poi, i, prevName, transit) ?? {
       placement: 'optimized' as Placement,
@@ -268,6 +309,7 @@ export function scheduleAlong(
       redFlag: poi.closed_days.includes(dayOfWeek),
       reason: decorated.reason,
       placement: decorated.placement,
+      ...(lunchBefore ? { lunchBefore } : {}),
     }
     prevId = poi.id
     prevCoords = { lat: poi.lat, lng: poi.lng }

@@ -3,8 +3,10 @@ import Image from 'next/image'
 import type { Metadata } from 'next'
 import { CITY_LABEL, POI_MAP } from '@/lib/data'
 import type { POI } from '@/lib/scheduler'
-import { CATEGORIES } from '@/lib/constants'
+import { CATEGORIES, modeLabel, START_LOCATION_MAP } from '@/lib/constants'
 import { encodeParams } from '@/lib/params'
+import { PRESETS, presetHref } from '@/lib/presets'
+import { isEnabled } from '@/lib/features'
 
 // A hand-picked, photogenic subset for the landing hero cards (most POIs now have
 // a photo, so we curate the few shown here rather than dumping the whole dataset).
@@ -139,6 +141,27 @@ export default function Home() {
           </Link>
         </div>
 
+        {(isEnabled('groupVote') || isEnabled('comparePlans')) && (
+          <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm">
+            {isEnabled('groupVote') && (
+              <Link
+                href="/vote"
+                className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
+              >
+                Vote with friends
+              </Link>
+            )}
+            {isEnabled('comparePlans') && (
+              <Link
+                href="/compare"
+                className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
+              >
+                Compare saved plans
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Route motif — echoes the result-page map (pin 3 amber = "check hours"). */}
         <svg
           viewBox="0 0 360 60"
@@ -170,45 +193,6 @@ export default function Home() {
             </g>
           ))}
         </svg>
-      </section>
-
-      {/* Featured places (Airbnb-style photo cards) */}
-      <section className="mx-auto max-w-5xl px-5 pb-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Popular places to start with</h2>
-          <p className="mx-auto mt-3 max-w-xl text-[var(--color-text-muted)]">
-            Tap a place to begin a plan with it added — then pick as many more as you like.
-          </p>
-        </div>
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED.map((poi) => (
-            <li key={poi.id}>
-              <Link
-                href={planHref(poi.id)}
-                className="group block overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-bg-subtle)]">
-                  <Image
-                    src={poi.image!}
-                    alt={poi.name}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-                <div className="p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-                    {categoryLabel(poi.category)}
-                  </p>
-                  <h3 className="mt-1 font-bold">{poi.name}</h3>
-                  <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
-                    Open {poi.open_time}–{poi.close_time}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
       </section>
 
       {/* How it works */}
@@ -253,6 +237,86 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Featured places (Airbnb-style photo cards) */}
+      <section className="mx-auto max-w-5xl px-5 pb-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight">Popular places to start with</h2>
+          <p className="mx-auto mt-3 max-w-xl text-[var(--color-text-muted)]">
+            Tap a place to begin a plan with it added — then pick as many more as you like.
+          </p>
+        </div>
+        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURED.map((poi) => (
+            <li key={poi.id}>
+              <Link
+                href={planHref(poi.id)}
+                className="group block overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-bg-subtle)]">
+                  <Image
+                    src={poi.image!}
+                    alt={poi.name}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+                    {categoryLabel(poi.category)}
+                  </p>
+                  <h3 className="mt-1 font-bold">{poi.name}</h3>
+                  <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
+                    Open {poi.open_time}–{poi.close_time}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Ready-made days (presets) — one tap to a full, editable itinerary. */}
+      {isEnabled('presets') && (
+        <section className="mx-auto max-w-5xl px-5 py-12">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold tracking-tight">Or start from a ready-made day</h2>
+            <p className="mx-auto mt-3 max-w-xl text-[var(--color-text-muted)]">
+              Tap a themed day to see it laid out instantly — then tweak the order, pins, and
+              details to make it yours.
+            </p>
+          </div>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PRESETS.map((preset) => {
+              const start = START_LOCATION_MAP[preset.params.start_location]
+              return (
+                <li key={preset.id}>
+                  <Link
+                    href={presetHref(preset)}
+                    className="group flex h-full flex-col rounded-xl border border-[var(--color-border)] bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <span aria-hidden className="text-2xl">
+                      {preset.emoji}
+                    </span>
+                    <h3 className="mt-3 font-bold group-hover:text-[var(--color-primary)]">
+                      {preset.title}
+                    </h3>
+                    <p className="mt-1 flex-1 text-sm text-[var(--color-text-muted)]">
+                      {preset.blurb}
+                    </p>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                      {preset.params.poi_ids.length} stops · {preset.params.day_of_week} ·{' '}
+                      {modeLabel(preset.params.transport_mode)}
+                      {start ? ` from ${start.name}` : ''}
+                    </p>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Final CTA */}
       <section className="border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
