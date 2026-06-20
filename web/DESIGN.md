@@ -76,10 +76,39 @@ Airbnb's proprietary **Cereal** typeface.
 - **Sticky CTA bar:** fixed to the viewport bottom, top border, centered to the container width.
 - **Stop card** ([`components/ResultView.tsx`](components/ResultView.tsx)): icon (⚠/✕ when flagged) +
   stop number (muted) + arrival time (semibold) + name (semibold) on line 1; `~N min · status` on
-  line 2; optional italic muted notes on line 3. Background = flag tint per state.
+  line 2; optional italic muted notes on line 3; a **"Why this stop:" reason line** on line 4 (top
+  hairline divider, `text-xs`) explaining the scheduler's ordering choice. Background = flag tint per
+  state. The reason line **prints** with the list (it's the faithful record); on clear cards it is
+  `text-[var(--color-text-muted)]`, on flagged cards it inherits the card's flag text colour at full
+  opacity to keep WCAG AA contrast on the tint. Copy comes from [`lib/reason.ts`](lib/reason.ts) and
+  is built from the scheduler's structured `reason` data, so it can never claim something the
+  algorithm didn't do (e.g. it only says "closes earliest" when closing time *strictly* decided a tie).
 - **Transit connector:** centered, muted — `↓ N min by {mode}` + a fine-print "Estimated — verify
   with Google Maps" line.
 - **Banner** (all-stops-closed): full-width error-tint card above the list.
+- **Route map** ([`components/MapView.tsx`](components/MapView.tsx)): Leaflet + OpenStreetMap on the
+  result page, above the list. A hollow coral **Start** dot, then a circular **numbered pin** per
+  stop whose fill echoes the list's flag state — `--color-primary` (open), `--color-flag-warning-border`
+  (check hours), `--color-flag-error-text` (closed) — plus a dashed `--color-primary` route line in
+  visit order. Pins are 28px, white-bordered, with a soft shadow; styles live in `app/globals.css`
+  (`.wp-pin`, `.wp-pin--warning`, `.wp-pin--error`, `.wp-start`). The map is a **supplementary
+  visual** — `no-print`, with the text list remaining the accessible + print source of truth.
+- **Utility bar** ([`components/ResultView.tsx`](components/ResultView.tsx)): `no-print`, `flex
+  flex-wrap justify-between` — `← Edit this list` on the left; `Copy text`, `Download .ics`, `Print`
+  grouped on the right (each a text button with `underline-offset-2 hover:underline`). `Copy text`
+  swaps its label to `Copied!` / `Copy failed` for ~2.5s (`aria-live="polite"`); the timer is cleared
+  on unmount and on re-click.
+- **Share / export** ([`lib/export.ts`](lib/export.ts)): pure builders for a copyable text
+  itinerary and an RFC 5545 `.ics` file (side effects — clipboard, Blob download — stay in
+  ResultView, which injects `now`). Both **carry the same flags the page shows**: a `[CLOSED]` /
+  `[CHECK HOURS]` tag (red wins, never both) and the all-closed heads-up, sourced from the shared
+  `stopStatusLine` / `stopTag` helpers that the list, the map popups, and the exports all import — one
+  source of truth so wording can't drift. `.ics` times are **floating local** (a 09:00 stop reads
+  09:00 once the traveler's phone is on Asia/Manila; off-Manila planning views intentionally show
+  local wall-clock — never adopt `TZID` without a full `VTIMEZONE`); the trip date is the next
+  occurrence of the chosen day anchored to Asia/Manila; closed stops stay **visible** but
+  `TRANSP:TRANSPARENT` (we avoid `STATUS:CANCELLED`, which some clients drop — hiding a stop would
+  break the transparency guarantee).
 
 ## Accessibility
 

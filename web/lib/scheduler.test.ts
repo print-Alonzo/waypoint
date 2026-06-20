@@ -217,6 +217,171 @@ describe('yellow flag boundary', () => {
   })
 })
 
+// (j) Reason data ("Why this order") — emitted by the selection step itself.
+describe('reason data', () => {
+  it('first stop: distance reason when it is the sole nearest', () => {
+    const poi = makePOI({ id: 'solo' })
+    const matrix: TransitMatrix = { [START_ID]: { solo: { walk: 8, jeepney: 5, grab: 3 } } }
+    const result = scheduleItinerary([poi], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].reason).toMatchObject({
+      prevName: null,
+      tieGroupSize: 1,
+      minTransit: 8,
+      maxTransit: 8,
+      decidedByClose: false,
+    })
+  })
+
+  it('tie-break: reason faithfully reports the close_time that decided it (delta < 5)', () => {
+    const poiA = makePOI({ id: 'a', close_time: '18:00' })
+    const poiB = makePOI({ id: 'b', close_time: '12:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 },
+        b: { walk: 13, jeepney: 8, grab: 5 }, // delta 3 < 5 → both in tie group; b closes earlier → wins
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].poi.id).toBe('b')
+    expect(result[0].reason).toMatchObject({
+      tieGroupSize: 2,
+      minTransit: 10, // nearest (a) — the range's lower bound, NOT the winner's transit
+      maxTransit: 13,
+      decidedByClose: true,
+      closeTime: '12:00',
+    })
+  })
+
+  it('tie-break: does NOT claim close decided it when the earliest close_time is shared', () => {
+    const poiA = makePOI({ id: 'a', close_time: '12:00' })
+    const poiB = makePOI({ id: 'b', close_time: '12:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 },
+        b: { walk: 12, jeepney: 8, grab: 5 }, // delta 2 < 5 → both in tie group; same close → array order wins
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].poi.id).toBe('a')
+    expect(result[0].reason.tieGroupSize).toBe(2)
+    expect(result[0].reason.decidedByClose).toBe(false)
+  })
+
+  it('delta of exactly 5 min is not a tie group → distance reason', () => {
+    const poiA = makePOI({ id: 'a', close_time: '12:00' })
+    const poiB = makePOI({ id: 'b', close_time: '18:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 },
+        b: { walk: 15, jeepney: 9, grab: 5 }, // delta 5 → NOT < 5 → b excluded from tie group
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].poi.id).toBe('a')
+    expect(result[0].reason.tieGroupSize).toBe(1)
+    expect(result[0].reason.decidedByClose).toBe(false)
+  })
+
+  it('subsequent stop: reason names the previous stop', () => {
+    const pois = [makePOI({ id: 'a', name: 'Alpha' }), makePOI({ id: 'b', name: 'Bravo' })]
+    const matrix = makeMatrix(START_ID, pois)
+    const result = scheduleItinerary(pois, matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[1].reason.prevName).toBe(result[0].poi.name)
+  })
+
+  it('maxTransit reflects the tie group, not the global candidate max', () => {
+    const poiA = makePOI({ id: 'a', close_time: '18:00' })
+    const poiB = makePOI({ id: 'b', close_time: '12:00' }) // earliest close → wins, lands first
+    const poiC = makePOI({ id: 'c', close_time: '18:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 }, // nearest
+        b: { walk: 13, jeepney: 8, grab: 5 }, // in tie group (delta 3 < 5)
+        c: { walk: 30, jeepney: 18, grab: 12 }, // OUTSIDE the 5-min window (delta 20)
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      c: { a: { walk: 15, jeepney: 9, grab: 6 }, b: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB, poiC], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].poi.id).toBe('b')
+    expect(result[0].reason).toMatchObject({ tieGroupSize: 2, minTransit: 10, maxTransit: 13 })
+    expect(result[0].reason.maxTransit).not.toBe(30) // not the far candidate outside the tie window
+  })
+
+  it('3-member tie group: neutral (decidedByClose=false) when the earliest close is shared', () => {
+    const poiA = makePOI({ id: 'a', close_time: '12:00' })
+    const poiB = makePOI({ id: 'b', close_time: '12:00' }) // shares the earliest close with a
+    const poiC = makePOI({ id: 'c', close_time: '18:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 },
+        b: { walk: 12, jeepney: 7, grab: 5 },
+        c: { walk: 13, jeepney: 8, grab: 5 }, // all within 5 min of min → tie group of 3
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      c: { a: { walk: 15, jeepney: 9, grab: 6 }, b: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB, poiC], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].reason.tieGroupSize).toBe(3)
+    expect(result[0].reason.decidedByClose).toBe(false)
+  })
+
+  it('3-member tie group: decidedByClose=true only when the winner is strictly earliest of all', () => {
+    const poiA = makePOI({ id: 'a', close_time: '11:00' }) // strictly earliest of the three
+    const poiB = makePOI({ id: 'b', close_time: '14:00' })
+    const poiC = makePOI({ id: 'c', close_time: '18:00' })
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        a: { walk: 10, jeepney: 6, grab: 4 },
+        b: { walk: 12, jeepney: 7, grab: 5 },
+        c: { walk: 13, jeepney: 8, grab: 5 },
+      },
+      a: { b: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      b: { a: { walk: 15, jeepney: 9, grab: 6 }, c: { walk: 15, jeepney: 9, grab: 6 } },
+      c: { a: { walk: 15, jeepney: 9, grab: 6 }, b: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiA, poiB, poiC], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(result[0].poi.id).toBe('a')
+    expect(result[0].reason.tieGroupSize).toBe(3)
+    expect(result[0].reason.decidedByClose).toBe(true)
+  })
+
+  it('shared earliest close: the array-first candidate wins even when it is the farther one', () => {
+    const poiFar = makePOI({ id: 'far', close_time: '12:00' }) // first in array, farther
+    const poiNear = makePOI({ id: 'near', close_time: '12:00' }) // nearer, same close
+    const matrix: TransitMatrix = {
+      [START_ID]: {
+        far: { walk: 13, jeepney: 8, grab: 5 },
+        near: { walk: 10, jeepney: 6, grab: 4 }, // delta 3 < 5 → both in tie group
+      },
+      far: { near: { walk: 15, jeepney: 9, grab: 6 } },
+      near: { far: { walk: 15, jeepney: 9, grab: 6 } },
+    }
+    const result = scheduleItinerary([poiFar, poiNear], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    // Equal close_time → strict `<` keeps the array-first member, regardless of distance.
+    expect(result[0].poi.id).toBe('far')
+    expect(result[0].reason.tieGroupSize).toBe(2)
+    expect(result[0].reason.decidedByClose).toBe(false)
+  })
+})
+
 // formatTime utility
 describe('formatTime', () => {
   it('formats minutes to HH:MM', () => {

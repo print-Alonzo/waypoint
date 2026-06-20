@@ -24,6 +24,18 @@ export type TransitMatrix = {
 
 export type TransportMode = 'walk' | 'jeepney' | 'grab'
 
+// Faithful, structured account of WHY this stop landed in this position — emitted
+// by the algorithm's own selection step (not re-derived), so it can never drift
+// from the actual decision. Presentation/wording lives in lib/reason.ts.
+export type StopReason = {
+  prevName: string | null // null → measured from the start location
+  minTransit: number // nearest candidate's transit (minutes)
+  maxTransit: number // farthest transit within the 5-min tie group
+  tieGroupSize: number // candidates within the 5-min tie window (1 = decided by distance)
+  decidedByClose: boolean // true only when the winner closes STRICTLY earlier than every tie member
+  closeTime: string // winner's close_time (for the "closes earliest" clause)
+}
+
 export type ScheduledStop = {
   poi: POI
   arrivalTime: number
@@ -31,6 +43,7 @@ export type ScheduledStop = {
   transitFromPrev: number
   yellowFlag: boolean
   redFlag: boolean
+  reason: StopReason
 }
 
 export function parseTime(hhmm: string): number {
@@ -76,15 +89,46 @@ function getTransitTime(
   return Math.ceil((distKm / SPEED_KMH[mode]) * 60)
 }
 
-function selectNext(
-  candidates: Array<{ poi: POI; transit: number }>,
-): { poi: POI; transit: number } {
+type Selection = {
+  poi: POI
+  transit: number
+  minTransit: number
+  maxTransit: number
+  tieGroupSize: number
+  decidedByClose: boolean
+}
+
+function selectNext(candidates: Array<{ poi: POI; transit: number }>): Selection {
   const minTransit = Math.min(...candidates.map((c) => c.transit))
   const tieGroup = candidates.filter((c) => c.transit - minTransit < 5)
+  const maxTransit = Math.max(...tieGroup.map((c) => c.transit))
 
-  return tieGroup.reduce((best, curr) =>
+  // Winner = earliest close_time within the tie group. Strict `<` means when two
+  // members share the earliest close_time the first (array order) wins — IDENTICAL
+  // to the original behaviour, so existing selection-winner tests are unaffected.
+  const winner = tieGroup.reduce((best, curr) =>
     parseTime(curr.poi.close_time) < parseTime(best.poi.close_time) ? curr : best,
   )
+
+  // True only when close_time STRICTLY decided it: the winner closes earlier than
+  // every other tie-group member. If the earliest close is shared, array order
+  // (not closing time) broke the tie — so the explanation must not claim
+  // "closes earliest" in that case.
+  const winnerClose = parseTime(winner.poi.close_time)
+  const decidedByClose =
+    tieGroup.length > 1 &&
+    tieGroup.every(
+      (c) => c.poi.id === winner.poi.id || winnerClose < parseTime(c.poi.close_time),
+    )
+
+  return {
+    poi: winner.poi,
+    transit: winner.transit,
+    minTransit,
+    maxTransit,
+    tieGroupSize: tieGroup.length,
+    decidedByClose,
+  }
 }
 
 export function scheduleItinerary(
@@ -128,6 +172,14 @@ export function scheduleItinerary(
     transitFromPrev: first.transit,
     yellowFlag: firstArrival > parseTime(first.poi.close_time),
     redFlag: first.poi.closed_days.includes(dayOfWeek),
+    reason: {
+      prevName: null,
+      minTransit: first.minTransit,
+      maxTransit: first.maxTransit,
+      tieGroupSize: first.tieGroupSize,
+      decidedByClose: first.decidedByClose,
+      closeTime: first.poi.close_time,
+    },
   })
 
   let prevPoi = first.poi
@@ -160,6 +212,14 @@ export function scheduleItinerary(
       transitFromPrev: next.transit,
       yellowFlag: arrival > parseTime(next.poi.close_time),
       redFlag: next.poi.closed_days.includes(dayOfWeek),
+      reason: {
+        prevName: prevPoi.name,
+        minTransit: next.minTransit,
+        maxTransit: next.maxTransit,
+        tieGroupSize: next.tieGroupSize,
+        decidedByClose: next.decidedByClose,
+        closeTime: next.poi.close_time,
+      },
     })
 
     prevPoi = next.poi

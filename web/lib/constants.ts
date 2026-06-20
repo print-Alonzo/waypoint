@@ -38,3 +38,9 @@ export const TRANSPORT_MODES = [
   { value: 'jeepney', label: 'Jeepney' },
   { value: 'grab', label: 'Grab' },
 ] as const
+
+// Human label for a transport mode value. Shared by the transit connector and the
+// reason line so mode wording stays consistent on a single card.
+export function modeLabel(value: string): string {
+  return TRANSPORT_MODES.find((m) => m.value === value)?.label ?? value
+}

@@ -112,6 +112,73 @@ describe('result view (invalid URL)', () => {
   })
 })
 
+// (5) Reason line: a faithful "Why this stop" line renders per stop without
+// breaking the document-order invariant relied on by test (2).
+describe('result view reason line', () => {
+  const params: ScheduleParams = {
+    poi_ids: ['fort-santiago', 'manila-cathedral', 'quiapo-market'],
+    start_time: '09:00',
+    transport_mode: 'walk',
+    start_location: 'rizal-park',
+    day_of_week: 'Tuesday',
+  }
+
+  it('shows a "Why this stop" line for every stop and an opener for the first', () => {
+    nav.search = encodeParams(params).toString()
+    const { container } = render(<ResultView />)
+
+    const text = container.textContent ?? ''
+    const occurrences = text.split('Why this stop:').length - 1
+    expect(occurrences).toBe(params.poi_ids.length)
+    expect(text).toContain('Closest to your start')
+  })
+
+  it('no later stop name leaks into an earlier card reason line', () => {
+    nav.search = encodeParams(params).toString()
+
+    const selected = params.poi_ids.map((id) => POI_MAP[id]).filter(Boolean) as POI[]
+    const start = START_LOCATION_MAP[params.start_location]
+    const ordered = scheduleItinerary(
+      selected,
+      TRANSIT_MATRIX,
+      params.start_location,
+      { lat: start.lat, lng: start.lng },
+      params.start_time,
+      params.transport_mode,
+      params.day_of_week,
+    ).map((s) => s.poi.name)
+
+    const { container } = render(<ResultView />)
+    // Per-card reason text (the single <p> inside each <li>), so the assertion is
+    // sensitive to WHERE a name lands — not just global first-occurrence order.
+    const reasonLines = [...container.querySelectorAll('ol > li')].map(
+      (li) => li.querySelector('p')?.textContent ?? '',
+    )
+    expect(reasonLines).toHaveLength(ordered.length)
+    // A reason may name the PREVIOUS stop (earlier) but must never name a LATER one.
+    reasonLines.forEach((line, i) => {
+      ordered.slice(i + 1).forEach((laterName) => {
+        expect(line).not.toContain(laterName)
+      })
+    })
+  })
+
+  it('keeps flag status in the existing status layer alongside the reason line', () => {
+    nav.search = encodeParams({
+      poi_ids: ['casa-manila'], // closed on Monday
+      start_time: '09:00',
+      transport_mode: 'grab',
+      start_location: 'rizal-park',
+      day_of_week: 'Monday',
+    }).toString()
+
+    const { container } = render(<ResultView />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('Closed today') // flag still surfaced by statusText
+    expect(text).toContain('Why this stop:') // reason still present on a flagged card
+  })
+})
+
 // (4) "Edit this list" navigates to / with prefilling params.
 describe('edit back-link', () => {
   it('pushes / with the current params so the selector pre-fills', () => {
@@ -136,5 +203,98 @@ describe('edit back-link', () => {
     expect(sp.get('transport_mode')).toBe('jeepney')
     expect(sp.get('start_location')).toBe('intramuros-gate')
     expect(sp.get('day_of_week')).toBe('Wednesday')
+  })
+})
+
+// (6) Share / export: copy-to-clipboard text and .ics download wiring.
+describe('result view share/export', () => {
+  const params: ScheduleParams = {
+    poi_ids: ['fort-santiago', 'manila-cathedral'],
+    start_time: '09:00',
+    transport_mode: 'grab',
+    start_location: 'rizal-park',
+    day_of_week: 'Tuesday',
+  }
+
+  // Typed (_blob: Blob) so mock.calls[0][0] is a Blob — lets us read the produced
+  // .ics content AND keeps `tsc --noEmit` green (an arg-less vi.fn infers an empty
+  // tuple, so indexing mock.calls[0][0] would be a type error).
+  function stubObjectUrl() {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:mock')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { value: createObjectURL, configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: revokeObjectURL, configurable: true })
+    return { createObjectURL, revokeObjectURL }
+  }
+
+  it('copies a plain-text itinerary to the clipboard and announces success', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    nav.search = encodeParams(params).toString()
+
+    render(<ResultView />)
+    fireEvent.click(screen.getByRole('button', { name: /Copy itinerary as text/ }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
+    const text = writeText.mock.calls[0][0] as string
+    expect(text).toContain('Metro Manila itinerary — Tuesday')
+    expect(text).toContain('Fort Santiago')
+    expect(text).toContain('Plan: ')
+    // Success announced via a dedicated live region (button name stays stable).
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Itinerary copied to clipboard'),
+    )
+  })
+
+  it('announces "Copy failed" when the clipboard API is unavailable (insecure origin)', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+    nav.search = encodeParams(params).toString()
+
+    render(<ResultView />)
+    fireEvent.click(screen.getByRole('button', { name: /Copy itinerary as text/ }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Copy failed'))
+  })
+
+  it('builds a valid .ics blob and downloads it with a safe filename', async () => {
+    const { createObjectURL, revokeObjectURL } = stubObjectUrl()
+    const downloads: string[] = []
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloads.push(this.download)
+      })
+    nav.search = encodeParams(params).toString()
+
+    render(<ResultView />)
+    fireEvent.click(screen.getByRole('button', { name: /Download \.ics/ }))
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+    expect(downloads).toEqual(['waypoint-metro-manila-tuesday.ics'])
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1)
+    const ics = await createObjectURL.mock.calls[0][0].text()
+    expect(ics).toContain('BEGIN:VCALENDAR')
+    expect(ics).toContain('SUMMARY:1. Fort Santiago')
+    clickSpy.mockRestore()
+  })
+
+  it("the downloaded .ics carries the page's closed flag (real scheduler → component)", async () => {
+    const { createObjectURL } = stubObjectUrl()
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    nav.search = encodeParams({
+      poi_ids: ['casa-manila'], // closed on Monday in the dataset
+      start_time: '09:00',
+      transport_mode: 'grab',
+      start_location: 'rizal-park',
+      day_of_week: 'Monday',
+    }).toString()
+
+    render(<ResultView />)
+    fireEvent.click(screen.getByRole('button', { name: /Download \.ics/ }))
+
+    const ics = await createObjectURL.mock.calls[0][0].text()
+    expect(ics).toContain('[CLOSED]')
+    expect(ics).toContain('TRANSP:TRANSPARENT')
+    expect(ics).not.toContain('STATUS:CANCELLED')
+    clickSpy.mockRestore()
   })
 })

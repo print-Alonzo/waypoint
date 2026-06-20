@@ -24,6 +24,44 @@ body {
   color: var(--color-text);
 }
 
+/* Leaflet map — numbered itinerary pins (components/MapView.tsx).
+   Colours are token-driven so the map echoes the itinerary list's flag states. */
+.leaflet-container {
+  font: inherit;
+}
+.wp-pin-wrap {
+  background: transparent;
+  border: 0;
+}
+.wp-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: var(--color-primary); /* open / no flag */
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.wp-pin--warning {
+  background: var(--color-flag-warning-border); /* check hours */
+}
+.wp-pin--error {
+  background: var(--color-flag-error-text); /* closed today */
+}
+.wp-start {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 4px solid var(--color-primary);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
 @media print {
   .no-print {
     display: none !important;
