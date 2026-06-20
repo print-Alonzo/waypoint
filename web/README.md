@@ -32,6 +32,36 @@ URL (shareable, bookmarkable, refresh-safe). On `/result` you can **reorder** st
 want kept in place, and **re-optimize** the rest around them — the order/pins live in the URL too, and
 the "Why this stop" line always tells the truth about who placed each stop (the algorithm or you).
 
+## Power features & feature flags
+
+On top of the core flow, the result page and a few extra routes add optional "power features".
+**Every one is gated by a single boolean in [`lib/features.ts`](lib/features.ts)** — flip a flag to
+`false` and that feature's entry point disappears and its code tree-shakes out of the affected view.
+No other edits needed; that's the kill switch.
+
+| Flag | What it adds | Where |
+|------|--------------|-------|
+| `presets` | One-tap curated starter itineraries (encoded `/result` URLs) | Landing page |
+| `fitToHours` | Time-budget slider that **greys out** (never deletes) over-budget stops + an honest "wouldn't make it back" line | Result page |
+| `fareEstimator` | Per-leg + per-day **fare ranges** (jeepney/Grab; walking is free) | Result page |
+| `whatIf` | Compare **Walk / Jeepney / Grab** side by side (re-optimized per mode) | Result page |
+| `lunchBreak` | Reserve a midday **lunch window** (12:00–13:30); later stops shift around it | Result page |
+| `offline` | **Service worker** so a visited plan keeps working without a connection | Whole app (prod only) |
+| `liveMode` | `/live` — device-clock companion: now / next, "leave in ~N min", "I'm running late" reflow | `/live` |
+| `comparePlans` | **Save plans** (this device) and compare two side by side | Result page → `/compare` |
+| `groupVote` | `/vote` — single-device thumbs-up tally, then plan the winners. **Off by default** | `/vote` |
+
+Faithfulness still holds across all of them: nothing is ever silently dropped (over-budget stops are
+greyed, not removed), every estimate is shown as a labelled range, and the lunch shift keeps the page
+and exports in agreement on times.
+
+> **`groupVote` is off by default on purpose.** It is a *single-device* tally (everyone votes on one
+> phone). True multi-device, real-time voting needs a shared backend, which Waypoint deliberately does
+> not have. The single-device version is a useful demo; enable the flag to try it.
+
+Budget and lunch are part of the result URL (`&budget=6`, `&lunch=1`), so a budgeted / lunch-inclusive
+plan stays shareable and refresh-safe like everything else.
+
 ## Scripts
 
 | Script | What it does |
@@ -47,27 +77,46 @@ the "Why this stop" line always tells the truth about who placed each stop (the 
 
 ```
 app/                  App Router routes
-  page.tsx            Landing page (explains the product; CTAs → /plan + sample /result)
+  page.tsx            Landing page (product pitch; CTAs → /plan + sample /result; presets section)
   plan/page.tsx       Selector (Suspense → components/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/ResultView)
-  layout.tsx          Root layout: font + persistent header (wordmark links home)
+  live/page.tsx       Live mode (flag: liveMode; redirects home if off)
+  compare/page.tsx    Compare two saved plans (flag: comparePlans; redirects home if off)
+  vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
+  layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
   globals.css         Design tokens + print rules
-components/            Client components (Selector, ResultView, MapView, ErrorBoundary)
+components/            Client components
   Selector.tsx        Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
   PoiSwipeDeck.tsx    Phone-only Tinder-style swipe stack (swipe/tap to add or skip; undo)
   CategoryGlyph.tsx   Inline line-icon per category (placeholder when a POI has no photo)
   MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
+  WhatIfDrawer.tsx    Walk/Jeepney/Grab comparison table (re-optimized per mode)
+  SavePlanButton.tsx  Save the current plan to this device (→ /compare)
+  CompareView.tsx     Side-by-side comparison of two saved plans
+  LiveView.tsx        Device-clock companion (now/next, countdowns, running-late reflow)
+  VoteView.tsx        Single-device thumbs-up tally → plan the winners
+  ServiceWorkerRegister.tsx  Registers /sw.js in prod when `offline` is on (unregisters when off)
 lib/
-  scheduler.ts        Nearest-neighbor optimizer (lock-aware optimizeOrder) + scheduleAlong; reason data
+  features.ts         Central feature-flag registry (one boolean per power feature)
+  scheduler.ts        Nearest-neighbor optimizer + scheduleAlong (+ lunch window) + estimateTransitMinutes
   reason.ts           reasonLine: placement-aware "Why this stop" (optimized / pinned / hand-arranged)
+  fit.ts              fitToBudget: faithful time-budget overlay (greys out, never drops)
+  fare.ts             Per-leg + per-day fare ranges (estimate; consistent with scheduler speeds)
+  presets.ts          Curated starter itineraries (landing page)
+  plan-model.ts       resolvePlan: shared order/lunch resolution → scheduled stops
+  plan-summary.ts     summarizePlan: compact figures for the compare view
+  saved-plans.ts      localStorage CRUD for saved plans (guarded; this-device only)
   poi-format.ts       Shared hoursLabel() used by the grid card + swipe deck
   export.ts           Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
-  params.ts           URL-param encode/decode (selector ⇄ result handoff)
-  constants.ts        Start landmarks, categories, days, transport modes, modeLabel
+  params.ts           URL-param encode/decode (incl. order/locked/budget/lunch)
+  constants.ts        Start landmarks, categories, days, transport modes, modeLabel, LUNCH_WINDOW
   data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
 data/<city>/          pois.json + transit-matrix.json
-public/images/poi/    Featured landmark photos (CC-licensed; credited on the landing)
+public/
+  sw.js               Service worker (network-first pages, stale-while-revalidate assets)
+  manifest.webmanifest  PWA manifest
+  images/poi/         Featured landmark photos (CC-licensed; credited on the landing)
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduler.ts)
 ```

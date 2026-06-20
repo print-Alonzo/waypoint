@@ -1,0 +1,9 @@
+{
+  "name": "Waypoint — Metro Manila day planner",
+  "short_name": "Waypoint",
+  "description": "Plan a day in Metro Manila you can trust — you pick the places, Waypoint orders your day and shows its work.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff385c"
+}

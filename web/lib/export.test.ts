@@ -335,6 +335,32 @@ describe('buildItineraryText', () => {
   })
 })
 
+// --- lunch break appears in both exports (matches the page) ----------------
+describe('lunch break in exports', () => {
+  const lunchStop = () =>
+    stop({
+      poi: poi({ id: 'b', name: 'Casa Manila' }),
+      lunchBefore: { start: 12 * 60, end: 13 * 60 + 30 },
+    })
+
+  it('text export shows a "Lunch break" line for a stop with a reserved window', () => {
+    const text = buildItineraryText(input([stop(), lunchStop()]))
+    expect(text).toContain('Lunch break 12:00–13:30')
+  })
+
+  it('.ics export emits a Lunch break VEVENT for the reserved window', () => {
+    const u = unfold(buildIcs(input([stop(), lunchStop()]), NOW))
+    expect(u).toContain('SUMMARY:Lunch break')
+    expect(u).toMatch(/DTSTART:\d{8}T120000/)
+    expect(u).toMatch(/DTEND:\d{8}T133000/)
+  })
+
+  it('no lunch line/VEVENT when no stop carries a window', () => {
+    expect(buildItineraryText(input([stop()]))).not.toContain('Lunch break')
+    expect(unfold(buildIcs(input([stop()]), NOW))).not.toContain('SUMMARY:Lunch break')
+  })
+})
+
 // --- wallClock + filename -------------------------------------------------
 
 describe('wallClock', () => {

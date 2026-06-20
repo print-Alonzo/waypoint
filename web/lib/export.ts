@@ -200,6 +200,18 @@ export function buildIcs(input: ExportInput, now: Date): string {
     if (stop.poi.notes) descParts.push(stop.poi.notes)
     descParts.push('Estimated — verify with Google Maps.')
 
+    // A reserved lunch break gets its own visible calendar block before the stop.
+    if (stop.lunchBefore) {
+      lines.push('BEGIN:VEVENT')
+      lines.push(`UID:${tripStamp}-lunch-${i + 1}@waypoint.app`)
+      lines.push(`DTSTAMP:${stamp}`)
+      lines.push(`DTSTART:${floatingStamp(trip, stop.lunchBefore.start)}`)
+      lines.push(`DTEND:${floatingStamp(trip, stop.lunchBefore.end)}`)
+      lines.push('SUMMARY:Lunch break')
+      lines.push('STATUS:CONFIRMED')
+      lines.push('END:VEVENT')
+    }
+
     const tag = stopTag(stop)
     const summary = `${tag ? tag + ' ' : ''}${i + 1}. ${stop.poi.name}`
     // DTEND must be strictly after DTSTART so every stop is a visible block, even
@@ -261,6 +273,10 @@ export function buildItineraryText(input: ExportInput): string {
 
   stops.forEach((stop, i) => {
     if (i > 0) out.push(`   ↓ ${stop.transitFromPrev} min by ${mode}`)
+    // Surface the reserved lunch break the page shows, so the export doesn't leave
+    // an unexplained gap between two stops.
+    if (stop.lunchBefore)
+      out.push(`   Lunch break ${wallClock(stop.lunchBefore.start)}–${wallClock(stop.lunchBefore.end)}`)
     const tag = stopTag(stop)
     out.push(`${i + 1}. ${wallClock(stop.arrivalTime)}  ${stop.poi.name}${tag ? '  ' + tag : ''}`)
     out.push(`   ~${stop.poi.recommended_duration_minutes} min · ${stopStatusLine(stop)}`)

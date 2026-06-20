@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 
 // Plus Jakarta Sans stands in for Airbnb's proprietary "Cereal" typeface.
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -12,6 +13,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'Waypoint',
   description: 'Plan your day in Metro Manila',
+  manifest: '/manifest.webmanifest',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </span>
         </header>
         <main className="flex-1">{children}</main>
+        <ServiceWorkerRegister />
       </body>
     </html>
   )
