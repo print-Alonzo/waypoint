@@ -48,3 +48,24 @@ it('returns null for malformed start_time', () => {
   sp.set('start_time', '9am')
   expect(decodeParams(sp)).toBeNull()
 })
+
+// (7) Result-page order/locked round-trip when present
+it('round-trips optional order + locked when present', () => {
+  const customized = {
+    ...BASE,
+    order: ['rizal-shrine', 'fort-santiago', 'national-museum'],
+    locked: ['rizal-shrine'],
+  }
+  const decoded = decodeParams(encodeParams(customized))
+  expect(decoded).toEqual(customized)
+})
+
+// (8) Base URL (no order/locked) decodes WITHOUT those keys (keeps clean URLs)
+it('omits order/locked entirely when absent', () => {
+  const sp = encodeParams(BASE)
+  expect(sp.has('order')).toBe(false)
+  expect(sp.has('locked')).toBe(false)
+  const decoded = decodeParams(sp)!
+  expect('order' in decoded).toBe(false)
+  expect('locked' in decoded).toBe(false)
+})

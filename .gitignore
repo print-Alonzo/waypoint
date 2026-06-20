@@ -1,3 +1,6 @@
+# Dependencies (a stray root-level install; web/ has its own ignored node_modules)
+node_modules/
+
 # macOS
 .DS_Store
 

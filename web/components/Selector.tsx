@@ -1,6 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { POIS } from '@/lib/data'
 import {
@@ -12,12 +14,64 @@ import {
 import { encodeParams, decodeParams } from '@/lib/params'
 import type { ScheduleParams } from '@/lib/params'
 import type { POI, TransportMode } from '@/lib/scheduler'
+import { hoursLabel } from '@/lib/poi-format'
+import { CategoryGlyph } from './CategoryGlyph'
+import PoiSwipeDeck from './PoiSwipeDeck'
 
-function hoursLabel(poi: POI): string {
-  const hours = `${poi.open_time}–${poi.close_time}`
-  if (poi.closed_days.length === 0) return hours
-  if (poi.closed_days.length > 3) return `${hours} · select days only`
-  return `${hours} · closed ${poi.closed_days.join(', ')}`
+function categoryLabel(key: string): string {
+  return CATEGORIES.find((c) => c.key === key)?.label ?? key
+}
+
+// An image-forward, tappable place card (Airbnb-style). The whole card toggles a
+// visually-hidden (but focusable) checkbox; selection shows a coral ring + check.
+function PoiCard({
+  poi,
+  selected,
+  onToggle,
+}: {
+  poi: POI
+  selected: boolean
+  onToggle: () => void
+}) {
+  return (
+    <label
+      className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition focus-within:ring-2 focus-within:ring-[var(--color-text)] ${
+        selected
+          ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]'
+          : 'border-[var(--color-border)] hover:shadow-md'
+      }`}
+    >
+      <input type="checkbox" className="sr-only" checked={selected} onChange={onToggle} />
+      <span className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--color-bg-subtle)]">
+        {poi.image ? (
+          // alt="" — decorative; the name below is the accessible label.
+          <Image
+            src={poi.image}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 50vw, 220px"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
+            <CategoryGlyph category={poi.category} />
+          </span>
+        )}
+        <span
+          aria-hidden
+          className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white transition ${
+            selected ? 'bg-[var(--color-primary)] text-white' : 'bg-white/85 text-transparent'
+          }`}
+        >
+          ✓
+        </span>
+      </span>
+      <span className="flex flex-1 flex-col p-3">
+        <span className="text-sm font-semibold leading-tight">{poi.name}</span>
+        <span className="mt-0.5 text-xs text-[var(--color-text-muted)]">{hoursLabel(poi)}</span>
+      </span>
+    </label>
+  )
 }
 
 const inputClass =
@@ -55,6 +109,18 @@ export default function Selector() {
     [],
   )
 
+  // Flattened in category order so the deck walks heritage → museums → … like the grid.
+  const flatPois = useMemo(() => grouped.flatMap((g) => g.pois), [grouped])
+
+  const setSelectedOne = useCallback((id: string, value: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (value) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
+
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -87,34 +153,37 @@ export default function Selector() {
         Select the places you want to visit, then plan your day.
       </p>
 
-      {grouped.map((group) => (
-        <fieldset key={group.key} className="mt-7">
-          <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-            {group.label}
-          </legend>
-          <div className="overflow-hidden rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
-            {group.pois.map((poi) => (
-              <label
-                key={poi.id}
-                className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-bg-subtle)]"
-              >
-                <input
-                  type="checkbox"
-                  className="h-5 w-5 rounded accent-[#ff385c]"
-                  checked={selected.has(poi.id)}
-                  onChange={() => toggle(poi.id)}
+      {/* Phones: swipe deck (CSS-hidden ≥sm). Tablet/desktop: category grid
+          (CSS-hidden <sm). Both render; visibility is pure CSS so there's no
+          hydration mismatch or matchMedia timing to depend on. */}
+      <div className="mt-8 sm:hidden">
+        <PoiSwipeDeck
+          pois={flatPois}
+          isSelected={(id) => selected.has(id)}
+          setSelected={setSelectedOne}
+          categoryLabel={categoryLabel}
+        />
+      </div>
+
+      <div className="hidden sm:block">
+        {grouped.map((group) => (
+          <fieldset key={group.key} className="mt-8">
+            <legend className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+              {group.label}
+            </legend>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+              {group.pois.map((poi) => (
+                <PoiCard
+                  key={poi.id}
+                  poi={poi}
+                  selected={selected.has(poi.id)}
+                  onToggle={() => toggle(poi.id)}
                 />
-                <span className="flex-1">
-                  <span className="block font-medium">{poi.name}</span>
-                  <span className="block text-sm text-[var(--color-text-muted)]">
-                    {hoursLabel(poi)}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ))}
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
 
       <div className="mt-9 mb-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-[var(--color-border)]" />
@@ -192,6 +261,12 @@ export default function Selector() {
           </select>
         </div>
       </div>
+
+      <p className="mt-8 text-sm text-[var(--color-text-muted)]">
+        <Link href="/credits" className="underline underline-offset-2 hover:text-[var(--color-text)]">
+          Photo credits
+        </Link>
+      </p>
 
       {/* Sticky CTA bar (Airbnb-style) */}
       <div className="fixed inset-x-0 bottom-0 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-4">

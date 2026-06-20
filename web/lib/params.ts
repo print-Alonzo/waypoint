@@ -6,6 +6,10 @@ export type ScheduleParams = {
   transport_mode: TransportMode
   start_location: string
   day_of_week: string
+  // Result-page customization (optional; absent ⇒ the auto-optimized order).
+  // `order` is the explicit visit sequence; `locked` is the subset pinned in place.
+  order?: string[]
+  locked?: string[]
 }
 
 const TIME_RE = /^\d{2}:\d{2}$/
@@ -17,6 +21,10 @@ export function encodeParams(params: ScheduleParams): URLSearchParams {
   sp.set('transport_mode', params.transport_mode)
   sp.set('start_location', params.start_location)
   sp.set('day_of_week', params.day_of_week)
+  // Only emit the customization params when present, so a default plan keeps its
+  // clean URL and the params.test base round-trip is unaffected.
+  if (params.order && params.order.length) sp.set('order', params.order.join(','))
+  if (params.locked && params.locked.length) sp.set('locked', params.locked.join(','))
   return sp
 }
 
@@ -33,11 +41,18 @@ export function decodeParams(sp: URLSearchParams): ScheduleParams | null {
   const poi_ids = poi_ids_raw.split(',').filter(Boolean)
   if (poi_ids.length === 0) return null
 
-  return {
+  const params: ScheduleParams = {
     poi_ids,
     start_time,
     transport_mode: transport_mode as TransportMode,
     start_location,
     day_of_week,
   }
+
+  const order = sp.get('order')?.split(',').filter(Boolean)
+  if (order && order.length) params.order = order
+  const locked = sp.get('locked')?.split(',').filter(Boolean)
+  if (locked && locked.length) params.locked = locked
+
+  return params
 }

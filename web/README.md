@@ -25,8 +25,12 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
-The selector page (`/`) lets you pick POIs and trip details, then routes to `/result` with the
-itinerary encoded in the URL (shareable, bookmarkable, refresh-safe).
+The landing page (`/`) explains how Waypoint works and links to the selector (`/plan`), where you
+pick POIs and trip details — a **swipeable card deck on phones** (swipe/tap to add or skip) and a
+**card grid on larger screens**. Submitting routes to `/result` with the itinerary encoded in the
+URL (shareable, bookmarkable, refresh-safe). On `/result` you can **reorder** stops, **pin** ones you
+want kept in place, and **re-optimize** the rest around them — the order/pins live in the URL too, and
+the "Why this stop" line always tells the truth about who placed each stop (the algorithm or you).
 
 ## Scripts
 
@@ -43,20 +47,27 @@ itinerary encoded in the URL (shareable, bookmarkable, refresh-safe).
 
 ```
 app/                  App Router routes
-  page.tsx            Selector (Suspense → components/Selector)
+  page.tsx            Landing page (explains the product; CTAs → /plan + sample /result)
+  plan/page.tsx       Selector (Suspense → components/Selector)
+  credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/ResultView)
-  layout.tsx          Root layout: font + persistent header
+  layout.tsx          Root layout: font + persistent header (wordmark links home)
   globals.css         Design tokens + print rules
 components/            Client components (Selector, ResultView, MapView, ErrorBoundary)
+  Selector.tsx        Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
+  PoiSwipeDeck.tsx    Phone-only Tinder-style swipe stack (swipe/tap to add or skip; undo)
+  CategoryGlyph.tsx   Inline line-icon per category (placeholder when a POI has no photo)
   MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
 lib/
-  scheduler.ts        Pure nearest-neighbor scheduler; emits per-stop reason data
-  reason.ts           Formats the "Why this stop" explanation from scheduler reason data
+  scheduler.ts        Nearest-neighbor optimizer (lock-aware optimizeOrder) + scheduleAlong; reason data
+  reason.ts           reasonLine: placement-aware "Why this stop" (optimized / pinned / hand-arranged)
+  poi-format.ts       Shared hoursLabel() used by the grid card + swipe deck
   export.ts           Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
   params.ts           URL-param encode/decode (selector ⇄ result handoff)
   constants.ts        Start landmarks, categories, days, transport modes, modeLabel
   data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
 data/<city>/          pois.json + transit-matrix.json
+public/images/poi/    Featured landmark photos (CC-licensed; credited on the landing)
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduler.ts)
 ```

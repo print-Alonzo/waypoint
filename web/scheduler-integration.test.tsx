@@ -27,6 +27,20 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }))
 
+// Selector renders next/image thumbnails; use a plain <img> in tests.
+vi.mock('next/image', () => ({
+  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+}))
+
+// Selector links to /credits via next/link; render a plain anchor.
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={typeof href === 'string' ? href : '#'} {...rest}>
+      {children}
+    </a>
+  ),
+}))
+
 function queryFrom(call: string): URLSearchParams {
   return new URLSearchParams(call.split('?')[1] ?? '')
 }
@@ -63,6 +77,17 @@ describe('selector submit', () => {
     render(<Selector />)
     const cta = screen.getByRole('button', { name: /Select places to plan your day/ })
     expect(cta).toBeDisabled()
+  })
+
+  it('shows a photo thumbnail for places that have one, a placeholder otherwise', () => {
+    render(<Selector />)
+    const fortRow = screen.getByRole('checkbox', { name: /Fort Santiago/ }).closest('label')!
+    const fortImg = fortRow.querySelector('img')
+    expect(fortImg).toBeTruthy()
+    expect(fortImg).toHaveAttribute('src', '/images/poi/fort-santiago.jpg')
+    // Ayala Museum has no curated photo → placeholder tile, no <img>.
+    const ayalaRow = screen.getByRole('checkbox', { name: /Ayala Museum/ }).closest('label')!
+    expect(ayalaRow.querySelector('img')).toBeNull()
   })
 })
 
@@ -179,9 +204,9 @@ describe('result view reason line', () => {
   })
 })
 
-// (4) "Edit this list" navigates to / with prefilling params.
+// (4) "Edit this list" navigates to /plan with prefilling params.
 describe('edit back-link', () => {
-  it('pushes / with the current params so the selector pre-fills', () => {
+  it('pushes /plan with the current params so the selector pre-fills', () => {
     const params: ScheduleParams = {
       poi_ids: ['fort-santiago', 'manila-cathedral'],
       start_time: '10:00',
@@ -196,7 +221,7 @@ describe('edit back-link', () => {
 
     expect(nav.push).toHaveBeenCalledTimes(1)
     const url = nav.push.mock.calls[0][0] as string
-    expect(url.startsWith('/?')).toBe(true)
+    expect(url.startsWith('/plan?')).toBe(true)
     const sp = queryFrom(url)
     expect(sp.get('poi_ids')).toBe('fort-santiago,manila-cathedral')
     expect(sp.get('start_time')).toBe('10:00')

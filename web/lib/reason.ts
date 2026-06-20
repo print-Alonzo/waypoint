@@ -1,4 +1,4 @@
-import type { StopReason, TransportMode } from './scheduler'
+import type { ScheduledStop, StopReason, TransportMode } from './scheduler'
 import { modeLabel } from './constants'
 
 // Turns the scheduler's structured StopReason into a faithful one-line explanation.
@@ -30,4 +30,17 @@ export function reasonText(reason: StopReason, mode: TransportMode): string {
   return reason.decidedByClose
     ? `${lead}; picked because it closes earliest, at ${reason.closeTime}.`
     : `${lead}; among the earliest-closing of these.`
+}
+
+// Faithful "Why this stop" line for ANY stop — the single source of truth shared
+// by the result page and both exports. Only an optimizer-placed stop may show the
+// nearest-neighbor reasoning; a user-pinned or hand-arranged stop says so plainly
+// so the explanation can never claim a decision the algorithm didn't make.
+// `placement` is optional on ScheduledStop; undefined ⇒ optimized.
+export function reasonLine(stop: ScheduledStop, mode: TransportMode): string {
+  if (stop.placement === 'locked')
+    return 'Pinned by you — the rest of the day was optimized around it.'
+  if (stop.placement === 'manual')
+    return 'You placed this stop here — arrival time updated to match.'
+  return reasonText(stop.reason, mode)
 }

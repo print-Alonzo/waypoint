@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 
@@ -17,9 +18,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={plusJakartaSans.className}>
       <body className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
-        <header className="sticky top-0 z-10 bg-[var(--color-bg)] border-b border-[var(--color-border)] px-5 py-4">
-          <span className="text-xl font-bold tracking-tight text-[var(--color-primary)]">
+        <header className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-bg)] border-b border-[var(--color-border)] px-5 py-4">
+          <Link
+            href="/"
+            className="text-xl font-bold tracking-tight text-[var(--color-primary)]"
+          >
             Waypoint
+          </Link>
+          <span className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+            Metro Manila
           </span>
         </header>
         <main className="flex-1">{children}</main>
