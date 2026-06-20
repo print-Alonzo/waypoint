@@ -71,5 +71,5 @@ default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop i
 
 The UI follows an **Airbnb-inspired** design language (coral `#FF385C` primary, rounded cards,
 soft shadows, generous whitespace), using **Plus Jakarta Sans** as a license-safe stand-in for
-Airbnb's proprietary Cereal typeface. See the design tokens in `app/globals.css` and the design
-pivot note in the spec.
+Airbnb's proprietary Cereal typeface. Full token + component reference: [`DESIGN.md`](DESIGN.md).
+Tokens live in `app/globals.css`; the design pivot is recorded in the spec.

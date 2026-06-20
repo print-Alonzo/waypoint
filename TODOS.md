@@ -77,10 +77,14 @@ comparison data. Update the confidence label component with mode-aware text.
 
 ---
 
-### T4: Create DESIGN.md
+### ~~T4: Create DESIGN.md~~ — DONE (2026-06-20)
 **Priority:** P3
 **Effort:** XS (human: ~30min / CC: ~20min)
 **Depends on:** V1 complete and shipped
+
+**Status:** Done. `web/DESIGN.md` captures the Airbnb design tokens (coral `#FF385C`, type scale,
+card/shadow/input rules), component patterns, accessibility, and print rules — sourced from the
+implemented `app/globals.css` + components, not a separate consultation. Linked from `web/README.md`.
 
 **What:** Run `/design-consultation` to generate a `DESIGN.md` from the font, color, and token decisions made in the `/plan-design-review` session.
 
