@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import type { POI } from '@/lib/scheduler'
 import { hoursLabel } from '@/lib/poi-format'
@@ -24,6 +24,7 @@ function DeckCard({
   style,
   className = '',
   interactive,
+  added,
   drag,
   ...rest
 }: {
@@ -32,6 +33,7 @@ function DeckCard({
   style?: React.CSSProperties
   className?: string
   interactive?: boolean
+  added?: boolean
   drag?: number
 } & React.HTMLAttributes<HTMLDivElement>) {
   const addOpacity = drag ? Math.min(1, Math.max(0, drag / SWIPE_THRESHOLD)) : 0
@@ -76,6 +78,13 @@ function DeckCard({
             </span>
           </>
         )}
+        {/* Persistent tag when revisiting a card you already added (filters make
+            re-seeing a category common). */}
+        {interactive && added && (
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-[var(--color-primary)] px-2.5 py-1 text-xs font-bold text-white shadow">
+            ✓ Added
+          </span>
+        )}
       </div>
       <div className="p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
@@ -93,6 +102,36 @@ function DeckCard({
   )
 }
 
+// A category filter pill above the deck: "Museums 8". Tapping narrows the deck to
+// that category so the traveler swipes a handful of cards instead of the whole set.
+function Chip({
+  active,
+  count,
+  onClick,
+  children,
+}: {
+  active: boolean
+  count: number
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+        active
+          ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+          : 'border-[var(--color-border)] bg-white text-[var(--color-text-muted)] hover:border-[var(--color-text)]'
+      }`}
+    >
+      {children}
+      <span className="ml-1.5 opacity-70">{count}</span>
+    </button>
+  )
+}
+
 export default function PoiSwipeDeck({
   pois,
   isSelected,
@@ -104,6 +143,7 @@ export default function PoiSwipeDeck({
   setSelected: (id: string, value: boolean) => void
   categoryLabel: (key: string) => string
 }) {
+  const [activeCat, setActiveCat] = useState('all')
   const [index, setIndex] = useState(0)
   const [history, setHistory] = useState<Decision[]>([])
   const [drag, setDrag] = useState(0) // live horizontal offset of the top card
@@ -113,10 +153,39 @@ export default function PoiSwipeDeck({
   const axis = useRef<'none' | 'x' | 'y'>('none')
   const animating = useRef(false)
 
-  const total = pois.length
-  const current = pois[index]
+  // Categories present in the deck (dataset order) with counts, so the traveler can
+  // narrow to just "Museums" instead of swiping every place.
+  const categories = useMemo(() => {
+    const order: string[] = []
+    const counts = new Map<string, number>()
+    for (const p of pois) {
+      if (!counts.has(p.category)) order.push(p.category)
+      counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
+    }
+    return order.map((key) => ({ key, count: counts.get(key) ?? 0 }))
+  }, [pois])
+
+  // The active slice the swiper walks through: everything, or one category.
+  const deck = useMemo(
+    () => (activeCat === 'all' ? pois : pois.filter((p) => p.category === activeCat)),
+    [pois, activeCat],
+  )
+
+  const total = deck.length
+  const current = deck[index]
+  // Added count stays global — it's the whole plan and feeds the sticky CTA.
   const addedCount = pois.reduce((n, p) => (isSelected(p.id) ? n + 1 : n), 0)
   const done = index >= total
+
+  // Switching filters restarts the cursor for that slice; selections persist.
+  function selectCategory(cat: string) {
+    if (animating.current || cat === activeCat) return
+    setActiveCat(cat)
+    setIndex(0)
+    setHistory([])
+    setDrag(0)
+    setFly(0)
+  }
 
   function commit(dir: 1 | -1) {
     if (animating.current || !current) return
@@ -197,6 +266,28 @@ export default function PoiSwipeDeck({
       aria-label="Swipe through places to add or skip"
       className="sm:hidden"
     >
+      {categories.length > 1 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          <Chip
+            active={activeCat === 'all'}
+            count={pois.length}
+            onClick={() => selectCategory('all')}
+          >
+            All
+          </Chip>
+          {categories.map((c) => (
+            <Chip
+              key={c.key}
+              active={activeCat === c.key}
+              count={c.count}
+              onClick={() => selectCategory(c.key)}
+            >
+              {categoryLabel(c.key)}
+            </Chip>
+          ))}
+        </div>
+      )}
+
       <div className="mb-3 flex items-center justify-between text-sm">
         <span className="text-[var(--color-text-muted)]">
           {done ? `${total} of ${total}` : `${index + 1} of ${total}`}
@@ -215,7 +306,11 @@ export default function PoiSwipeDeck({
       >
         {done ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-6 text-center">
-            <p className="text-lg font-bold">You&rsquo;ve seen every place.</p>
+            <p className="text-lg font-bold">
+              {activeCat === 'all'
+                ? "You've seen every place."
+                : `You've seen all ${categoryLabel(activeCat).toLowerCase()}.`}
+            </p>
             <p className="mt-1 text-[var(--color-text-muted)]">
               {addedCount} added to your plan.
             </p>
@@ -241,17 +336,19 @@ export default function PoiSwipeDeck({
               </button>
             </div>
             <p className="mt-6 text-sm text-[var(--color-text-muted)]">
-              Scroll down to set your trip details and plan your day.
+              {categories.length > 1
+                ? 'Pick another category above, or scroll down for trip details.'
+                : 'Scroll down to set your trip details and plan your day.'}
             </p>
           </div>
         ) : (
           <>
             {/* Up to two cards peeking behind for depth */}
-            {pois[index + 2] && (
+            {deck[index + 2] && (
               <DeckCard
-                key={pois[index + 2].id}
-                poi={pois[index + 2]}
-                categoryLabel={categoryLabel(pois[index + 2].category)}
+                key={deck[index + 2].id}
+                poi={deck[index + 2]}
+                categoryLabel={categoryLabel(deck[index + 2].category)}
                 aria-hidden
                 style={{
                   transform: 'translateY(16px) scale(0.92)',
@@ -260,11 +357,11 @@ export default function PoiSwipeDeck({
                 }}
               />
             )}
-            {pois[index + 1] && (
+            {deck[index + 1] && (
               <DeckCard
-                key={pois[index + 1].id}
-                poi={pois[index + 1]}
-                categoryLabel={categoryLabel(pois[index + 1].category)}
+                key={deck[index + 1].id}
+                poi={deck[index + 1]}
+                categoryLabel={categoryLabel(deck[index + 1].category)}
                 aria-hidden
                 style={{
                   transform: 'translateY(8px) scale(0.96)',
@@ -278,6 +375,7 @@ export default function PoiSwipeDeck({
               poi={current}
               categoryLabel={categoryLabel(current.category)}
               interactive
+              added={isSelected(current.id)}
               drag={offset}
               style={topStyle}
               onPointerDown={onPointerDown}
