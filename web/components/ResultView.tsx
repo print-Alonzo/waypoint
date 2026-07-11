@@ -1279,7 +1279,7 @@ export default function ResultView() {
                           {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
                           <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
                           <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
-                          <span className="font-semibold">{stop.poi.name}</span>
+                          <h2 className="font-semibold">{stop.poi.name}</h2>
                           {outOfBudget && (
                             <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
                               Beyond your {model.budget}h
