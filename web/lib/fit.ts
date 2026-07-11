@@ -10,7 +10,11 @@ import { parseTime, estimateTransitMinutes } from './scheduler'
 export type FitResult = {
   budgetMinutes: number
   endsAt: number // start + budget, in minutes from midnight
-  // Per stop (index-aligned with the input): does its arrival land within budget?
+  // Per stop (index-aligned with the input): does the FULL visit — arrival through
+  // departure, i.e. including however long you linger — land within budget? Checking
+  // departure (not just arrival) matters once dwell time is user-editable: a stop you
+  // reach in time but then stay at for hours can blow the budget all by itself, with
+  // no later stop around to inherit the overflow and get flagged instead.
   fits: boolean[]
   lastFitIndex: number // last in-budget stop, or -1 if none fit
   overflowCount: number // how many stops fall outside the budget
@@ -33,8 +37,10 @@ export function fitToBudget(
   const budgetMinutes = Math.max(0, Math.round(budgetHours * 60))
   const endsAt = start + budgetMinutes
 
-  // A stop "fits" when you'd arrive at or before your budget runs out.
-  const fits = stops.map((s) => s.arrivalTime <= endsAt)
+  // A stop "fits" when you'd be DONE with it — arrival plus however long you stay —
+  // at or before your budget runs out. departureTime > arrivalTime always, so this
+  // subsumes (and is strictly stronger than) an arrival-only check.
+  const fits = stops.map((s) => s.departureTime <= endsAt)
   let lastFitIndex = -1
   for (let i = 0; i < fits.length; i++) if (fits[i]) lastFitIndex = i
   const overflowCount = fits.filter((f) => !f).length

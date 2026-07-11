@@ -82,6 +82,7 @@ describe('reasonLine (placement-aware, single source of truth for page + exports
       poi: { id: 'x' } as ScheduledStop['poi'],
       arrivalTime: 540,
       departureTime: 600,
+      dwellMinutes: 60,
       transitFromPrev: 8,
       yellowFlag: false,
       redFlag: false,

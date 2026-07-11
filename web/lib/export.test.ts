@@ -35,6 +35,7 @@ function stop(over: Partial<ScheduledStop> = {}): ScheduledStop {
     poi: poi(over.poi),
     arrivalTime: 540, // 09:00
     departureTime: 600, // 10:00
+    dwellMinutes: 60,
     transitFromPrev: 6,
     yellowFlag: false,
     redFlag: false,

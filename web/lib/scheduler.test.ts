@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { scheduleItinerary, parseTime, formatTime } from './scheduler'
-import type { POI, TransitMatrix, ScheduledStop } from './scheduler'
+import { scheduleItinerary, scheduleAlong, parseTime, formatTime } from './scheduler'
+import type { POI, TransitMatrix, ScheduledStop, DurationOverrides } from './scheduler'
 
 const START_COORDS = { lat: 14.5831, lng: 120.9794 }
 const START_ID = 'rizal-park'
@@ -117,6 +117,105 @@ describe('zero duration clamped', () => {
     const result = scheduleItinerary([poi], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
 
     expect(result[0].departureTime - result[0].arrivalTime).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// Per-stop duration overrides, threaded through scheduleAlong (the one place
+// dwell enters the schedule). optimizeOrder is untouched by this feature — order
+// is fixed here since ordering itself is dwell-independent by construction.
+describe('per-stop duration overrides', () => {
+  it('with no overrides, dwellMinutes equals the authored recommendation', () => {
+    const poi = makePOI({ id: 'a', recommended_duration_minutes: 90 })
+    const matrix = makeMatrix(START_ID, [poi])
+    const [stop] = scheduleAlong([poi], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+
+    expect(stop.dwellMinutes).toBe(90)
+    expect(stop.departureTime - stop.arrivalTime).toBe(90)
+  })
+
+  it('an override sets dwellMinutes and the arrival/departure gap to the override', () => {
+    const poi = makePOI({ id: 'a', recommended_duration_minutes: 90 })
+    const matrix = makeMatrix(START_ID, [poi])
+    const durations: DurationOverrides = { a: 30 }
+    const [stop] = scheduleAlong(
+      [poi],
+      matrix,
+      START_ID,
+      START_COORDS,
+      '09:00',
+      'walk',
+      'Tuesday',
+      undefined,
+      null,
+      durations,
+    )
+
+    expect(stop.dwellMinutes).toBe(30)
+    expect(stop.departureTime - stop.arrivalTime).toBe(30)
+  })
+
+  it('the ripple: lengthening stop 1 pushes stop 2s arrival later by the same delta', () => {
+    const poiA = makePOI({ id: 'a', recommended_duration_minutes: 60 })
+    const poiB = makePOI({ id: 'b', recommended_duration_minutes: 60 })
+    const matrix = makeMatrix(START_ID, [poiA, poiB])
+
+    const base = scheduleAlong([poiA, poiB], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+    const withOverride = scheduleAlong(
+      [poiA, poiB],
+      matrix,
+      START_ID,
+      START_COORDS,
+      '09:00',
+      'walk',
+      'Tuesday',
+      undefined,
+      null,
+      { a: 90 }, // +30 min over the 60-min recommendation
+    )
+
+    expect(withOverride[1].arrivalTime).toBe(base[1].arrivalTime + 30)
+  })
+
+  it('a long enough override on stop 1 can flip stop 2s yellowFlag (the honest consequence)', () => {
+    const poiA = makePOI({ id: 'a', recommended_duration_minutes: 30, close_time: '20:00' })
+    const poiB = makePOI({ id: 'b', recommended_duration_minutes: 30, close_time: '11:00' })
+    const matrix = makeMatrix(START_ID, [poiA, poiB])
+
+    const base = scheduleAlong([poiA, poiB], matrix, START_ID, START_COORDS, '09:00', 'walk', 'Tuesday')
+    expect(base[1].yellowFlag).toBe(false) // arrives before b's 11:00 close
+
+    const withOverride = scheduleAlong(
+      [poiA, poiB],
+      matrix,
+      START_ID,
+      START_COORDS,
+      '09:00',
+      'walk',
+      'Tuesday',
+      undefined,
+      null,
+      { a: 300 }, // long enough to push arrival at b past 11:00
+    )
+    expect(withOverride[1].yellowFlag).toBe(true)
+  })
+
+  it('an override for an id not in the itinerary is ignored', () => {
+    const poi = makePOI({ id: 'a', recommended_duration_minutes: 90 })
+    const matrix = makeMatrix(START_ID, [poi])
+    const [stop] = scheduleAlong(
+      [poi],
+      matrix,
+      START_ID,
+      START_COORDS,
+      '09:00',
+      'walk',
+      'Tuesday',
+      undefined,
+      null,
+      { 'not-in-trip': 45 },
+    )
+
+    expect(stop.dwellMinutes).toBe(90)
   })
 })
 

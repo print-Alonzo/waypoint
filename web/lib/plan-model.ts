@@ -4,6 +4,7 @@ import { optimizeOrder, scheduleAlong } from './scheduler'
 import { POI_MAP, TRANSIT_MATRIX } from './data'
 import { START_LOCATION_MAP, LUNCH_WINDOW } from './constants'
 import { isEnabled } from './features'
+import { pruneDurations } from './duration'
 
 // Resolve a plan's params into a concrete scheduled list — the SAME order + lunch
 // resolution the result page uses, minus the placement/reason decoration the page
@@ -56,6 +57,9 @@ export function resolvePlan(params: ScheduleParams): ResolvedPlan | null {
     isEnabled('lunchBreak') && params.lunch
       ? { start: LUNCH_WINDOW.start, end: LUNCH_WINDOW.end }
       : null
+  const durations = isEnabled('customDuration')
+    ? pruneDurations(params.durations ?? {}, pois)
+    : {}
   const stops = scheduleAlong(
     order.map((id) => POI_MAP[id]),
     TRANSIT_MATRIX,
@@ -66,6 +70,7 @@ export function resolvePlan(params: ScheduleParams): ResolvedPlan | null {
     params.day_of_week,
     undefined,
     lunch,
+    durations,
   )
 
   return { startName: start.name, coords, stops }

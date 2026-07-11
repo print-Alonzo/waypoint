@@ -19,6 +19,9 @@ export const FEATURES = {
   whatIf: true,
   // Reserve a midday lunch window and shift stops around it.
   lunchBreak: true,
+  // Per-stop "Time here" stepper: override how long you spend at a place (the POI's
+  // authored duration stays on screen as the suggestion).
+  customDuration: true,
   // Service worker so a saved plan keeps working offline (e.g. in an MRT tunnel).
   offline: true,
   // /live — device-clock companion ("leaving in ~N min", "I'm running late").

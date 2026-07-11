@@ -114,17 +114,32 @@ Airbnb's proprietary **Cereal** typeface.
 - **Sticky CTA bar:** fixed to the viewport bottom, top border, centered to the container width.
 - **Stop card** ([`components/ResultView.tsx`](components/ResultView.tsx)): icon (⚠/✕ when flagged) +
   stop number (muted) + arrival time (semibold) + name (semibold) on line 1; `~N min · status` on
-  line 2; optional italic muted notes on line 3; a **"Why this stop:" reason line** on line 4 (top
-  hairline divider, `text-xs`) explaining the scheduler's ordering choice. Background = flag tint per
-  state. The reason line **prints** with the list (it's the faithful record); on clear cards it is
-  `text-[var(--color-text-muted)]`, on flagged cards it inherits the card's flag text colour at full
-  opacity to keep WCAG AA contrast on the tint. Copy comes from `reasonLine`
-  ([`lib/reason.ts`](lib/reason.ts)) — the **single source of truth** the page and both exports share.
-  For an `optimized` stop it renders the scheduler's structured `reason` data, so it can never claim
-  something the algorithm didn't do (e.g. it only says "closes earliest" when closing time *strictly*
-  decided a tie); for a **pinned** stop it says "Pinned by you — the rest of the day was optimized
-  around it," and for a **hand-arranged** stop "You placed this stop here." A user-placed stop never
-  shows an algorithmic claim, on the page or in the copied text / `.ics`.
+  line 2 (the effective, possibly user-overridden, duration — see **Duration stepper** below);
+  a screen-only **"Time here" stepper** (flag: `customDuration`); optional italic muted notes; a
+  **"Why this stop:" reason line** (top hairline divider, `text-xs`) explaining the scheduler's
+  ordering choice. Background = flag tint per state. The reason line **prints** with the list (it's
+  the faithful record); on clear cards it is `text-[var(--color-text-muted)]`, on flagged cards it
+  inherits the card's flag text colour at full opacity to keep WCAG AA contrast on the tint. Copy
+  comes from `reasonLine` ([`lib/reason.ts`](lib/reason.ts)) — the **single source of truth** the page
+  and both exports share. For an `optimized` stop it renders the scheduler's structured `reason` data,
+  so it can never claim something the algorithm didn't do (e.g. it only says "closes earliest" when
+  closing time *strictly* decided a tie); for a **pinned** stop it says "Pinned by you — the rest of
+  the day was optimized around it," and for a **hand-arranged** stop "You placed this stop here." A
+  user-placed stop never shows an algorithmic claim, on the page or in the copied text / `.ics`.
+- **Duration stepper** ([`components/ResultView.tsx`](components/ResultView.tsx), flag:
+  `customDuration`): a screen-only (`no-print`) `− / value / +` row under the status line that lets
+  you override how long you spend at a stop. The POI's authored `recommended_duration_minutes` stays
+  visible as "Suggested N min" — the guide for getting the most out of the stop — even once
+  overridden, with a text **Reset** link back to it. Both buttons reuse the 44px `ctrlBtn` token and
+  `aria-disabled` (not `disabled`) at the `DURATION_MIN`/`DURATION_MAX` bounds, for the same reason the
+  reorder buttons do (see below). Every change announces via the shared `aria-live` region. If the
+  chosen duration would run past the stop's `close_time`, a local warning-tint hint appears (icon +
+  text, never color alone) — this does **not** flip the stop's flag state (yellow stays
+  arrival-based), so the map, exports, and Live mode are unaffected by the hint itself, only by the
+  resulting later times. State is the single source of truth in the **URL** (`dur` param via
+  [`lib/params.ts`](lib/params.ts) / [`lib/duration.ts`](lib/duration.ts)), written the same way
+  reorder/pin/budget/lunch are — so an edited plan stays shareable + refresh-safe, and the result page,
+  map, Compare, Live, and both exports never disagree on times.
 - **Reorder & pin (lock)** ([`components/ResultView.tsx`](components/ResultView.tsx)): the day is
   yours to arrange — the optimizer only sequences what you haven't pinned. Each stop card carries
   screen-only `↑ ↓` move controls and a **pin** toggle (an inline lock glyph, coral-filled when

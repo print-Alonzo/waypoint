@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { POI, TransportMode, LunchWindow } from '@/lib/scheduler'
+import type { POI, TransportMode, LunchWindow, DurationOverrides } from '@/lib/scheduler'
 import { modeLabel } from '@/lib/constants'
 import { computeWhatIfVariants } from '@/lib/whatif'
 import type { ScheduleParams } from '@/lib/params'
@@ -17,6 +17,7 @@ export default function WhatIfDrawer({
   params,
   coords,
   lunch,
+  durations,
   currentMode,
   onChoose,
 }: {
@@ -24,12 +25,13 @@ export default function WhatIfDrawer({
   params: ScheduleParams
   coords: { lat: number; lng: number }
   lunch: LunchWindow | null
+  durations: DurationOverrides
   currentMode: TransportMode
   onChoose: (mode: TransportMode) => void
 }) {
   const variants = useMemo(
-    () => computeWhatIfVariants(pois, params, coords, lunch),
-    [pois, params, coords, lunch],
+    () => computeWhatIfVariants(pois, params, coords, lunch, durations),
+    [pois, params, coords, lunch, durations],
   )
 
   return (

@@ -7,6 +7,7 @@ function stop(transitFromPrev: number): ScheduledStop {
     poi: { id: 'x' } as ScheduledStop['poi'],
     arrivalTime: 0,
     departureTime: 0,
+    dwellMinutes: 0,
     transitFromPrev,
     yellowFlag: false,
     redFlag: false,

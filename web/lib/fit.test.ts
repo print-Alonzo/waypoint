@@ -11,6 +11,7 @@ function stop(arrivalTime: number, departureTime: number, coords = START): Sched
     poi: { id: 'x', lat: coords.lat, lng: coords.lng } as ScheduledStop['poi'],
     arrivalTime,
     departureTime,
+    dwellMinutes: departureTime - arrivalTime,
     transitFromPrev: 0,
     yellowFlag: false,
     redFlag: false,
@@ -69,5 +70,30 @@ describe('fitToBudget', () => {
     expect(fit.fits).toEqual([false, false])
     expect(fit.lastFitIndex).toBe(-1)
     expect(fit.makesItBack).toBe(false)
+  })
+
+  // Regression: a stop reached in time but lingered at (a long, possibly
+  // user-edited dwell) past the budget's end must be flagged itself — not just
+  // whichever later stop happens to inherit the delay.
+  it('flags a stop whose arrival is in budget but whose long dwell overruns it', () => {
+    // start 09:00 (540), budget 4h → ends 13:00 (780).
+    // Arrives 10:00 (600, well within budget) but a 4h dwell departs at 14:00 (840).
+    const stops = [stop(600, 840)]
+    const fit = fitToBudget(stops, '09:00', 4, START, 'grab')
+    expect(fit.fits).toEqual([false])
+    expect(fit.overflowCount).toBe(1)
+    expect(fit.lastFitIndex).toBe(-1)
+    expect(fit.makesItBack).toBe(false)
+  })
+
+  it('once one stop overruns the budget via a long dwell, every later stop does too', () => {
+    // start 09:00 (540), budget 5h → ends 14:00 (840).
+    // Stop 1 arrives in budget (600) but a huge dwell departs well past it (900).
+    // Stop 2 necessarily arrives even later, so it can't fit either.
+    const stops = [stop(600, 900), stop(910, 940)]
+    const fit = fitToBudget(stops, '09:00', 5, START, 'grab')
+    expect(fit.fits).toEqual([false, false])
+    expect(fit.overflowCount).toBe(2)
+    expect(fit.lastFitIndex).toBe(-1)
   })
 })
