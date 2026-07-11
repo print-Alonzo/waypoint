@@ -747,7 +747,6 @@ export default function ResultView() {
     const movedId = next[j]
     const name = POI_MAP[movedId]?.name ?? 'Stop'
     setLiveMsg(`Moved ${name} to position ${j + 1}.`)
-    setAdjustOpen(true) // reveal the now-relevant Re-optimize / Reset controls
     applyOrder(next, [...model!.locked], movedId)
   }
 
@@ -765,7 +764,6 @@ export default function ResultView() {
     const next = arrayMove(model!.order, from, to)
     const name = POI_MAP[activeId]?.name ?? 'Stop'
     setLiveMsg(`Moved ${name} to position ${to + 1}.`)
-    setAdjustOpen(true)
     applyOrder(next, [...model!.locked], activeId)
   }
 
@@ -779,7 +777,6 @@ export default function ResultView() {
       next.add(id)
       setLiveMsg(`Pinned ${name} in place.`)
     }
-    setAdjustOpen(true) // reveal the now-relevant Re-optimize / Reset controls
     writeArrangement(model!.order, [...next])
   }
 
