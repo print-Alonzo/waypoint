@@ -941,6 +941,11 @@ export default function ResultView() {
         ) : (
           <Chip>All open</Chip>
         )}
+        {fit && fit.overflowCount > 0 && (
+          <Chip tone="warning">
+            {fit.overflowCount} beyond budget
+          </Chip>
+        )}
         {totalFare && <Chip>~{formatFare(totalFare)} fare</Chip>}
         {model.isCustom && <Chip>Your order</Chip>}
       </div>
