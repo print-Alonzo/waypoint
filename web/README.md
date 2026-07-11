@@ -47,6 +47,7 @@ No other edits needed; that's the kill switch.
 | `fareEstimator` | Per-leg + per-day **fare ranges** (jeepney/Grab; walking is free) | Result page |
 | `whatIf` | Compare **Walk / Jeepney / Grab** side by side (re-optimized per mode) | Result page |
 | `lunchBreak` | Reserve a midday **lunch window** (12:00–13:30); later stops shift around it | Result page |
+| `customDuration` | Per-stop **"Time here" stepper** — override how long you spend at a place; the POI's authored duration stays on screen as the suggestion | Result page |
 | `offline` | **Service worker** so a visited plan keeps working without a connection | Whole app (prod only) |
 | `liveMode` | `/live` — device-clock companion: now / next, "leave in ~N min", "I'm running late" reflow | `/live` |
 | `comparePlans` | **Save plans** (this device) and compare two side by side | Result page → `/compare` |
@@ -60,8 +61,9 @@ and exports in agreement on times.
 > phone). True multi-device, real-time voting needs a shared backend, which Waypoint deliberately does
 > not have. The single-device version is a useful demo; enable the flag to try it.
 
-Budget and lunch are part of the result URL (`&budget=6`, `&lunch=1`), so a budgeted / lunch-inclusive
-plan stays shareable and refresh-safe like everything else.
+Budget, lunch, and per-stop duration overrides are part of the result URL (`&budget=6`, `&lunch=1`,
+`&dur=fort-santiago:120`), so a budgeted / lunch-inclusive / time-tuned plan stays shareable and
+refresh-safe like everything else.
 
 ## Scripts
 

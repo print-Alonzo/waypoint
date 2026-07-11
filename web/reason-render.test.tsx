@@ -42,6 +42,7 @@ describe('ResultView renders tie-group reason copy', () => {
         poi: a,
         arrivalTime: 540,
         departureTime: 600,
+        dwellMinutes: 60,
         transitFromPrev: 4,
         yellowFlag: false,
         redFlag: false,
@@ -58,6 +59,7 @@ describe('ResultView renders tie-group reason copy', () => {
         poi: b,
         arrivalTime: 640,
         departureTime: 700,
+        dwellMinutes: 60,
         transitFromPrev: 6,
         yellowFlag: false,
         redFlag: false,
@@ -99,6 +101,7 @@ describe('ResultView renders past-midnight arrival as wall clock', () => {
         poi: a,
         arrivalTime: 1500, // 01:00 next day
         departureTime: 1560,
+        dwellMinutes: 60,
         transitFromPrev: 6,
         yellowFlag: false,
         redFlag: false,

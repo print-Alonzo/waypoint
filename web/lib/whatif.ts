@@ -1,4 +1,4 @@
-import type { POI, TransportMode, LunchWindow } from './scheduler'
+import type { POI, TransportMode, LunchWindow, DurationOverrides } from './scheduler'
 import { optimizeOrder, scheduleAlong, parseTime } from './scheduler'
 import { TRANSIT_MATRIX } from './data'
 import { TRANSPORT_MODES } from './constants'
@@ -26,6 +26,7 @@ export function computeWhatIfVariants(
   params: ScheduleParams,
   coords: { lat: number; lng: number },
   lunch: LunchWindow | null,
+  durations: DurationOverrides,
 ): WhatIfVariant[] {
   return TRANSPORT_MODES.map(({ value }) => {
     const mode = value as TransportMode
@@ -47,6 +48,7 @@ export function computeWhatIfVariants(
       params.day_of_week,
       undefined,
       lunch,
+      durations,
     )
     const span = stops.length
       ? stops[stops.length - 1].departureTime - parseTime(params.start_time)

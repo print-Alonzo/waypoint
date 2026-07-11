@@ -98,3 +98,26 @@ it('floors a fractional budget to whole hours', () => {
   sp.set('budget', '5.9')
   expect(decodeParams(sp)!.budget).toBe(5)
 })
+
+// (12) Per-stop duration overrides round-trip when present.
+it('round-trips optional durations when present', () => {
+  const customized = { ...BASE, durations: { 'fort-santiago': 120, 'rizal-shrine': 30 } }
+  expect(decodeParams(encodeParams(customized))).toEqual(customized)
+})
+
+// (13) A plan with no durations produces a URL with no `dur` key (clean-URL guarantee).
+it('omits dur entirely when durations is absent or empty', () => {
+  const sp = encodeParams(BASE)
+  expect(sp.has('dur')).toBe(false)
+  expect(encodeParams({ ...BASE, durations: {} }).has('dur')).toBe(false)
+  const decoded = decodeParams(sp)!
+  expect('durations' in decoded).toBe(false)
+})
+
+// (14) A malformed dur value decodes to a ScheduleParams with no `durations` key.
+it('ignores a malformed dur value entirely', () => {
+  const sp = encodeParams(BASE)
+  sp.set('dur', 'garbage,,also-garbage:')
+  const decoded = decodeParams(sp)!
+  expect('durations' in decoded).toBe(false)
+})

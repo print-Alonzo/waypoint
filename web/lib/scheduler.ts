@@ -59,6 +59,10 @@ export type ScheduledStop = {
   arrivalTime: number
   departureTime: number
   transitFromPrev: number
+  // Effective time spent at this stop (departureTime - arrivalTime). Required so no
+  // display site can accidentally fall back to poi.recommended_duration_minutes and
+  // show the default when the user overrode it.
+  dwellMinutes: number
   yellowFlag: boolean
   redFlag: boolean
   reason: StopReason
@@ -70,6 +74,15 @@ export type ScheduledStop = {
 
 // A fixed reserved break (minutes from midnight) threaded into scheduleAlong.
 export type LunchWindow = { start: number; end: number }
+
+// Per-stop dwell overrides, keyed by POI id (minutes). Absent id ⇒ the POI's authored
+// recommended_duration_minutes. The Math.max(…, 1) floor is the pre-existing guarantee
+// that a stop's departure always differs from its arrival.
+export type DurationOverrides = Record<string, number>
+
+export function dwellFor(poi: POI, overrides?: DurationOverrides): number {
+  return Math.max(overrides?.[poi.id] ?? poi.recommended_duration_minutes, 1)
+}
 
 export function parseTime(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
@@ -261,6 +274,9 @@ export function scheduleAlong(
   // first stop you'd otherwise reach at/after `start`; subsequent arrivals shift
   // later by the time it consumes. Pure: same inputs ⇒ same schedule.
   lunch?: LunchWindow | null,
+  // Optional per-stop dwell overrides (minutes), keyed by POI id. Absent id ⇒ the
+  // POI's authored recommended_duration_minutes. See dwellFor.
+  durations?: DurationOverrides,
 ): ScheduledStop[] {
   let prevId = startLocationId
   let prevCoords: { lat: number; lng: number } = startLocationCoords
@@ -288,7 +304,8 @@ export function scheduleAlong(
       }
     }
 
-    const departure = arrival + Math.max(poi.recommended_duration_minutes, 1)
+    const dwellMinutes = dwellFor(poi, durations)
+    const departure = arrival + dwellMinutes
     const decorated = decorate?.(poi, i, prevName, transit) ?? {
       placement: 'optimized' as Placement,
       reason: {
@@ -305,6 +322,7 @@ export function scheduleAlong(
       arrivalTime: arrival,
       departureTime: departure,
       transitFromPrev: transit,
+      dwellMinutes,
       yellowFlag: arrival > parseTime(poi.close_time),
       redFlag: poi.closed_days.includes(dayOfWeek),
       reason: decorated.reason,

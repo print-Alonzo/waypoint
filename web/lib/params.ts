@@ -1,4 +1,5 @@
-import type { TransportMode } from './scheduler'
+import type { TransportMode, DurationOverrides } from './scheduler'
+import { encodeDurations, parseDurations } from './duration'
 
 export type ScheduleParams = {
   poi_ids: string[]
@@ -15,6 +16,10 @@ export type ScheduleParams = {
   // a midday break. Kept in the URL so a budgeted/lunch plan is shareable + refresh-safe.
   budget?: number
   lunch?: boolean
+  // Per-stop "Time here" overrides (minutes), keyed by POI id. Absent id ⇒ the POI's
+  // authored recommended_duration_minutes. Kept in the URL for the same shareable /
+  // refresh-safe reason as order/locked/budget/lunch.
+  durations?: DurationOverrides
 }
 
 const TIME_RE = /^\d{2}:\d{2}$/
@@ -33,6 +38,8 @@ export function encodeParams(params: ScheduleParams): URLSearchParams {
   if (typeof params.budget === 'number' && params.budget > 0)
     sp.set('budget', String(params.budget))
   if (params.lunch) sp.set('lunch', '1')
+  if (params.durations && Object.keys(params.durations).length)
+    sp.set('dur', encodeDurations(params.durations))
   return sp
 }
 
@@ -69,6 +76,12 @@ export function decodeParams(sp: URLSearchParams): ScheduleParams | null {
     if (Number.isFinite(budget) && budget > 0) params.budget = Math.floor(budget)
   }
   if (sp.get('lunch') === '1') params.lunch = true
+
+  const durRaw = sp.get('dur')
+  if (durRaw) {
+    const durations = parseDurations(durRaw)
+    if (Object.keys(durations).length) params.durations = durations
+  }
 
   return params
 }

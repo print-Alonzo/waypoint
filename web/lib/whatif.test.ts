@@ -17,7 +17,7 @@ const POIS = PARAMS.poi_ids.map((id) => POI_MAP[id])
 
 describe('computeWhatIfVariants', () => {
   it('returns one variant per transport mode with sane figures', () => {
-    const v = computeWhatIfVariants(POIS, PARAMS, COORDS, null)
+    const v = computeWhatIfVariants(POIS, PARAMS, COORDS, null, {})
     expect(v.map((x) => x.mode)).toEqual(['walk', 'jeepney', 'grab'])
     v.forEach((x) => {
       expect(x.spanHours).toBeGreaterThanOrEqual(1)
@@ -27,7 +27,7 @@ describe('computeWhatIfVariants', () => {
   })
 
   it('walking is free, grab is not', () => {
-    const v = computeWhatIfVariants(POIS, PARAMS, COORDS, null)
+    const v = computeWhatIfVariants(POIS, PARAMS, COORDS, null, {})
     expect(v.find((x) => x.mode === 'walk')!.fare).toBe('Free')
     expect(v.find((x) => x.mode === 'grab')!.fare).not.toBe('Free')
   })
@@ -35,11 +35,14 @@ describe('computeWhatIfVariants', () => {
   it('a lunch window lengthens spans for a day that crosses noon', () => {
     const lateParams = { ...PARAMS, start_time: '11:00' }
     const latePois = lateParams.poi_ids.map((id) => POI_MAP[id])
-    const without = computeWhatIfVariants(latePois, lateParams, COORDS, null)
-    const withLunch = computeWhatIfVariants(latePois, lateParams, COORDS, {
-      start: LUNCH_WINDOW.start,
-      end: LUNCH_WINDOW.end,
-    })
+    const without = computeWhatIfVariants(latePois, lateParams, COORDS, null, {})
+    const withLunch = computeWhatIfVariants(
+      latePois,
+      lateParams,
+      COORDS,
+      { start: LUNCH_WINDOW.start, end: LUNCH_WINDOW.end },
+      {},
+    )
     const grabBefore = without.find((x) => x.mode === 'grab')!.spanHours
     const grabAfter = withLunch.find((x) => x.mode === 'grab')!.spanHours
     expect(grabAfter).toBeGreaterThan(grabBefore)

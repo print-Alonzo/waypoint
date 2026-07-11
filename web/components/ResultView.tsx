@@ -6,14 +6,15 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { decodeParams, encodeParams } from '@/lib/params'
-import { optimizeOrder, scheduleAlong, parseTime, formatTime } from '@/lib/scheduler'
-import type { POI, ScheduledStop, StopReason, TransportMode } from '@/lib/scheduler'
+import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduler'
+import type { POI, ScheduledStop, StopReason, TransportMode, DurationOverrides } from '@/lib/scheduler'
 import { POI_MAP, TRANSIT_MATRIX, CITY_LABEL } from '@/lib/data'
 import { START_LOCATION_MAP, modeLabel, LUNCH_WINDOW } from '@/lib/constants'
 import { reasonLine } from '@/lib/reason'
 import { fitToBudget } from '@/lib/fit'
 import { dayFare, legFare, formatFare } from '@/lib/fare'
 import { isEnabled } from '@/lib/features'
+import { clampDuration, pruneDurations, DURATION_MIN, DURATION_MAX, DURATION_STEP } from '@/lib/duration'
 import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/routing'
 import type { RouteLeg, RoadOverlay } from '@/lib/routing'
 import WhatIfDrawer from '@/components/WhatIfDrawer'
@@ -23,6 +24,7 @@ import {
   buildIcs,
   icsFilename,
   stopStatusLine,
+  stopDurationLine,
   wallClock,
 } from '@/lib/export'
 
@@ -118,6 +120,89 @@ function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neu
     <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm ${toneClass}`}>
       {children}
     </span>
+  )
+}
+
+// Inline "Time here" stepper: lets the traveler override how long they spend at a
+// stop. The POI's authored value stays visible as the suggestion (the guide for
+// getting the most out of the stop) even after it's overridden. Screen-only
+// (no-print) — the effective minutes are already shown in the printed line above
+// via stopDurationLine. Overstay is a LOCAL hint only: yellowFlag stays
+// arrival-based so the map, exports, and Live keep their existing flag semantics.
+function DurationStepper({
+  stop,
+  onSet,
+  onReset,
+  atBudgetCap,
+}: {
+  stop: ScheduledStop
+  onSet: (id: string, minutes: number) => void
+  onReset: (id: string) => void
+  // True when a further increase would push some stop's departure past an active
+  // time-budget — a second, independent ceiling on top of DURATION_MAX.
+  atBudgetCap: boolean
+}) {
+  const rec = stop.poi.recommended_duration_minutes
+  const edited = stop.dwellMinutes !== rec
+  const overstay = stop.departureTime > parseTime(stop.poi.close_time)
+  const atMax = stop.dwellMinutes >= DURATION_MAX
+  const plusDisabled = atMax || atBudgetCap
+
+  return (
+    <div className="no-print mt-2">
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-[var(--color-text-muted)]">Time here</span>
+        <button
+          type="button"
+          onClick={() => onSet(stop.poi.id, stop.dwellMinutes - DURATION_STEP)}
+          aria-disabled={stop.dwellMinutes <= DURATION_MIN}
+          aria-label={`Spend less time at ${stop.poi.name}`}
+          className={`${ctrlBtn}${
+            stop.dwellMinutes <= DURATION_MIN ? ' cursor-not-allowed opacity-40' : ''
+          }`}
+        >
+          −
+        </button>
+        <span className="w-20 text-center font-semibold">{stop.dwellMinutes} min</span>
+        <button
+          type="button"
+          onClick={() => onSet(stop.poi.id, stop.dwellMinutes + DURATION_STEP)}
+          aria-disabled={plusDisabled}
+          aria-label={`Spend more time at ${stop.poi.name}`}
+          className={`${ctrlBtn}${plusDisabled ? ' cursor-not-allowed opacity-40' : ''}`}
+        >
+          +
+        </button>
+      </div>
+      {overstay && (
+        <p className="mt-1.5 flex items-start gap-1 text-xs text-[var(--color-flag-warning-text)]">
+          <span aria-hidden>⚠</span>
+          <span>
+            {stop.poi.name} closes at {stop.poi.close_time} — your stay runs to{' '}
+            {wallClock(stop.departureTime)}.
+          </span>
+        </p>
+      )}
+      <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+        Suggested {rec} min
+        {edited && (
+          <>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => onReset(stop.poi.id)}
+              className="font-semibold underline-offset-2 hover:underline"
+            >
+              Reset
+            </button>
+          </>
+        )}
+        {/* Only mention the budget ceiling when IT (not the 600-min hard cap) is
+            the binding constraint, so the message always matches the reason
+            the button is actually disabled. */}
+        {atBudgetCap && !atMax && ' · Limited by your time budget'}
+      </p>
+    </div>
   )
 }
 
@@ -253,6 +338,12 @@ export default function ResultView() {
       const lunchOn = isEnabled('lunchBreak') && !!params.lunch
       const lunch = lunchOn ? LUNCH_WINDOW : null
 
+      // Per-stop "Time here" overrides (feature-gated): pruned to the selected POIs
+      // and to entries that actually differ from the authored recommendation.
+      const durations = isEnabled('customDuration')
+        ? pruneDurations(params.durations ?? {}, setPOIs)
+        : {}
+
       // Road routing only ever *refines the schedule's transit times/map line* for
       // this exact (start, mode, order); it never feeds back into ordering (see
       // routing effect below) — a stale/mismatched fetch is ignored, falling back
@@ -279,6 +370,7 @@ export default function ResultView() {
           return { placement: 'manual', reason: neutralReason(prevName, transit, poi) }
         },
         lunch,
+        durations,
       )
 
       // Time-budget overlay (feature-gated): marks over-budget stops without ever
@@ -302,6 +394,8 @@ export default function ResultView() {
         lunchOn,
         budget,
         fit,
+        durations,
+        matrix,
       }
     } catch {
       // Any malformed shared/edited URL that slips past validation → null → the
@@ -434,6 +528,7 @@ export default function ResultView() {
     locked: model.locked.size ? [...model.locked] : undefined,
     budget: model.budget ?? undefined,
     lunch: model.lunchOn || undefined,
+    durations: Object.keys(model.durations).length ? model.durations : undefined,
   }).toString()
   const planName = `${params.day_of_week} · ${stops.length} ${
     stops.length === 1 ? 'stop' : 'stops'
@@ -456,12 +551,14 @@ export default function ResultView() {
     locked?: string[]
     budget?: number | null
     lunch?: boolean
+    durations?: DurationOverrides
   }) {
     const m = model!
     const nextOrder = patch.order ?? m.order
     const nextLocked = patch.locked ?? [...m.locked]
     const nextBudget = patch.budget !== undefined ? patch.budget : m.budget
     const nextLunch = patch.lunch !== undefined ? patch.lunch : m.lunchOn
+    const nextDurations = patch.durations ?? m.durations
     const sp = encodeParams({
       poi_ids: safeParams.poi_ids,
       start_time: safeParams.start_time,
@@ -472,6 +569,7 @@ export default function ResultView() {
       locked: nextLocked.length ? nextLocked : undefined,
       budget: nextBudget ?? undefined,
       lunch: nextLunch || undefined,
+      durations: Object.keys(nextDurations).length ? nextDurations : undefined,
     })
     router.replace('/result?' + sp.toString(), { scroll: false })
   }
@@ -513,6 +611,7 @@ export default function ResultView() {
       day_of_week: safeParams.day_of_week,
       budget: model!.budget ?? undefined,
       lunch: model!.lunchOn || undefined,
+      durations: Object.keys(model!.durations).length ? model!.durations : undefined,
     })
     router.push('/result?' + sp.toString())
   }
@@ -561,8 +660,64 @@ export default function ResultView() {
     writeArrangement(model!.defaultOrder, [])
   }
 
+  // Would giving `id` this candidate duration push ANY stop's departure (this
+  // one's or a later one's — lengthening a dwell ripples forward) past an active
+  // time-budget? Recomputes the full schedule rather than checking `id` alone,
+  // since a stop well within budget can still tip a LATER stop over. No-op when
+  // no budget is active.
+  function wouldOverflowBudget(id: string, minutes: number): boolean {
+    if (model!.budget == null) return false
+    const orderPOIs = model!.order.map((oid) => POI_MAP[oid])
+    const candidateDurations = pruneDurations({ ...model!.durations, [id]: minutes }, orderPOIs)
+    const candidateStops = scheduleAlong(
+      orderPOIs,
+      model!.matrix,
+      safeParams.start_location,
+      model!.coords,
+      safeParams.start_time,
+      safeParams.transport_mode,
+      safeParams.day_of_week,
+      undefined,
+      model!.lunchOn ? LUNCH_WINDOW : null,
+      candidateDurations,
+    )
+    return (
+      fitToBudget(
+        candidateStops,
+        safeParams.start_time,
+        model!.budget,
+        model!.coords,
+        safeParams.transport_mode,
+      ).overflowCount > 0
+    )
+  }
+
+  function setDuration(id: string, minutes: number) {
+    const poi = POI_MAP[id]
+    const current = dwellFor(poi, model!.durations)
+    const val = clampDuration(minutes)
+    if (val === current) return // no-op at the stepper bounds
+    // Only increases can bust a budget; shortening a stop never needs the guard.
+    if (val > current && wouldOverflowBudget(id, val)) return
+    const next = { ...model!.durations }
+    if (val === poi.recommended_duration_minutes) delete next[id]
+    else next[id] = val
+    setLiveMsg(`${poi.name}: ${val} minutes.`)
+    writeUrl({ durations: next })
+  }
+
+  function resetDuration(id: string) {
+    const poi = POI_MAP[id]
+    const next = { ...model!.durations }
+    delete next[id]
+    setLiveMsg(`Reset ${poi.name} to the suggested ${poi.recommended_duration_minutes} minutes.`)
+    writeUrl({ durations: next })
+  }
+
   function handleEdit() {
-    // Drop result-only customization when returning to the selector.
+    // Drop result-only customization (order/locked/budget/lunch) when returning to
+    // the selector, but carry durations along — the user's tuning of a place is a
+    // property of the place, not of this particular arrangement.
     router.push(
       '/plan?' +
         encodeParams({
@@ -571,6 +726,7 @@ export default function ResultView() {
           transport_mode: safeParams.transport_mode,
           start_location: safeParams.start_location,
           day_of_week: safeParams.day_of_week,
+          durations: Object.keys(model!.durations).length ? model!.durations : undefined,
         }).toString(),
     )
   }
@@ -868,6 +1024,7 @@ export default function ResultView() {
                     params={safeParams}
                     coords={model.coords}
                     lunch={model.lunchOn ? LUNCH_WINDOW : null}
+                    durations={model.durations}
                     currentMode={params.transport_mode}
                     onChoose={chooseMode}
                   />
@@ -889,6 +1046,12 @@ export default function ResultView() {
         {stops.map((stop, i) => {
           const locked = stop.placement === 'locked'
           const outOfBudget = fit ? !fit.fits[i] : false
+          // Is the "+" stepper already at its budget-imposed ceiling? Checked against
+          // the NEXT step, not the current value, so the button disables itself right
+          // as it would otherwise push some stop over the active time limit.
+          const atBudgetCap =
+            model.budget != null &&
+            wouldOverflowBudget(stop.poi.id, clampDuration(stop.dwellMinutes + DURATION_STEP))
           const leg =
             fareEnabled && stop.transitFromPrev > 0
               ? legFare(stop.transitFromPrev, params.transport_mode)
@@ -970,8 +1133,30 @@ export default function ResultView() {
                   </div>
                 </div>
                 <div className="mt-1 text-sm">
-                  ~{stop.poi.recommended_duration_minutes} min · {stopStatusLine(stop)}
+                  {stopDurationLine(stop)} · {stopStatusLine(stop)}
                 </div>
+                {/* The return trip has no stop card of its own, so a budget overrun
+                    caused ONLY by getting home (not by this stop's own visit — that
+                    case is already covered by outOfBudget above) is easy to miss as a
+                    one-line summary buried in the collapsed panel. Surface it right on
+                    the last stop, where the traveler is actually looking. */}
+                {fit && !outOfBudget && i === stops.length - 1 && !fit.makesItBack && (
+                  <p className="mt-1.5 flex items-start gap-1 text-xs text-[var(--color-flag-warning-text)]">
+                    <span aria-hidden>⚠</span>
+                    <span>
+                      Getting back to {startLocation.name} from here may run past your{' '}
+                      {model.budget}h limit (~{fit.returnMinutes} min estimated return).
+                    </span>
+                  </p>
+                )}
+                {isEnabled('customDuration') && (
+                  <DurationStepper
+                    stop={stop}
+                    onSet={setDuration}
+                    onReset={resetDuration}
+                    atBudgetCap={atBudgetCap}
+                  />
+                )}
                 {stop.poi.notes && (
                   <div className="print-hide mt-1 text-sm italic text-[var(--color-text-muted)]">
                     {stop.poi.notes}

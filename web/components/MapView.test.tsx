@@ -22,6 +22,7 @@ function makeStop(id: string, lat: number, lng: number): ScheduledStop {
     },
     arrivalTime: 540,
     departureTime: 600,
+    dwellMinutes: 60,
     transitFromPrev: 10,
     yellowFlag: false,
     redFlag: false,

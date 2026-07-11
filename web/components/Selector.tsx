@@ -99,6 +99,10 @@ export default function Selector() {
     prefill?.start_location ?? START_LOCATIONS[0].id,
   )
   const [dayOfWeek, setDayOfWeek] = useState(prefill?.day_of_week ?? 'Saturday')
+  // Per-stop duration overrides carried over from a result-page edit (see
+  // ResultView's handleEdit). No UI here — durations are only ever edited on
+  // /result — this just prevents "Edit places" from silently discarding them.
+  const [durations] = useState(() => prefill?.durations ?? {})
 
   const grouped = useMemo(
     () =>
@@ -133,6 +137,11 @@ export default function Selector() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (selected.size === 0) return
+    // Forward only the entries whose POI is still selected, so removing a place
+    // also drops its now-meaningless override.
+    const carriedDurations = Object.fromEntries(
+      Object.entries(durations).filter(([id]) => selected.has(id)),
+    )
     const params: ScheduleParams = {
       // Keep dataset order; the scheduler reorders anyway.
       poi_ids: POIS.filter((p) => selected.has(p.id)).map((p) => p.id),
@@ -140,6 +149,7 @@ export default function Selector() {
       transport_mode: transportMode,
       start_location: startLocation,
       day_of_week: dayOfWeek,
+      ...(Object.keys(carriedDurations).length ? { durations: carriedDurations } : {}),
     }
     router.push('/result?' + encodeParams(params).toString())
   }

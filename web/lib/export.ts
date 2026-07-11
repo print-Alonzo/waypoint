@@ -41,6 +41,13 @@ export function stopTag(stop: ScheduledStop): string {
   return ''
 }
 
+// The effective time at a stop, marking a user override so the copied plan doesn't
+// silently present the traveler's own number as the authored recommendation.
+export function stopDurationLine(stop: ScheduledStop): string {
+  const edited = stop.dwellMinutes !== stop.poi.recommended_duration_minutes
+  return `~${stop.dwellMinutes} min${edited ? ' (you set this)' : ''}`
+}
+
 // --- time helpers ---------------------------------------------------------
 
 function pad(n: number): string {
@@ -279,7 +286,7 @@ export function buildItineraryText(input: ExportInput): string {
       out.push(`   Lunch break ${wallClock(stop.lunchBefore.start)}–${wallClock(stop.lunchBefore.end)}`)
     const tag = stopTag(stop)
     out.push(`${i + 1}. ${wallClock(stop.arrivalTime)}  ${stop.poi.name}${tag ? '  ' + tag : ''}`)
-    out.push(`   ~${stop.poi.recommended_duration_minutes} min · ${stopStatusLine(stop)}`)
+    out.push(`   ${stopDurationLine(stop)} · ${stopStatusLine(stop)}`)
     out.push(`   Why this stop: ${reasonLine(stop, params.transport_mode)}`)
     if (stop.poi.notes) out.push(`   ${stop.poi.notes}`)
   })
