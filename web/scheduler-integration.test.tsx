@@ -266,8 +266,12 @@ describe('result view share/export', () => {
     expect(text).toContain('Fort Santiago')
     expect(text).toContain('Plan: ')
     // Success announced via a dedicated live region (button name stays stable).
+    // Queried by name: the drag-and-drop DndContext renders a role=status region of
+    // its own, so the copy region has to be named to stay unambiguous.
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Itinerary copied to clipboard'),
+      expect(screen.getByRole('status', { name: 'Copy status' })).toHaveTextContent(
+        'Itinerary copied to clipboard',
+      ),
     )
   })
 
@@ -277,7 +281,9 @@ describe('result view share/export', () => {
 
     render(<ResultView />)
     fireEvent.click(screen.getByRole('button', { name: /Copy itinerary as text/ }))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Copy failed'))
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Copy status' })).toHaveTextContent('Copy failed'),
+    )
   })
 
   it('builds a valid .ics blob and downloads it with a safe filename', async () => {

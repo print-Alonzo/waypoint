@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { POIS } from '@/lib/data'
@@ -17,6 +17,7 @@ import { CategoryGlyph } from './CategoryGlyph'
 const KEY = 'waypoint:votes'
 
 type Votes = Record<string, number>
+const EMPTY_VOTES: Votes = {}
 
 function readVotes(): Votes {
   try {
@@ -27,33 +28,42 @@ function readVotes(): Votes {
     return {}
   }
 }
+
+// Subscription + cached snapshot for useSyncExternalStore: localStorage is
+// client-only, so the server snapshot is the stable empty object and the first
+// client read picks up the real votes with no separate mount effect.
+const listeners = new Set<() => void>()
+let cache: Votes | null = null
+
+function snapshot(): Votes {
+  if (cache === null) cache = readVotes()
+  return cache
+}
+function subscribeVotes(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
 function writeVotes(v: Votes): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(v))
   } catch {
     /* storage unavailable — votes stay in memory for this session */
   }
+  cache = v
+  listeners.forEach((l) => l())
 }
 
 export default function VoteView() {
   const router = useRouter()
-  const [votes, setVotes] = useState<Votes>({})
-
-  useEffect(() => {
-    setVotes(readVotes())
-  }, [])
+  const votes = useSyncExternalStore(subscribeVotes, snapshot, () => EMPTY_VOTES)
 
   function bump(id: string, delta: number) {
-    setVotes((prev) => {
-      const next = { ...prev, [id]: Math.max(0, (prev[id] ?? 0) + delta) }
-      if (next[id] === 0) delete next[id]
-      writeVotes(next)
-      return next
-    })
+    const next = { ...votes, [id]: Math.max(0, (votes[id] ?? 0) + delta) }
+    if (next[id] === 0) delete next[id]
+    writeVotes(next)
   }
 
   function reset() {
-    setVotes({})
     writeVotes({})
   }
 

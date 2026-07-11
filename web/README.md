@@ -17,6 +17,8 @@ source separated; all spec paths are relative to `web/`.
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4**
 - **Leaflet + OpenStreetMap** for the result-page route map (no API key)
+- **dnd-kit** for drag-to-reorder on the result page (it also drives the reorder animation for the
+  `↑ ↓` buttons — see DESIGN.md § Motion)
 - **Vitest** for unit + component tests
 - No backend — scheduling runs client-side over static JSON data; deploys to Vercel.
 
