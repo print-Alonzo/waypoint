@@ -14,6 +14,8 @@ import { reasonLine } from '@/lib/reason'
 import { fitToBudget } from '@/lib/fit'
 import { dayFare, legFare, formatFare } from '@/lib/fare'
 import { isEnabled } from '@/lib/features'
+import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/routing'
+import type { RouteLeg, RoadOverlay } from '@/lib/routing'
 import WhatIfDrawer from '@/components/WhatIfDrawer'
 import SavePlanButton from '@/components/SavePlanButton'
 import {
@@ -58,6 +60,13 @@ function reasonClass(stop: ScheduledStop): string {
 
 function sameOrder(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
+// Identifies which (start, mode, order) combination a fetched road overlay was
+// computed for, so a response that arrives after the user has since changed the
+// order/mode/start is recognized as stale and ignored rather than misapplied.
+function routeSignature(order: string[], mode: TransportMode, startId: string): string {
+  return `${startId}|${mode}|${order.join(',')}`
 }
 
 // A neutral reason for stops the optimizer didn't place this run (pinned / hand-
@@ -173,6 +182,15 @@ export default function ResultView() {
     [searchParams],
   )
 
+  // Road routes fetched at runtime (Mapbox Directions), layered over the static
+  // haversine matrix once resolved. `signature` records which (start, mode, order)
+  // the fetch was for, so a response for a since-superseded combination is
+  // recognized as stale in the `model` memo below and simply ignored.
+  const [roadOverlay, setRoadOverlay] = useState<({ signature: string } & RoadOverlay) | null>(
+    null,
+  )
+  const routeRequestId = useRef(0)
+
   const model = useMemo(() => {
     if (!params) return null
     try {
@@ -235,9 +253,20 @@ export default function ResultView() {
       const lunchOn = isEnabled('lunchBreak') && !!params.lunch
       const lunch = lunchOn ? LUNCH_WINDOW : null
 
+      // Road routing only ever *refines the schedule's transit times/map line* for
+      // this exact (start, mode, order); it never feeds back into ordering (see
+      // routing effect below) — a stale/mismatched fetch is ignored, falling back
+      // to the static haversine matrix exactly as before routing existed.
+      const signature = routeSignature(order, params.transport_mode, params.start_location)
+      const roadReady = roadOverlay?.signature === signature
+      const matrix = roadReady
+        ? mergeTransitMatrix(TRANSIT_MATRIX, roadOverlay!.overlayMatrix)
+        : TRANSIT_MATRIX
+      const legGeometry = roadReady ? roadOverlay!.legGeometry : null
+
       const stops = scheduleAlong(
         orderPOIs,
-        TRANSIT_MATRIX,
+        matrix,
         params.start_location,
         coords,
         params.start_time,
@@ -266,6 +295,7 @@ export default function ResultView() {
         order,
         locked,
         stops,
+        legGeometry,
         isCustom,
         defaultOrder,
         freeCount: order.length - locked.size,
@@ -278,7 +308,41 @@ export default function ResultView() {
       // guard effect bounces to the selector instead of crashing the route.
       return null
     }
-  }, [params])
+  }, [params, roadOverlay])
+
+  // Fetch real road routes for the current (start, mode, order) once it's known,
+  // then layer them into `model` via `roadOverlay` above. Deliberately depends on
+  // primitives derived from `model`/`params` rather than the objects themselves:
+  // `model` is recreated by the memo above whenever `roadOverlay` changes, so
+  // depending on `model` directly would refire this effect on its own result and
+  // loop. `routeRequestId` discards a response if a newer request has since
+  // superseded it (fast reorders/mode switches), regardless of arrival order.
+  const modelOrderKey = model?.order.join(',')
+  const modelCoordsLat = model?.coords.lat
+  const modelCoordsLng = model?.coords.lng
+  const routeMode = params?.transport_mode
+  const routeStartId = params?.start_location
+  useEffect(() => {
+    if (!model || !params) return
+    const orderPOIs = model.order.map((id) => POI_MAP[id])
+    const legs: RouteLeg[] = orderPOIs.map((poi, i) => {
+      const prev = i === 0 ? null : orderPOIs[i - 1]
+      return {
+        fromId: prev ? prev.id : params.start_location,
+        toId: poi.id,
+        from: prev ? { lat: prev.lat, lng: prev.lng } : model.coords,
+        to: { lat: poi.lat, lng: poi.lng },
+      }
+    })
+    const signature = routeSignature(model.order, params.transport_mode, params.start_location)
+    const requestId = ++routeRequestId.current
+
+    fetchRoadOverlay(legs, params.transport_mode).then((result) => {
+      if (requestId !== routeRequestId.current) return // superseded by a newer request
+      setRoadOverlay({ signature, ...result })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelOrderKey, modelCoordsLat, modelCoordsLng, routeMode, routeStartId])
 
   // Transient feedback for the "Copy text" button.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
@@ -325,7 +389,7 @@ export default function ResultView() {
 
   if (!model || !params) return null
 
-  const { startLocation, stops } = model
+  const { startLocation, stops, legGeometry } = model
   // params is non-null past the guard above; capture it so the export closures
   // keep the narrowed (non-null) type.
   const safeParams = params
@@ -631,7 +695,12 @@ export default function ResultView() {
       {/* Visual route map — supplementary to the list (which stays the
           accessible + print artifact), so hidden from print. */}
       <div className="no-print mt-5">
-        <MapView stops={stops} start={startLocation} />
+        <MapView stops={stops} start={startLocation} legGeometry={legGeometry ?? undefined} />
+        {isRoadRoutingConfigured() && !legGeometry && (
+          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            Refining with road distances…
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
           <span>Numbered pins show your visit order.</span>
           <span className="flex items-center gap-1.5">

@@ -117,6 +117,7 @@ lib/
   params.ts           URL-param encode/decode (incl. order/locked/budget/lunch)
   constants.ts        Start landmarks, categories, days, transport modes, modeLabel, LUNCH_WINDOW
   data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
+  routing.ts          Runtime road routes (Mapbox Directions) layered over the static matrix
 data/<city>/          pois.json + transit-matrix.json
 public/
   sw.js               Service worker (network-first pages, stale-while-revalidate assets)
@@ -135,6 +136,18 @@ default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop i
 > **Note:** the current `data/metro-manila/` POIs are **placeholder** data for build and demo.
 > Real POI curation is owned by the venture lead (spec open question #1), and transit-matrix
 > values are computed estimates pending the spot-check pass (spec Weeks 4–5).
+
+## Road routing (optional)
+
+By default the map draws a straight line between stops and travel time is haversine distance ÷ a
+fixed per-mode speed (see `lib/scheduler.ts`). Set `NEXT_PUBLIC_MAPBOX_TOKEN` (see `.env.example`)
+to a [Mapbox](https://www.mapbox.com/) public access token and the result page fetches real road
+routes at runtime instead: `walk` gets a pedestrian route, `jeepney`/`grab` share a driving route,
+and each leg's travel time is `road distance ÷ that mode's speed`. This is entirely client-side —
+routing is per-browser, not baked into the static data — and any leg that fails to resolve (no
+token, offline, no route found) falls straight back to the straight-line/haversine estimate, so the
+app works the same with or without a token. The token is a public, client-side Mapbox token by
+design; restrict it by URL in the Mapbox dashboard before shipping one.
 
 ## Adding places locally
 
