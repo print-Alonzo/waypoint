@@ -101,7 +101,11 @@ implemented `app/globals.css` + components, not a separate consultation. Linked 
 
 ---
 
-### T5: ARIA landmarks on selector page
+### ~~T5: ARIA landmarks on selector page~~ — Fixed by /qa on main, 2026-07-11
+
+**Status:** Already implemented — verified during /qa. `/plan` renders 5 `<fieldset>/<legend>`
+groups (Heritage, Museums, Parks, Markets, Churches) around the POI checkbox list.
+
 **Priority:** P2
 **Effort:** XS (human: ~30min / CC: ~5min)
 **Depends on:** Selector page component (`app/page.tsx`) built
@@ -132,6 +136,18 @@ implemented `app/globals.css` + components, not a separate consultation. Linked 
   motion review (card swipe/tap transitions, hover states) before a wider launch.
 
 Full report: `~/.gstack/projects/print-Alonzo-waypoint/designs/design-audit-20260711/design-audit-waypoint.md`
+
+---
+
+## Deferred from /qa (2026-07-11)
+
+- **5 of 28 POIs have no curated photo** — `bahay-tsinoy`, `intramuros-walls-walk`,
+  `ayala-museum`, `the-mind-museum`, `salcedo-saturday-market` have no `image` field in
+  `data/metro-manila/pois.json`; UI correctly falls back to a generic icon (not a broken
+  image), but it's a content gap. Needs real CC/public-domain photos matching the pattern
+  used for the other 23 POIs (see `/credits`). Not fixable from source code.
+
+Full report: `.gstack/qa-reports/qa-report-localhost-2026-07-11.md`
 
 ---
 
