@@ -1,9 +1,11 @@
 # Waypoint — web app
 
 Waypoint is a single-city trip-itinerary optimizer. You pick the places you want to visit;
-the algorithm optimizes only the **order** of your day and shows all its work — flagging stops
+the algorithm optimizes the **order** of your day and shows all its work — flagging stops
 that are closed or hard to reach in time instead of silently dropping them. The trust comes from
-transparency: you choose *what*, Waypoint sequences *when*.
+transparency: you choose *what*, Waypoint sequences *when* — and every part of that sequence stays
+editable (reorder, pin, and set the time you spend at each stop), with the schedule re-timing around
+your edits.
 
 This is the Next.js front-end. The product spec lives at
 [`../docs/designs/waypoint-mvp.md`](../docs/designs/waypoint-mvp.md), and deferred work is in
