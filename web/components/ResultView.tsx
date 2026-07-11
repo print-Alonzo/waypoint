@@ -1254,7 +1254,7 @@ export default function ResultView() {
                 >
                   {({ listeners, isDragging }) => (
                     <>
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 sm:items-center">
                         {/* Drag handle. Pointer-only on purpose: the ↑ ↓ buttons in this same
                             card are the keyboard + screen-reader path, so exposing a third
                             focusable control here would only add noise to the tab order and
