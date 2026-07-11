@@ -747,7 +747,6 @@ export default function ResultView() {
     const movedId = next[j]
     const name = POI_MAP[movedId]?.name ?? 'Stop'
     setLiveMsg(`Moved ${name} to position ${j + 1}.`)
-    setAdjustOpen(true) // reveal the now-relevant Re-optimize / Reset controls
     applyOrder(next, [...model!.locked], movedId)
   }
 
@@ -765,7 +764,6 @@ export default function ResultView() {
     const next = arrayMove(model!.order, from, to)
     const name = POI_MAP[activeId]?.name ?? 'Stop'
     setLiveMsg(`Moved ${name} to position ${to + 1}.`)
-    setAdjustOpen(true)
     applyOrder(next, [...model!.locked], activeId)
   }
 
@@ -779,7 +777,6 @@ export default function ResultView() {
       next.add(id)
       setLiveMsg(`Pinned ${name} in place.`)
     }
-    setAdjustOpen(true) // reveal the now-relevant Re-optimize / Reset controls
     writeArrangement(model!.order, [...next])
   }
 
@@ -940,6 +937,11 @@ export default function ResultView() {
           <Chip tone="warning">{flaggedCount} flagged</Chip>
         ) : (
           <Chip>All open</Chip>
+        )}
+        {fit && fit.overflowCount > 0 && (
+          <Chip tone="warning">
+            {fit.overflowCount} beyond budget
+          </Chip>
         )}
         {totalFare && <Chip>~{formatFare(totalFare)} fare</Chip>}
         {model.isCustom && <Chip>Your order</Chip>}
@@ -1252,7 +1254,7 @@ export default function ResultView() {
                 >
                   {({ listeners, isDragging }) => (
                     <>
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 sm:items-center">
                         {/* Drag handle. Pointer-only on purpose: the ↑ ↓ buttons in this same
                             card are the keyboard + screen-reader path, so exposing a third
                             focusable control here would only add noise to the tab order and
@@ -1274,7 +1276,7 @@ export default function ResultView() {
                           {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
                           <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
                           <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
-                          <span className="font-semibold">{stop.poi.name}</span>
+                          <h2 className="font-semibold">{stop.poi.name}</h2>
                           {outOfBudget && (
                             <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
                               Beyond your {model.budget}h
