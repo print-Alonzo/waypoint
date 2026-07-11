@@ -35,7 +35,7 @@ This is a student project (DLSU) exploring that thesis. Metro Manila POI data is
 <td width="33%" valign="top" align="center">
 <img src="docs/screenshots/02-pick.png" alt="Pick places with a swipeable card deck" width="100%">
 <br><b>1 · Pick your places</b>
-<br><sub>Swipe (or tap) through Metro Manila's heritage sites, museums, parks, markets, and churches. On wider screens it's a photo grid.</sub>
+<br><sub>Swipe (or tap) through Metro Manila's heritage sites, museums, parks, markets, and churches — filter to one category at a time if you already know what you're after. On wider screens it's a photo grid.</sub>
 </td>
 <td width="33%" valign="top" align="center">
 <img src="docs/screenshots/03-result.png" alt="An ordered itinerary with a route map and reasons" width="100%">
@@ -116,6 +116,7 @@ npm run build    # production build (also type-checks)
 ```
 web/                 The Next.js app (see web/README.md for full detail)
   app/               Routes: / · /plan · /result · /live · /compare · /vote · /credits
+                     (+ /admin — a local-only dev tool for adding places, not deployed)
   components/        Selector, ResultView, MapView, WhatIfDrawer, LiveView, CompareView, …
   lib/               scheduler, reason, fit, fare, presets, plan-model, params, features, …
   data/<city>/       pois.json + transit-matrix.json (placeholder Metro Manila data)

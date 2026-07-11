@@ -1,3 +1,29 @@
+# Waypoint
+
+A single-city Metro Manila trip-itinerary optimizer: you pick the places, Waypoint sequences only
+the **order** of your day and shows its work (flags anything closed/unreachable instead of dropping
+it). Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4, no backend — scheduling runs
+client-side over static JSON, deploys to Vercel. The app lives in `web/`.
+
+Key commands (run from `web/`):
+```bash
+npm install
+npm run dev         # http://localhost:3000
+npm run test        # unit + component tests (Vitest)
+npm run build       # production build (also type-checks)
+npm run gen:matrix  # regenerate data/<city>/transit-matrix.json from pois.json
+npm run lint
+```
+
+For real detail, read these rather than re-deriving from source:
+- [`web/README.md`](web/README.md) — stack, routes, project layout, feature flags, adding places
+- [`web/DESIGN.md`](web/DESIGN.md) — design tokens, component patterns, accessibility, print rules
+- [`docs/designs/waypoint-mvp.md`](docs/designs/waypoint-mvp.md) — original approved spec (historical)
+- [`TODOS.md`](TODOS.md) — deferred / future work
+
+`web/CLAUDE.md` imports `web/AGENTS.md`, which carries a Next.js-16-breaking-changes warning for
+in-app work — read it before writing code under `web/`.
+
 # gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
