@@ -61,6 +61,13 @@ body {
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
+/* Leaflet's default zoom control is 26-30px — below the 44px tap target floor. */
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  width: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+}
 
 @media print {
   .no-print {
