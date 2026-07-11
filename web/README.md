@@ -101,7 +101,7 @@ components/            Client components
   CategoryGlyph.tsx   Inline line-icon per category (placeholder when a POI has no photo)
   MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
   WhatIfDrawer.tsx    Walk/Jeepney/Grab comparison table (re-optimized per mode)
-  SavePlanButton.tsx  Save the current plan to this device (→ /compare)
+  SavePlanButton.tsx  Save the current plan to this device, prompting for a name (→ /compare)
   CompareView.tsx     Side-by-side comparison of two saved plans
   LiveView.tsx        Device-clock companion (now/next, countdowns, running-late reflow)
   VoteView.tsx        Single-device thumbs-up tally → plan the winners
