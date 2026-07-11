@@ -13,6 +13,11 @@ Timeline: 8 total weeks. Weeks 1-7 = build window (7 weeks). Week 8 = course def
 Team: 5 (Venture Lead Alonzo, CD Lead, 2 Product/MVP Leads, Evidence Lead)
 Design doc: alonzorimando-main-design-20260617-130343.md (APPROVED, from /office-hours)
 
+> **Historical record.** This is the spec approved at kickoff (2026-06-17); the Build Log below
+> stops at Phase 1 / Week 1 and isn't kept in sync with everything shipped since. For what's
+> actually built and current, see [`web/README.md`](../../web/README.md) and
+> [`web/DESIGN.md`](../../web/DESIGN.md).
+
 ## Vision
 
 ### 10x Check
@@ -341,11 +346,10 @@ Blocker status for dev: NOT a blocker. Build UI with placeholder coordinates; sc
 
 ## Key Open Questions (from 0E Temporal Interrogation)
 
-1. **Which 25-30 POIs?** Metro Manila assumed but not confirmed. Lock in Week 1 Day 1.
-   OWNER: Alonzo. ACTION: Update `alonzorimando-main-design-20260617-130343.md` city-lock
-   date from Week 5 to Week 1 before development begins. Confirm in first team sync.
-   Note: this overrides the approved design doc. The update is required to keep the two
-   documents consistent.
+1. ~~**Which 25-30 POIs?** Metro Manila assumed but not confirmed. Lock in Week 1 Day 1.~~
+   **RESOLVED:** shipped with 28 curated Metro Manila POIs across heritage, museum, park, market,
+   and church categories, with real photos and CC credits (see `data/metro-manila/pois.json`,
+   `web/components/PhotoCredits.tsx`).
 
 2. ~~**Team Next.js familiarity?** HARD DECISION GATE — Week 1 Day 1, no extensions.~~
    **RESOLVED 2026-06-17:** Next.js 16 App Router scaffold built and passing production build.

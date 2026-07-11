@@ -195,28 +195,33 @@ export default function Home() {
         </svg>
       </section>
 
-      {/* How it works */}
+      {/* How it works — the numbered-dot + dashed-line motif echoes the hero's route
+          graphic, so the page reads as one system rather than a stock feature grid. */}
       <section className="border-y border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
         <div className="mx-auto max-w-4xl px-5 py-14">
           <h2 className="text-center text-2xl font-bold tracking-tight">How it works</h2>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-3">
-            {STEPS.map((step, i) => (
-              <li
-                key={step.title}
-                className="rounded-xl border border-[var(--color-border)] bg-white p-6 shadow-sm"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
-                  {i + 1}
-                </span>
-                <h3 className="mt-4 font-bold">{step.title}</h3>
-                <p className="mt-1 text-sm text-[var(--color-text-muted)]">{step.body}</p>
-              </li>
-            ))}
-          </ol>
+          <div className="relative mt-12">
+            <span
+              aria-hidden="true"
+              className="absolute left-[16%] right-[16%] top-[18px] hidden border-t-2 border-dashed border-[var(--color-primary)]/30 sm:block"
+            />
+            <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-6">
+              {STEPS.map((step, i) => (
+                <li key={step.title}>
+                  <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <h3 className="mt-4 font-bold">{step.title}</h3>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </section>
 
-      {/* Why it's different */}
+      {/* Why it's different — a plain two-column list (icon as a small inline glyph,
+          not a colored badge) rather than a bordered feature-card grid. */}
       <section className="mx-auto max-w-4xl px-5 py-14">
         <h2 className="text-center text-2xl font-bold tracking-tight">
           Built on trust, not a black box
@@ -225,14 +230,14 @@ export default function Home() {
           Most planners decide everything for you and hide the rest. Waypoint optimizes only the
           order and shows all its work, so you stay in control.
         </p>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-x-8 gap-y-7 sm:grid-cols-2">
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-xl border border-[var(--color-border)] p-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-flag-error-bg)] text-[var(--color-primary)]">
-                {f.icon}
+            <div key={f.title} className="flex gap-3">
+              <div className="mt-0.5 shrink-0 text-[var(--color-primary)]">{f.icon}</div>
+              <div>
+                <h3 className="font-bold">{f.title}</h3>
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">{f.body}</p>
               </div>
-              <h3 className="mt-4 font-bold">{f.title}</h3>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">{f.body}</p>
             </div>
           ))}
         </div>

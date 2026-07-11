@@ -26,8 +26,9 @@ npm run dev            # http://localhost:3000
 ```
 
 The landing page (`/`) explains how Waypoint works and links to the selector (`/plan`), where you
-pick POIs and trip details — a **swipeable card deck on phones** (swipe/tap to add or skip) and a
-**card grid on larger screens**. Submitting routes to `/result` with the itinerary encoded in the
+pick POIs and trip details — a **swipeable card deck on phones** (swipe/tap to add or skip, with a
+category filter chip row to narrow the deck to one category at a time) and a **card grid on larger
+screens**. Submitting routes to `/result` with the itinerary encoded in the
 URL (shareable, bookmarkable, refresh-safe). On `/result` you can **reorder** stops, **pin** ones you
 want kept in place, and **re-optimize** the rest around them — the order/pins live in the URL too, and
 the "Why this stop" line always tells the truth about who placed each stop (the algorithm or you).
@@ -84,11 +85,13 @@ app/                  App Router routes
   live/page.tsx       Live mode (flag: liveMode; redirects home if off)
   compare/page.tsx    Compare two saved plans (flag: comparePlans; redirects home if off)
   vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
+  admin/page.tsx      Local-only content tool (→ components/AdminDashboard); hidden on Vercel
+  admin/create/route.ts  POST handler that writes a validated place into data/<city>/ (local only)
   layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
   globals.css         Design tokens + print rules
 components/            Client components
   Selector.tsx        Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
-  PoiSwipeDeck.tsx    Phone-only Tinder-style swipe stack (swipe/tap to add or skip; undo)
+  PoiSwipeDeck.tsx    Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
   CategoryGlyph.tsx   Inline line-icon per category (placeholder when a POI has no photo)
   MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
   WhatIfDrawer.tsx    Walk/Jeepney/Grab comparison table (re-optimized per mode)
@@ -96,6 +99,7 @@ components/            Client components
   CompareView.tsx     Side-by-side comparison of two saved plans
   LiveView.tsx        Device-clock companion (now/next, countdowns, running-late reflow)
   VoteView.tsx        Single-device thumbs-up tally → plan the winners
+  AdminDashboard.tsx  Local-only form for adding a place to the dataset (→ admin/create/route.ts)
   ServiceWorkerRegister.tsx  Registers /sw.js in prod when `offline` is on (unregisters when off)
 lib/
   features.ts         Central feature-flag registry (one boolean per power feature)
@@ -108,6 +112,7 @@ lib/
   plan-summary.ts     summarizePlan: compact figures for the compare view
   saved-plans.ts      localStorage CRUD for saved plans (guarded; this-device only)
   poi-format.ts       Shared hoursLabel() used by the grid card + swipe deck
+  poi-validate.ts     validatePoi: shared by AdminDashboard's form and admin/create/route.ts
   export.ts           Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
   params.ts           URL-param encode/decode (incl. order/locked/budget/lunch)
   constants.ts        Start landmarks, categories, days, transport modes, modeLabel, LUNCH_WINDOW
@@ -130,6 +135,20 @@ default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop i
 > **Note:** the current `data/metro-manila/` POIs are **placeholder** data for build and demo.
 > Real POI curation is owned by the venture lead (spec open question #1), and transit-matrix
 > values are computed estimates pending the spot-check pass (spec Weeks 4–5).
+
+## Adding places locally
+
+`/admin` is a **local-only** content tool for adding a place to the dataset without hand-editing
+JSON. It only works when Waypoint is running on your machine — the write API refuses to run on
+Vercel (`403`, since the deployed filesystem is read-only), and the page itself shows a "run this
+locally" notice there instead of the form.
+
+Workflow: fill out the form at `/admin` → it `POST`s to
+[`app/admin/create/route.ts`](app/admin/create/route.ts) → validated by
+[`lib/poi-validate.ts`](lib/poi-validate.ts) (the same validation the form uses client-side, so
+errors surface before you submit) → appended to `data/<city>/pois.json` → the transit matrix is
+regenerated in place (same math as `npm run gen:matrix`) → review the resulting git diff → commit →
+redeploy to publish.
 
 ## Design language
 

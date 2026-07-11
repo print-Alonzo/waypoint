@@ -122,6 +122,19 @@ implemented `app/globals.css` + components, not a separate consultation. Linked 
 
 ---
 
+## Deferred from /design-review (2026-07-11)
+
+- **Image `sizes` tuning** — Next.js dev warns that `casa-manila.jpg` / `fort-santiago.jpg`
+  render with `fill` + `sizes="100vw"` but aren't full-viewport width on `/plan` and `/result`
+  (LCP + oversized-download warnings). Needs `sizes` tuned to actual rendered card width in
+  `Selector.tsx` / `PoiSwipeDeck.tsx`. Low priority, dev-console-only signal.
+- **`prefers-reduced-motion` audit** — not explicitly checked this pass. Worth a dedicated
+  motion review (card swipe/tap transitions, hover states) before a wider launch.
+
+Full report: `~/.gstack/projects/print-Alonzo-waypoint/designs/design-audit-20260711/design-audit-waypoint.md`
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds

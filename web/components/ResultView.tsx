@@ -94,7 +94,7 @@ function LockIcon({ locked }: { locked: boolean }) {
 }
 
 const ctrlBtn =
-  'flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] ' +
+  'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-border)] ' +
   'bg-white text-[var(--color-text)] transition hover:bg-[var(--color-bg-subtle)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
@@ -892,7 +892,7 @@ export default function ResultView() {
                       aria-label={locked ? `Unpin ${stop.poi.name}` : `Pin ${stop.poi.name} in place`}
                       className={
                         locked
-                          ? 'flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] text-white transition'
+                          ? 'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] text-white transition'
                           : ctrlBtn
                       }
                     >

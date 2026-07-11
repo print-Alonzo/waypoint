@@ -102,8 +102,12 @@ Airbnb's proprietary **Cereal** typeface.
     80px threshold (else springs back), and **axis-locks** so vertical drags still scroll the page
     (`touch-action: pan-y`). Buttons (✕ / ↶ undo / ✓) are the accessible + non-swipe path; ←/→ arrow
     keys also work. A header shows `N of total` + `N added`; an end card summarizes and offers
-    *Undo* / *Start over*. Both modes share one selection `Set` (via `setSelectedOne(id, value)`), so
-    the sticky CTA count and the result are identical however you pick. `hoursLabel`
+    *Undo* / *Start over*. A **category filter chip row** above the deck (`All / Heritage / Museums /
+    …`) narrows the active slice to one category — tapping a chip restarts the cursor for that slice,
+    but selections persist across filters, and a card you've already added shows a persistent "Added"
+    badge if you revisit it via a different filter. Both modes share one selection `Set` (via
+    `setSelectedOne(id, value)`), so the sticky CTA count and the result are identical however you
+    pick. `hoursLabel`
     ([`lib/poi-format.ts`](lib/poi-format.ts)) and `CategoryGlyph`
     ([`components/CategoryGlyph.tsx`](components/CategoryGlyph.tsx)) are shared by both so the card
     copy can't drift.
