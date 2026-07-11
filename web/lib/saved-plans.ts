@@ -37,10 +37,31 @@ function write(plans: SavedPlan[]): void {
   } catch {
     // Ignore: storage unavailable/full — the feature degrades, the page survives.
   }
+  snapshotCache = null
+  listeners.forEach((l) => l())
 }
 
 export function listSavedPlans(): SavedPlan[] {
   return read().sort((a, b) => b.savedAt - a.savedAt)
+}
+
+// Subscription + cached snapshot for useSyncExternalStore (CompareView): reading
+// localStorage on mount via an effect would setState synchronously from inside the
+// effect and still show a stale list until the next tick. useSyncExternalStore
+// reads correctly on the first client render with no separate effect, but its
+// snapshot getter must return a referentially stable value when nothing changed —
+// hence the cache, invalidated on every write().
+const listeners = new Set<() => void>()
+let snapshotCache: SavedPlan[] | null = null
+
+export function subscribeSavedPlans(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+export function getSavedPlansSnapshot(): SavedPlan[] {
+  if (snapshotCache === null) snapshotCache = listSavedPlans()
+  return snapshotCache
 }
 
 // Save (or refresh) a plan. De-dupes by query so saving the same plan twice keeps

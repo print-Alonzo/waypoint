@@ -1,13 +1,20 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { listSavedPlans, removePlan, type SavedPlan } from '@/lib/saved-plans'
+import {
+  getSavedPlansSnapshot,
+  removePlan,
+  subscribeSavedPlans,
+  type SavedPlan,
+} from '@/lib/saved-plans'
 import { decodeParams } from '@/lib/params'
 import { summarizePlan, type PlanSummary } from '@/lib/plan-summary'
 import { CITY_LABEL } from '@/lib/data'
 import { modeLabel } from '@/lib/constants'
 import { formatFare } from '@/lib/fare'
+
+const EMPTY_PLANS: SavedPlan[] = []
 
 function summaryFor(plan: SavedPlan | undefined): PlanSummary | null {
   if (!plan) return null
@@ -43,31 +50,28 @@ function Row({
 }
 
 export default function CompareView() {
-  const [plans, setPlans] = useState<SavedPlan[]>([])
+  // localStorage is client-only — useSyncExternalStore reads it correctly on the
+  // first client render (server snapshot is the stable empty array) with no
+  // separate mount effect.
+  const plans = useSyncExternalStore(subscribeSavedPlans, getSavedPlansSnapshot, () => EMPTY_PLANS)
   const [aId, setAId] = useState<string>('')
   const [bId, setBId] = useState<string>('')
 
-  // localStorage is client-only — load after mount.
-  useEffect(() => {
-    const saved = listSavedPlans()
-    setPlans(saved)
-    setAId((prev) => prev || saved[0]?.id || '')
-    setBId((prev) => prev || saved[1]?.id || saved[0]?.id || '')
-  }, [])
+  // Default to the first two plans until the traveler picks explicitly.
+  const effectiveAId = aId || plans[0]?.id || ''
+  const effectiveBId = bId || plans[1]?.id || plans[0]?.id || ''
 
-  const planA = plans.find((p) => p.id === aId)
-  const planB = plans.find((p) => p.id === bId)
+  const planA = plans.find((p) => p.id === effectiveAId)
+  const planB = plans.find((p) => p.id === effectiveBId)
   const sumA = useMemo(() => summaryFor(planA), [planA])
   const sumB = useMemo(() => summaryFor(planB), [planB])
 
   function forget(id: string) {
     removePlan(id)
-    const next = listSavedPlans()
-    setPlans(next)
     // Re-point any selection that pointed at the removed plan, so the controlled
     // <select>s and the comparison never reference a now-deleted id.
-    setAId((prev) => (prev === id ? next[0]?.id ?? '' : prev))
-    setBId((prev) => (prev === id ? next[1]?.id ?? next[0]?.id ?? '' : prev))
+    setAId((prev) => (prev === id ? '' : prev))
+    setBId((prev) => (prev === id ? '' : prev))
   }
 
   if (plans.length === 0) {
@@ -104,7 +108,11 @@ export default function CompareView() {
       <div className="mt-6 grid grid-cols-2 gap-3">
         <label className="text-sm">
           <span className="mb-1 block font-semibold">Plan A</span>
-          <select className={selectClass} value={aId} onChange={(e) => setAId(e.target.value)}>
+          <select
+            className={selectClass}
+            value={effectiveAId}
+            onChange={(e) => setAId(e.target.value)}
+          >
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -114,7 +122,11 @@ export default function CompareView() {
         </label>
         <label className="text-sm">
           <span className="mb-1 block font-semibold">Plan B</span>
-          <select className={selectClass} value={bId} onChange={(e) => setBId(e.target.value)}>
+          <select
+            className={selectClass}
+            value={effectiveBId}
+            onChange={(e) => setBId(e.target.value)}
+          >
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -124,7 +136,7 @@ export default function CompareView() {
         </label>
       </div>
 
-      {aId === bId && (
+      {effectiveAId === effectiveBId && (
         <p className="mt-3 text-sm text-[var(--color-text-muted)]">
           You’re comparing a plan with itself.{' '}
           {plans.length < 2

@@ -5,6 +5,18 @@ import type { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  DndContext,
+  PointerSensor,
+  MeasuringStrategy,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { Announcements, DragEndEvent, Modifier } from '@dnd-kit/core'
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import SortableStop from '@/components/SortableStop'
+import { usePrefersReducedMotion } from '@/lib/use-reduced-motion'
 import { decodeParams, encodeParams } from '@/lib/params'
 import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduler'
 import type { POI, ScheduledStop, StopReason, TransportMode, DurationOverrides } from '@/lib/scheduler'
@@ -83,6 +95,45 @@ function neutralReason(prevName: string | null, transit: number, poi: POI): Stop
     decidedByClose: false,
     closeTime: poi.close_time,
   }
+}
+
+// The itinerary is a single column, so a drag has no meaningful horizontal
+// component — lock it to the Y axis. (Four lines, rather than a dependency on
+// @dnd-kit/modifiers for this one function.)
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 })
+
+// DndContext insists on rendering a live region; returning undefined from every
+// announcement keeps it empty. See the accessibility prop on DndContext below.
+const SILENT_ANNOUNCEMENTS: Announcements = {
+  onDragStart: () => undefined,
+  onDragMove: () => undefined,
+  onDragOver: () => undefined,
+  onDragEnd: () => undefined,
+  onDragCancel: () => undefined,
+}
+
+// How long the "the day is re-timing" affordances hold after an order change:
+// the transit legs' crossfade and the moved card's ring. Comfortably longer than
+// the card glide (REORDER_MS) so the legs settle AFTER the cards land.
+const SETTLE_MS = 400
+
+function GripIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="6" r="1.6" />
+      <circle cx="15" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" />
+      <circle cx="15" cy="18" r="1.6" />
+    </svg>
+  )
 }
 
 function LockIcon({ locked }: { locked: boolean }) {
@@ -276,6 +327,33 @@ export default function ResultView() {
   )
   const routeRequestId = useRef(0)
 
+  // An order the user just chose that the router hasn't yet committed to the URL,
+  // tagged with the query string it was written against. The URL remains the single
+  // source of truth — this only bridges the async gap, so the list (and the `items`
+  // array dnd-kit sorts against) reorders in the SAME commit as the drop/click
+  // instead of one router tick later. Without it, a drop visibly snaps back to the
+  // old arrangement for a frame while the router catches up.
+  //
+  // `forSearch` is what retires it: the instant the query string changes — the
+  // router landed, or the user hit Back — the tag no longer matches and the URL
+  // wins again. That makes expiry a pure derivation in the memo below, with no
+  // effect writing state back on every commit.
+  const [pending, setPending] = useState<{ order: string[]; forSearch: string } | null>(null)
+  const searchKey = searchParams.toString()
+
+  const reduceMotion = usePrefersReducedMotion()
+
+  // A small distance threshold so a tap that turns into a page scroll doesn't start
+  // a drag. The grip handle sets `touch-action: none` on its own 44px, so a single
+  // PointerSensor covers mouse, pen and touch — no separate TouchSensor needed, and
+  // scrolling by dragging anywhere ELSE on the card keeps working.
+  //
+  // No KeyboardSensor, deliberately: the ↑ ↓ buttons on every card are already the
+  // keyboard reorder path and already announce through the aria-live region below.
+  // Adding dnd-kit's would give screen-reader users two competing ways to reorder
+  // the same list, and a second, duplicate announcement channel.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+
   const model = useMemo(() => {
     if (!params) return null
     try {
@@ -309,13 +387,26 @@ export default function ResultView() {
 
       // Working order: the URL's explicit order (deduped + sanitized to the selected
       // set, with any missing-from-URL stops appended) or the auto order if none.
-      let order: string[]
+      let urlOrder: string[]
       if (params.order && params.order.length) {
         const fromUrl = [...new Set(params.order.filter((id) => validIds.has(id)))]
-        order = [...fromUrl, ...defaultOrder.filter((id) => !fromUrl.includes(id))]
+        urlOrder = [...fromUrl, ...defaultOrder.filter((id) => !fromUrl.includes(id))]
       } else {
-        order = defaultOrder
+        urlOrder = defaultOrder
       }
+
+      // Layer the not-yet-committed order over the URL's — but only while the URL it
+      // was written against is still the current one, and only while it's still a
+      // permutation of the SELECTED set. A pending order the POI set has changed
+      // under is stale and gets dropped rather than misapplied, the same discipline
+      // the road overlay's signature check applies.
+      const pendingUsable =
+        pending !== null &&
+        pending.forSearch === searchKey &&
+        pending.order.length === validIds.size &&
+        pending.order.every((id) => validIds.has(id))
+      const order = pendingUsable ? pending!.order : urlOrder
+
       const orderPOIs = order.map((id) => POI_MAP[id])
       const locked = new Set((params.locked ?? []).filter((id) => order.includes(id)))
 
@@ -402,7 +493,7 @@ export default function ResultView() {
       // guard effect bounces to the selector instead of crashing the route.
       return null
     }
-  }, [params, roadOverlay])
+  }, [params, roadOverlay, pending, searchKey])
 
   // Fetch real road routes for the current (start, mode, order) once it's known,
   // then layer them into `model` via `roadOverlay` above. Deliberately depends on
@@ -442,6 +533,14 @@ export default function ResultView() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(true)
+
+  // The settle window after an order change: `settling` crossfades the transit legs
+  // (whose minutes just recomputed) and `landedId` rings the card that moved, so the
+  // eye can follow it. Both are decoration — the reorder itself is already committed.
+  const [settling, setSettling] = useState(false)
+  const [landedId, setLandedId] = useState<string | null>(null)
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     // Set true in the BODY (not just at ref init): React StrictMode in dev mounts →
     // unmounts → remounts, and the unmount cleanup sets false; without re-setting
@@ -452,6 +551,7 @@ export default function ResultView() {
       // so the unmount guard must also stop a post-unmount state update + timer.
       mounted.current = false
       if (copyTimer.current) clearTimeout(copyTimer.current)
+      if (settleTimer.current) clearTimeout(settleTimer.current)
     }
   }, [])
 
@@ -578,6 +678,25 @@ export default function ResultView() {
     writeUrl({ order: nextOrder, locked: nextLocked })
   }
 
+  // The single entry point for every order change — ↑/↓, drag, Re-optimize, Reset.
+  // Applies the new order optimistically (so the list and dnd-kit's `items` reorder
+  // in this commit, not after the router round-trips), opens the settle window that
+  // drives the leg crossfade + landed ring, then writes the URL as the real store.
+  function applyOrder(nextOrder: string[], nextLocked: string[], movedId?: string) {
+    setPending({ order: nextOrder, forSearch: searchKey })
+    if (!reduceMotion) {
+      setSettling(true)
+      setLandedId(movedId ?? null)
+      if (settleTimer.current) clearTimeout(settleTimer.current)
+      settleTimer.current = setTimeout(() => {
+        if (!mounted.current) return
+        setSettling(false)
+        setLandedId(null)
+      }, SETTLE_MS)
+    }
+    writeArrangement(nextOrder, nextLocked)
+  }
+
   function toggleLunch() {
     const next = !model!.lunchOn
     setLiveMsg(next ? 'Added a lunch break from 12:00 to 13:30.' : 'Removed the lunch break.')
@@ -603,6 +722,10 @@ export default function ResultView() {
   // (drop the custom order/pins, which were chosen for the old mode) but keep the
   // budget + lunch overlays. push (not replace) so the user can go back.
   function chooseMode(mode: TransportMode) {
+    // The new URL carries no `order`, so the optimistic one must go too — otherwise
+    // it could survive the mode switch and silently reinstate an arrangement that
+    // was chosen for the OLD mode, defeating the drop this function exists to do.
+    setPending(null)
     const sp = encodeParams({
       poi_ids: safeParams.poi_ids,
       start_time: safeParams.start_time,
@@ -621,10 +744,29 @@ export default function ResultView() {
     if (j < 0 || j >= model!.order.length) return
     const next = [...model!.order]
     ;[next[index], next[j]] = [next[j], next[index]]
-    const name = POI_MAP[next[j]]?.name ?? 'Stop'
+    const movedId = next[j]
+    const name = POI_MAP[movedId]?.name ?? 'Stop'
     setLiveMsg(`Moved ${name} to position ${j + 1}.`)
     setAdjustOpen(true) // reveal the now-relevant Re-optimize / Reset controls
-    writeArrangement(next, [...model!.locked])
+    applyOrder(next, [...model!.locked], movedId)
+  }
+
+  // Drop: dnd-kit gives us the dragged stop and the one it landed on. Everything
+  // downstream (announcement, URL, re-timing) is the same path a ↑/↓ press takes —
+  // drag is an input method, not a second way to mutate the day.
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const activeId = String(active.id)
+    const from = model!.order.indexOf(activeId)
+    const to = model!.order.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+
+    const next = arrayMove(model!.order, from, to)
+    const name = POI_MAP[activeId]?.name ?? 'Stop'
+    setLiveMsg(`Moved ${name} to position ${to + 1}.`)
+    setAdjustOpen(true)
+    applyOrder(next, [...model!.locked], activeId)
   }
 
   function toggleLock(id: string) {
@@ -652,12 +794,12 @@ export default function ResultView() {
       safeParams.transport_mode,
     )
     setLiveMsg('Re-optimized the unpinned stops.')
-    writeArrangement(opt.order.map((p) => p.id), [...model!.locked])
+    applyOrder(opt.order.map((p) => p.id), [...model!.locked])
   }
 
   function resetAuto() {
     setLiveMsg('Reset to the automatic order.')
-    writeArrangement(model!.defaultOrder, [])
+    applyOrder(model!.defaultOrder, [])
   }
 
   // Would giving `id` this candidate duration push ANY stop's departure (this
@@ -836,8 +978,10 @@ export default function ResultView() {
           />
         </div>
         {/* Stable button name above + a dedicated live region here = reliable SR
-            announcement (a live region on the button's own changing label is not). */}
-        <span role="status" aria-live="polite" className="sr-only">
+            announcement (a live region on the button's own changing label is not).
+            Named, because DndContext renders a role=status region of its own — the
+            name is what keeps the two tellable apart, for AT and for tests. */}
+        <span role="status" aria-live="polite" aria-label="Copy status" className="sr-only">
           {copyStatusMessage}
         </span>
       </div>
@@ -1042,135 +1186,184 @@ export default function ResultView() {
         {liveMsg}
       </span>
 
-      <ol className="mt-5">
-        {stops.map((stop, i) => {
-          const locked = stop.placement === 'locked'
-          const outOfBudget = fit ? !fit.fits[i] : false
-          // Is the "+" stepper already at its budget-imposed ceiling? Checked against
-          // the NEXT step, not the current value, so the button disables itself right
-          // as it would otherwise push some stop over the active time limit.
-          const atBudgetCap =
-            model.budget != null &&
-            wouldOverflowBudget(stop.poi.id, clampDuration(stop.dwellMinutes + DURATION_STEP))
-          const leg =
-            fareEnabled && stop.transitFromPrev > 0
-              ? legFare(stop.transitFromPrev, params.transport_mode)
-              : null
-          return (
-            <li key={stop.poi.id}>
-              {stop.lunchBefore && (
-                <div className="py-2 text-center">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1 text-sm font-semibold">
-                    <span aria-hidden>🍴</span> Lunch {wallClock(stop.lunchBefore.start)}–
-                    {wallClock(stop.lunchBefore.end)}
-                  </span>
-                </div>
-              )}
-              {i > 0 && (
-                <div className="py-2 text-center text-sm text-[var(--color-text-muted)]">
-                  <div>
-                    ↓ {stop.transitFromPrev} min{leg ? ` · ~${formatFare(leg)}` : ''} by{' '}
-                    {modeLabel(params.transport_mode)}
-                  </div>
-                  <div className="no-print text-xs">
-                    Estimated — verify with Google Maps
-                  </div>
-                </div>
-              )}
-              <div className={`${cardClass(stop)}${outOfBudget ? ' opacity-60' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    {stop.redFlag && <span aria-hidden>✕</span>}
-                    {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
-                    <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
-                    <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
-                    <span className="font-semibold">{stop.poi.name}</span>
-                    {outOfBudget && (
-                      <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
-                        Beyond your {model.budget}h
-                      </span>
-                    )}
-                  </div>
-                  {/* Per-stop reorder/pin controls (screen-only). */}
-                  <div className="no-print flex shrink-0 items-center gap-1">
-                    {/* aria-disabled (not `disabled`) at the list edges: a real
-                        `disabled` attr makes the browser blur the focused button the
-                        instant a moved stop reaches an end, dropping keyboard focus to
-                        <body>. moveStop already no-ops out of bounds. */}
-                    <button
-                      type="button"
-                      onClick={() => moveStop(i, -1)}
-                      aria-disabled={i === 0}
-                      aria-label={`Move ${stop.poi.name} earlier`}
-                      className={`${ctrlBtn}${i === 0 ? ' cursor-not-allowed opacity-40' : ''}`}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveStop(i, 1)}
-                      aria-disabled={i === stops.length - 1}
-                      aria-label={`Move ${stop.poi.name} later`}
-                      className={`${ctrlBtn}${
-                        i === stops.length - 1 ? ' cursor-not-allowed opacity-40' : ''
-                      }`}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleLock(stop.poi.id)}
-                      aria-pressed={locked}
-                      aria-label={locked ? `Unpin ${stop.poi.name}` : `Pin ${stop.poi.name} in place`}
-                      className={
-                        locked
-                          ? 'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] text-white transition'
-                          : ctrlBtn
-                      }
-                    >
-                      <LockIcon locked={locked} />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-1 text-sm">
-                  {stopDurationLine(stop)} · {stopStatusLine(stop)}
-                </div>
-                {/* The return trip has no stop card of its own, so a budget overrun
-                    caused ONLY by getting home (not by this stop's own visit — that
-                    case is already covered by outOfBudget above) is easy to miss as a
-                    one-line summary buried in the collapsed panel. Surface it right on
-                    the last stop, where the traveler is actually looking. */}
-                {fit && !outOfBudget && i === stops.length - 1 && !fit.makesItBack && (
-                  <p className="mt-1.5 flex items-start gap-1 text-xs text-[var(--color-flag-warning-text)]">
-                    <span aria-hidden>⚠</span>
-                    <span>
-                      Getting back to {startLocation.name} from here may run past your{' '}
-                      {model.budget}h limit (~{fit.returnMinutes} min estimated return).
-                    </span>
-                  </p>
-                )}
-                {isEnabled('customDuration') && (
-                  <DurationStepper
-                    stop={stop}
-                    onSet={setDuration}
-                    onReset={resetDuration}
-                    atBudgetCap={atBudgetCap}
-                  />
-                )}
-                {stop.poi.notes && (
-                  <div className="print-hide mt-1 text-sm italic text-[var(--color-text-muted)]">
-                    {stop.poi.notes}
-                  </div>
-                )}
-                <p className={reasonClass(stop)}>
-                  <span className="font-semibold">Why this stop: </span>
-                  {reasonLine(stop, params.transport_mode)}
-                </p>
-              </div>
-            </li>
-          )
-        })}
-      </ol>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        // Cards change height as the day re-times (flag tints appear, the "Beyond
+        // your Nh" pill comes and goes, the reason line rewrites). Measuring only at
+        // drag-start would leave dnd-kit sorting against stale rects, so re-measure.
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        onDragEnd={handleDragEnd}
+        // Silence dnd-kit's own announcements. Every drop already announces through
+        // the shared aria-live region below (the same sentence a ↑/↓ press produces),
+        // so leaving these on would speak each reorder twice, in two different voices.
+        accessibility={{ announcements: SILENT_ANNOUNCEMENTS }}
+      >
+        <SortableContext items={model.order} strategy={verticalListSortingStrategy}>
+          <ol className="mt-5" data-reordering={settling || undefined}>
+            {stops.map((stop, i) => {
+              const locked = stop.placement === 'locked'
+              const outOfBudget = fit ? !fit.fits[i] : false
+              // Is the "+" stepper already at its budget-imposed ceiling? Checked against
+              // the NEXT step, not the current value, so the button disables itself right
+              // as it would otherwise push some stop over the active time limit.
+              const atBudgetCap =
+                model.budget != null &&
+                wouldOverflowBudget(stop.poi.id, clampDuration(stop.dwellMinutes + DURATION_STEP))
+              const leg =
+                fareEnabled && stop.transitFromPrev > 0
+                  ? legFare(stop.transitFromPrev, params.transport_mode)
+                  : null
+              return (
+                <SortableStop
+                  key={stop.poi.id}
+                  id={stop.poi.id}
+                  cardClassName={`${cardClass(stop)}${outOfBudget ? ' opacity-60' : ''}`}
+                  reduceMotion={reduceMotion}
+                  landed={landedId === stop.poi.id}
+                  // The lunch pill and transit leg sit ABOVE the card, inside the <li>
+                  // but outside the sortable node — they belong to the gap between two
+                  // stops, not to the card that glides. `wp-leg` crossfades them while
+                  // their minutes recompute (app/globals.css).
+                  lead={
+                    <>
+                      {stop.lunchBefore && (
+                        <div className="wp-leg py-2 text-center">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1 text-sm font-semibold">
+                            <span aria-hidden>🍴</span> Lunch {wallClock(stop.lunchBefore.start)}–
+                            {wallClock(stop.lunchBefore.end)}
+                          </span>
+                        </div>
+                      )}
+                      {i > 0 && (
+                        <div className="wp-leg py-2 text-center text-sm text-[var(--color-text-muted)]">
+                          <div>
+                            ↓ {stop.transitFromPrev} min{leg ? ` · ~${formatFare(leg)}` : ''} by{' '}
+                            {modeLabel(params.transport_mode)}
+                          </div>
+                          <div className="no-print text-xs">
+                            Estimated — verify with Google Maps
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  }
+                >
+                  {({ listeners, isDragging }) => (
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        {/* Drag handle. Pointer-only on purpose: the ↑ ↓ buttons in this same
+                            card are the keyboard + screen-reader path, so exposing a third
+                            focusable control here would only add noise to the tab order and
+                            the a11y tree. touch-action:none is scoped to these 44px, so the
+                            rest of the card still scrolls the page on touch. */}
+                        <button
+                          type="button"
+                          {...listeners}
+                          aria-hidden="true"
+                          tabIndex={-1}
+                          className={`no-print -ml-1 flex h-11 w-11 shrink-0 touch-none items-center justify-center rounded-md text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg-subtle)] ${
+                            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                          }`}
+                        >
+                          <GripIcon />
+                        </button>
+                        <div className="flex flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          {stop.redFlag && <span aria-hidden>✕</span>}
+                          {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
+                          <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
+                          <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
+                          <span className="font-semibold">{stop.poi.name}</span>
+                          {outOfBudget && (
+                            <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                              Beyond your {model.budget}h
+                            </span>
+                          )}
+                        </div>
+                        {/* Per-stop reorder/pin controls (screen-only). */}
+                        <div className="no-print flex shrink-0 items-center gap-1">
+                          {/* aria-disabled (not `disabled`) at the list edges: a real
+                              `disabled` attr makes the browser blur the focused button the
+                              instant a moved stop reaches an end, dropping keyboard focus to
+                              <body>. moveStop already no-ops out of bounds. */}
+                          <button
+                            type="button"
+                            onClick={() => moveStop(i, -1)}
+                            aria-disabled={i === 0}
+                            aria-label={`Move ${stop.poi.name} earlier`}
+                            className={`${ctrlBtn}${i === 0 ? ' cursor-not-allowed opacity-40' : ''}`}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveStop(i, 1)}
+                            aria-disabled={i === stops.length - 1}
+                            aria-label={`Move ${stop.poi.name} later`}
+                            className={`${ctrlBtn}${
+                              i === stops.length - 1 ? ' cursor-not-allowed opacity-40' : ''
+                            }`}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleLock(stop.poi.id)}
+                            aria-pressed={locked}
+                            aria-label={locked ? `Unpin ${stop.poi.name}` : `Pin ${stop.poi.name} in place`}
+                            className={
+                              locked
+                                ? 'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] text-white transition'
+                                : ctrlBtn
+                            }
+                          >
+                            <LockIcon locked={locked} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 text-sm">
+                        {stopDurationLine(stop)} · {stopStatusLine(stop)}
+                      </div>
+                      {/* The return trip has no stop card of its own, so a budget overrun
+                          caused ONLY by getting home (not by this stop's own visit — that
+                          case is already covered by outOfBudget above) is easy to miss as a
+                          one-line summary buried in the collapsed panel. Surface it right on
+                          the last stop, where the traveler is actually looking. */}
+                      {fit && !outOfBudget && i === stops.length - 1 && !fit.makesItBack && (
+                        <p className="mt-1.5 flex items-start gap-1 text-xs text-[var(--color-flag-warning-text)]">
+                          <span aria-hidden>⚠</span>
+                          <span>
+                            Getting back to {startLocation.name} from here may run past your{' '}
+                            {model.budget}h limit (~{fit.returnMinutes} min estimated return).
+                          </span>
+                        </p>
+                      )}
+                      {isEnabled('customDuration') && (
+                        <DurationStepper
+                          stop={stop}
+                          onSet={setDuration}
+                          onReset={resetDuration}
+                          atBudgetCap={atBudgetCap}
+                        />
+                      )}
+                      {stop.poi.notes && (
+                        <div className="print-hide mt-1 text-sm italic text-[var(--color-text-muted)]">
+                          {stop.poi.notes}
+                        </div>
+                      )}
+                      <p className={reasonClass(stop)}>
+                        <span className="font-semibold">Why this stop: </span>
+                        {reasonLine(stop, params.transport_mode)}
+                      </p>
+                    </>
+                  )}
+                </SortableStop>
+              )
+            })}
+          </ol>
+        </SortableContext>
+      </DndContext>
     </div>
   )
 }

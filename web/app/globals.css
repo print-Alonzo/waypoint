@@ -17,6 +17,12 @@
   --color-flag-error-bg: #fff0f1;
   --color-flag-error-border: #ff385c;
   --color-flag-error-text: #a3001b;
+
+  /* Motion — itinerary reordering (components/ResultView.tsx, SortableStop.tsx).
+     Kept in sync with REORDER_MS / REORDER_EASING in components/SortableStop.tsx,
+     which must hand dnd-kit the same numbers as JS values. */
+  --wp-motion-reorder: 220ms;
+  --wp-ease-reorder: cubic-bezier(0.2, 0, 0, 1); /* quick departure, gentle settle */
 }
 
 body {
@@ -69,12 +75,71 @@ body {
   line-height: 44px !important;
 }
 
+/* Reordering the itinerary re-times it: every transit leg below the moved stop
+   recomputes. Rather than let a new number pop in under a card that's still
+   gliding over it, hold the leg blank for the first half of the move and fade it
+   back in with its settled value. Driven by [data-reordering] on the <ol>. */
+@keyframes wp-leg-settle {
+  0%,
+  55% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+ol[data-reordering] .wp-leg {
+  animation: wp-leg-settle var(--wp-motion-reorder) var(--wp-ease-reorder);
+}
+
+/* The card that just moved gets a brief coral ring so the eye can find it after
+   it lands — the reorder equivalent of "showing its work". */
+@keyframes wp-stop-landed {
+  0%,
+  60% {
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+.wp-stop[data-landed] {
+  animation: wp-stop-landed 900ms ease-out;
+}
+
+/* Motion is decoration here — the reorder still happens, it just happens at once.
+   Drag continues to work: dnd-kit's pointer transform is a direct response to the
+   user's finger, not an animation. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --wp-motion-reorder: 1ms;
+  }
+  ol[data-reordering] .wp-leg,
+  .wp-stop[data-landed] {
+    animation: none !important;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
   .print-hide {
     display: none !important;
+  }
+  /* A reorder interrupted by Cmd-P must never commit a half-applied transform,
+     a lifted shadow, or a mid-fade leg to paper. */
+  .wp-stop {
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+    box-shadow: none !important;
+  }
+  .wp-leg {
+    animation: none !important;
+    opacity: 1 !important;
   }
   /* Preserve flag-row tint backgrounds in print (Chrome + Safari) */
   * {

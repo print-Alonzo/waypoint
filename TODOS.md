@@ -132,8 +132,11 @@ groups (Heritage, Museums, Parks, Markets, Churches) around the POI checkbox lis
   render with `fill` + `sizes="100vw"` but aren't full-viewport width on `/plan` and `/result`
   (LCP + oversized-download warnings). Needs `sizes` tuned to actual rendered card width in
   `Selector.tsx` / `PoiSwipeDeck.tsx`. Low priority, dev-console-only signal.
-- **`prefers-reduced-motion` audit** — not explicitly checked this pass. Worth a dedicated
-  motion review (card swipe/tap transitions, hover states) before a wider launch.
+- **`prefers-reduced-motion` audit** — partly done. The itinerary reorder path now honors it
+  (`--wp-motion-reorder` + `lib/use-reduced-motion.ts`, see DESIGN.md § Motion), and `app/globals.css`
+  has the `@media (prefers-reduced-motion: reduce)` block to extend. Still unaudited: the swipe deck's
+  `FLY_MS` transitions (`PoiSwipeDeck.tsx`) and the ad-hoc `transition`/`hover:` states scattered
+  across components — neither consults the hook.
 
 Full report: `~/.gstack/projects/print-Alonzo-waypoint/designs/design-audit-20260711/design-audit-waypoint.md`
 

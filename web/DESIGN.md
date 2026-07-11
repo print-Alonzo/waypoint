@@ -66,6 +66,30 @@ Airbnb's proprietary **Cereal** typeface.
   text-[var(--color-text-muted)] cursor-not-allowed`.
 - Dividers/separators: `h-px bg-[var(--color-border)]`.
 
+## Motion
+
+Motion in Waypoint is for **continuity, not decoration**: it exists so the eye can follow a thing that
+moved. The only place it carries real weight today is reordering the itinerary.
+
+- **Tokens** (`app/globals.css`): `--wp-motion-reorder` (220ms) and `--wp-ease-reorder`
+  (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). dnd-kit builds its transition
+  string in JS, so `REORDER_MS` / `REORDER_EASING` in [`components/SortableStop.tsx`](components/SortableStop.tsx)
+  mirror these as raw values. **Change both or neither.**
+- **Every order change animates, by any route** — `↑ ↓`, drag, Re-optimize, Reset to auto, browser
+  back. `useSortable` is given `animateLayoutChanges: () => defaultAnimateLayoutChanges({...args,
+  wasDragging: true })`, which makes dnd-kit FLIP on any index change rather than only after a drag.
+  There is no hand-rolled FLIP anywhere in the app, and there shouldn't be a second one.
+- **The card is the animated unit, not the `<li>`.** The `<li>` also carries the transit leg, which
+  stop 1 doesn't have — so `<li>` heights are structurally uneven and a FLIP measured on them jerks
+  any card entering or leaving position 1 by the leg's height. Card-to-card spacing *is* uniform
+  (exactly one leg row between every pair). The legs re-render in place and crossfade instead
+  (`.wp-leg` + `[data-reordering]` on the `<ol>`), which also masks their minutes recomputing.
+- **`prefers-reduced-motion: reduce`** collapses the duration to 1ms and drops the leg crossfade and
+  the landed ring. Reordering still *happens*, it just happens at once — and drag still works, since
+  dragging tracks the finger rather than playing an animation. Any new motion must honour this.
+- **Print** (`@media print`): `.wp-stop` force-resets `transform` / `transition` / `animation` /
+  `box-shadow`. A reorder interrupted by Cmd-P must never commit a half-applied transform to paper.
+
 ## Component patterns
 
 - **Header** ([`app/layout.tsx`](app/layout.tsx)): sticky, white, thin bottom border; coral
@@ -142,16 +166,30 @@ Airbnb's proprietary **Cereal** typeface.
   map, Compare, Live, and both exports never disagree on times.
 - **Reorder & pin (lock)** ([`components/ResultView.tsx`](components/ResultView.tsx)): the day is
   yours to arrange — the optimizer only sequences what you haven't pinned. Each stop card carries
-  screen-only `↑ ↓` move controls and a **pin** toggle (an inline lock glyph, coral-filled when
-  pinned). A controls bar reads "Reorder with ↑ ↓…" by default and switches to "Your order · N pinned"
-  with **Re-optimize unpinned** (reflows the free stops by nearest-neighbor while pinned stops hold
-  their slot) and **Reset to auto** once customized. State is the single source of truth in the **URL**
-  (`order` + `locked` params via [`lib/params.ts`](lib/params.ts)), written with `router.replace`
-  (`scroll:false`) so every arrangement stays shareable + refresh-safe without piling up history.
-  Placement is computed faithfully: a stop is labelled `optimized` only when the working order equals
-  `optimizeOrder(order, locked)` (what the algorithm would produce given the pins); otherwise the
-  unpinned stops are `manual`. Map, list, and exports all re-derive from the chosen order, so they
-  never disagree.
+  screen-only `↑ ↓` move controls, a **drag handle**, and a **pin** toggle (an inline lock glyph,
+  coral-filled when pinned). A controls bar reads "Reorder with ↑ ↓…" by default and switches to
+  "Your order · N pinned" with **Re-optimize unpinned** (reflows the free stops by nearest-neighbor
+  while pinned stops hold their slot) and **Reset to auto** once customized. State is the single
+  source of truth in the **URL** (`order` + `locked` params via [`lib/params.ts`](lib/params.ts)),
+  written with `router.replace` (`scroll:false`) so every arrangement stays shareable + refresh-safe
+  without piling up history. Placement is computed faithfully: a stop is labelled `optimized` only
+  when the working order equals `optimizeOrder(order, locked)` (what the algorithm would produce given
+  the pins); otherwise the unpinned stops are `manual`. Map, list, and exports all re-derive from the
+  chosen order, so they never disagree.
+  - **Drag** ([`components/SortableStop.tsx`](components/SortableStop.tsx), dnd-kit): a grip handle on
+    the card's leading edge, restricted to the vertical axis. It is **pointer-only on purpose** —
+    `aria-hidden` + `tabIndex={-1}`, with dnd-kit's `attributes` deliberately NOT spread onto the card
+    (they would make every card a focusable `role="button"`, and their `aria-describedby` breaks
+    hydration). No `KeyboardSensor`, and dnd-kit's announcements are silenced: the `↑ ↓` buttons are
+    already the keyboard + screen-reader path and already announce through the shared `aria-live`
+    region, so a second mechanism would only double-speak. `touch-action: none` is scoped to the
+    handle's 44px, so dragging anywhere else on the card still scrolls the page.
+  - **Optimistic order:** the order lives in the URL, which the router commits asynchronously — so a
+    drop would visibly snap back to the old arrangement for a frame. `ResultView` holds the chosen
+    order in `pending`, tagged with the query string it was written against; it applies over the URL's
+    order until `searchParams` changes, at which point the tag stops matching and the URL wins again.
+    Expiry is a pure derivation in the `model` memo — no effect writing state back. This is what makes
+    browser-back still able to override an order the user just applied.
 - **Transit connector:** centered, muted — `↓ N min by {mode}` + a fine-print "Estimated — verify
   with Google Maps" line.
 - **Banner** (all-stops-closed): full-width error-tint card above the list.

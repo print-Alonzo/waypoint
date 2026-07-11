@@ -148,6 +148,7 @@ export default function PoiSwipeDeck({
   const [history, setHistory] = useState<Decision[]>([])
   const [drag, setDrag] = useState(0) // live horizontal offset of the top card
   const [fly, setFly] = useState<0 | 1 | -1>(0) // commit direction during fly-out
+  const [isDraggingX, setIsDraggingX] = useState(false) // mirrors axis.current === 'x', for render
   const startX = useRef(0)
   const startY = useRef(0)
   const axis = useRef<'none' | 'x' | 'y'>('none')
@@ -217,6 +218,7 @@ export default function PoiSwipeDeck({
     startX.current = e.clientX
     startY.current = e.clientY
     axis.current = 'none'
+    setIsDraggingX(false)
     e.currentTarget.setPointerCapture?.(e.pointerId)
   }
   function onPointerMove(e: React.PointerEvent) {
@@ -228,6 +230,7 @@ export default function PoiSwipeDeck({
       // Lock to the dominant axis: horizontal = swipe, vertical = let the page scroll.
       axis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
       if (axis.current === 'y') return
+      setIsDraggingX(true)
     }
     setDrag(dx)
   }
@@ -240,6 +243,7 @@ export default function PoiSwipeDeck({
       setDrag(0) // spring back
     }
     axis.current = 'none'
+    setIsDraggingX(false)
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -254,7 +258,7 @@ export default function PoiSwipeDeck({
 
   // Offset/rotation of the top card: follows the finger, or flies off on commit.
   const offset = fly !== 0 ? fly * FLY_OUT : drag
-  const dragging = axis.current === 'x' && fly === 0 && drag !== 0
+  const dragging = isDraggingX && fly === 0 && drag !== 0
   const topStyle: React.CSSProperties = {
     transform: `translateX(${offset}px) rotate(${offset * 0.05}deg)`,
     transition: dragging ? 'none' : `transform ${FLY_MS}ms ease-out`,
