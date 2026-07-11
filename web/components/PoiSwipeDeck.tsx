@@ -41,7 +41,7 @@ function DeckCard({
   return (
     <div
       style={style}
-      className={`absolute inset-0 flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-md ${
+      className={`absolute inset-0 flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-md ${
         interactive ? 'cursor-grab touch-pan-y select-none active:cursor-grabbing' : ''
       } ${className}`}
       {...rest}
@@ -305,7 +305,7 @@ export default function PoiSwipeDeck({
         aria-roledescription="card deck"
       >
         {done ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-6 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-6 text-center">
             <p className="text-lg font-bold">
               {activeCat === 'all'
                 ? "You've seen every place."
