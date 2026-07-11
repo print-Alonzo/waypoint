@@ -127,13 +127,15 @@ export default function LiveView() {
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setDelay((d) => d + 15)}
-            className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm font-semibold transition hover:bg-[var(--color-bg-subtle)]"
-          >
-            I’m running late (+15 min)
-          </button>
+          {now?.kind !== 'done' && (
+            <button
+              type="button"
+              onClick={() => setDelay((d) => d + 15)}
+              className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm font-semibold transition hover:bg-[var(--color-bg-subtle)]"
+            >
+              I’m running late (+15 min)
+            </button>
+          )}
           {delay > 0 && (
             <button
               type="button"
