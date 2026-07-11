@@ -1,9 +1,11 @@
 # Waypoint
 
-A single-city Metro Manila trip-itinerary optimizer: you pick the places, Waypoint sequences only
-the **order** of your day and shows its work (flags anything closed/unreachable instead of dropping
-it). Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4, no backend — scheduling runs
-client-side over static JSON, deploys to Vercel. The app lives in `web/`.
+A single-city Metro Manila trip-itinerary optimizer: you pick the places, Waypoint sequences the
+**order** of your day and shows its work (flags anything closed/unreachable instead of dropping it).
+The day stays yours to adjust — reorder, pin a stop in place, and set how long you spend at each one;
+the schedule re-times around your edits. Next.js 16 (App Router) + React 19 + TypeScript + Tailwind
+CSS v4, no backend — scheduling runs client-side over static JSON, deploys to Vercel. The app lives
+in `web/`.
 
 Key commands (run from `web/`):
 ```bash

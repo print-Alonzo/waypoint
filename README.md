@@ -4,8 +4,9 @@
 
 ### Plan a day in Metro Manila you can trust.
 
-You pick the places. Waypoint optimizes only the **order** of your day and shows its work —
-flagging anything closed or out of reach instead of quietly dropping it.
+You pick the places. Waypoint optimizes the **order** of your day and shows its work —
+flagging anything closed or out of reach instead of quietly dropping it. Reorder it, pin a stop,
+or set how long you linger; the schedule re-times around you.
 
 <img src="docs/screenshots/01-landing.png" alt="Waypoint landing page on a phone" width="300">
 
