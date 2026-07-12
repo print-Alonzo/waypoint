@@ -1,5 +1,5 @@
-import type { ScheduledStop, TransportMode } from './scheduler'
-import { parseTime, estimateTransitMinutes } from './scheduler'
+import type { ScheduledStop, TransportMode } from '@/lib/scheduler'
+import { parseTime, estimateTransitMinutes } from '@/lib/scheduler'
 
 // "Fit my day to N hours" — a faithful time-budget overlay. It NEVER drops a stop:
 // it marks which stops fall outside the budget and whether you'd make it back to

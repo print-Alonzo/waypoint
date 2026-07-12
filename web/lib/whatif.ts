@@ -1,10 +1,10 @@
-import type { POI, TransportMode, LunchWindow, DurationOverrides } from './scheduler'
-import { optimizeOrder, scheduleAlong, parseTime } from './scheduler'
-import { TRANSIT_MATRIX } from './data'
-import { TRANSPORT_MODES } from './constants'
-import { dayFare, formatFare } from './fare'
-import { wallClock } from './export'
-import type { ScheduleParams } from './params'
+import type { POI, TransportMode, LunchWindow, DurationOverrides } from '@/lib/scheduler'
+import { optimizeOrder, scheduleAlong, parseTime } from '@/lib/scheduler'
+import { TRANSIT_MATRIX } from '@/lib/data'
+import { TRANSPORT_MODES } from '@/lib/constants'
+import { dayFare, formatFare } from '@/lib/fare'
+import { wallClock } from '@/lib/export'
+import type { ScheduleParams } from '@/lib/params'
 
 // "What if I travelled differently?" — the same set of places, re-optimized under
 // each transport mode, distilled to comparable figures. Every number is recomputed

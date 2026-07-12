@@ -1,5 +1,5 @@
-import type { ScheduledStop, StopReason, TransportMode } from './scheduler'
-import { modeLabel } from './constants'
+import type { ScheduledStop, StopReason, TransportMode } from '@/lib/scheduler'
+import { modeLabel } from '@/lib/constants'
 
 // Turns the scheduler's structured StopReason into a faithful one-line explanation.
 // Kept pure (no React) so it is unit-testable and the wording is locked by tests.

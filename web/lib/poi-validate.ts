@@ -1,5 +1,5 @@
-import type { POI } from './scheduler'
-import { CATEGORIES, DAYS_OF_WEEK } from './constants'
+import type { POI } from '@/lib/scheduler'
+import { CATEGORIES, DAYS_OF_WEEK } from '@/lib/constants'
 
 // Isomorphic POI validation shared by the admin form (live field errors) and the
 // /admin/create route handler (authoritative check before writing to disk). Keep

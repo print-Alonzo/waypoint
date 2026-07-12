@@ -1,5 +1,5 @@
-import type { ScheduleParams } from './params'
-import { encodeParams } from './params'
+import type { ScheduleParams } from '@/lib/params'
+import { encodeParams } from '@/lib/params'
 
 // Curated starter itineraries to kill cold-start paralysis on the landing page.
 // Each is just an encoded /result URL built from real POI ids — no special-casing

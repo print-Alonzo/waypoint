@@ -1,5 +1,5 @@
-import type { TransitMatrix, TransportMode } from './scheduler'
-import { estimateTransitMinutes, SPEED_KMH } from './scheduler'
+import type { TransitMatrix, TransportMode } from '@/lib/scheduler'
+import { estimateTransitMinutes, SPEED_KMH } from '@/lib/scheduler'
 
 // Runtime road-routing: fetches real road geometry + distance from the Mapbox
 // Directions API (client-side, CORS-enabled) so the map can draw an actual route

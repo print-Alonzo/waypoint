@@ -1,4 +1,4 @@
-import type { POI, DurationOverrides } from './scheduler'
+import type { POI, DurationOverrides } from '@/lib/scheduler'
 
 // Bounds for the per-stop "Time here" stepper. MAX matches the dataset-authoring cap in
 // lib/poi-validate.ts (600) so the trip editor and the admin form can never disagree.

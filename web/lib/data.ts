@@ -1,4 +1,4 @@
-import type { POI, TransitMatrix } from './scheduler'
+import type { POI, TransitMatrix } from '@/lib/scheduler'
 
 import metroManilaPois from '@/data/metro-manila/pois.json'
 import metroManilaMatrix from '@/data/metro-manila/transit-matrix.json'

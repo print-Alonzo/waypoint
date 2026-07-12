@@ -1,5 +1,5 @@
-import type { ScheduledStop, TransportMode } from './scheduler'
-import { SPEED_KMH } from './scheduler'
+import type { ScheduledStop, TransportMode } from '@/lib/scheduler'
+import { SPEED_KMH } from '@/lib/scheduler'
 
 // Rough fare estimator for Metro Manila transport. Like every number in Waypoint
 // these are ESTIMATES and are always shown as a labeled RANGE — never a precise

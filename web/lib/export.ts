@@ -1,8 +1,8 @@
-import type { ScheduledStop } from './scheduler'
-import { parseTime } from './scheduler'
-import type { ScheduleParams } from './params'
-import { modeLabel } from './constants'
-import { reasonLine } from './reason'
+import type { ScheduledStop } from '@/lib/scheduler'
+import { parseTime } from '@/lib/scheduler'
+import type { ScheduleParams } from '@/lib/params'
+import { modeLabel } from '@/lib/constants'
+import { reasonLine } from '@/lib/reason'
 
 // Share / export of a planned itinerary as copyable plain text and an RFC 5545
 // (.ics) calendar file. Kept PURE (no DOM, no ambient Date) so it is unit-testable

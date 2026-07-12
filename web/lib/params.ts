@@ -1,5 +1,5 @@
-import type { TransportMode, DurationOverrides } from './scheduler'
-import { encodeDurations, parseDurations } from './duration'
+import type { TransportMode, DurationOverrides } from '@/lib/scheduler'
+import { encodeDurations, parseDurations } from '@/lib/duration'
 
 export type ScheduleParams = {
   poi_ids: string[]

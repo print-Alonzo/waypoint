@@ -1,9 +1,9 @@
-import type { ScheduleParams } from './params'
-import { parseTime } from './scheduler'
-import type { FareRange } from './fare'
-import { dayFare } from './fare'
-import { wallClock } from './export'
-import { resolvePlan } from './plan-model'
+import type { ScheduleParams } from '@/lib/params'
+import { parseTime } from '@/lib/scheduler'
+import type { FareRange } from '@/lib/fare'
+import { dayFare } from '@/lib/fare'
+import { wallClock } from '@/lib/export'
+import { resolvePlan } from '@/lib/plan-model'
 
 // A compact, faithful summary of a plan for the compare view — built from the same
 // resolved stops the result page and Live mode use, so the figures can't drift.

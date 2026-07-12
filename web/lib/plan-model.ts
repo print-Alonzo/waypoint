@@ -1,10 +1,10 @@
-import type { ScheduleParams } from './params'
-import type { ScheduledStop } from './scheduler'
-import { optimizeOrder, scheduleAlong } from './scheduler'
-import { POI_MAP, TRANSIT_MATRIX } from './data'
-import { START_LOCATION_MAP, LUNCH_WINDOW } from './constants'
-import { isEnabled } from './features'
-import { pruneDurations } from './duration'
+import type { ScheduleParams } from '@/lib/params'
+import type { ScheduledStop } from '@/lib/scheduler'
+import { optimizeOrder, scheduleAlong } from '@/lib/scheduler'
+import { POI_MAP, TRANSIT_MATRIX } from '@/lib/data'
+import { START_LOCATION_MAP, LUNCH_WINDOW } from '@/lib/constants'
+import { isEnabled } from '@/lib/features'
+import { pruneDurations } from '@/lib/duration'
 
 // Resolve a plan's params into a concrete scheduled list — the SAME order + lunch
 // resolution the result page uses, minus the placement/reason decoration the page

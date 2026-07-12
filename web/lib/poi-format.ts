@@ -1,4 +1,4 @@
-import type { POI } from './scheduler'
+import type { POI } from '@/lib/scheduler'
 
 // Short "open–close · closed days" label shown under a POI's name on cards and in
 // the swipe deck. Kept here (pure, no JSX) so the grid card and the deck agree.
