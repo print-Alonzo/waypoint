@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { computeWhatIfVariants } from './whatif'
-import { POI_MAP } from './data'
-import { START_LOCATION_MAP, LUNCH_WINDOW } from './constants'
-import type { ScheduleParams } from './params'
+import { computeWhatIfVariants } from '@/lib/whatif'
+import { POI_MAP } from '@/lib/data'
+import { START_LOCATION_MAP, LUNCH_WINDOW } from '@/lib/constants'
+import type { ScheduleParams } from '@/lib/params'
 
 const PARAMS: ScheduleParams = {
   poi_ids: ['fort-santiago', 'casa-manila', 'manila-cathedral'],

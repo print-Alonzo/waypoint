@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { scheduleItinerary, scheduleAlong, parseTime, formatTime } from './scheduler'
-import type { POI, TransitMatrix, ScheduledStop, DurationOverrides } from './scheduler'
+import { scheduleItinerary, scheduleAlong, parseTime, formatTime } from '@/lib/scheduler'
+import type { POI, TransitMatrix, ScheduledStop, DurationOverrides } from '@/lib/scheduler'
 
 const START_COORDS = { lat: 14.5831, lng: 120.9794 }
 const START_ID = 'rizal-park'

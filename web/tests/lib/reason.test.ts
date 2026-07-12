@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { reasonText, reasonLine } from './reason'
-import type { ScheduledStop, StopReason } from './scheduler'
+import { reasonText, reasonLine } from '@/lib/reason'
+import type { ScheduledStop, StopReason } from '@/lib/scheduler'
 
 function makeReason(overrides: Partial<StopReason>): StopReason {
   return {

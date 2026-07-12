@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { scheduleAlong, estimateTransitMinutes } from './scheduler'
-import type { POI, TransitMatrix } from './scheduler'
+import { scheduleAlong, estimateTransitMinutes } from '@/lib/scheduler'
+import type { POI, TransitMatrix } from '@/lib/scheduler'
 
 function poi(id: string): POI {
   return {

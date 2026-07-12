@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { summarizePlan } from './plan-summary'
-import type { ScheduleParams } from './params'
+import { summarizePlan } from '@/lib/plan-summary'
+import type { ScheduleParams } from '@/lib/params'
 
 const BASE: ScheduleParams = {
   poi_ids: ['fort-santiago', 'casa-manila', 'manila-cathedral'],

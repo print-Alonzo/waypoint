@@ -6,9 +6,9 @@ import {
   mergeTransitMatrix,
   fetchLegRoute,
   fetchRoadOverlay,
-} from './routing'
-import { estimateTransitMinutes } from './scheduler'
-import type { TransitMatrix } from './scheduler'
+} from '@/lib/routing'
+import { estimateTransitMinutes } from '@/lib/scheduler'
+import type { TransitMatrix } from '@/lib/scheduler'
 
 const ORIGINAL_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
 

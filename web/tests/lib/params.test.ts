@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { encodeParams, decodeParams } from './params'
-import type { ScheduleParams } from './params'
+import { encodeParams, decodeParams } from '@/lib/params'
+import type { ScheduleParams } from '@/lib/params'
 
 const BASE: ScheduleParams = {
   poi_ids: ['fort-santiago', 'rizal-shrine', 'national-museum'],

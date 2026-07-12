@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { fitToBudget } from './fit'
-import type { ScheduledStop } from './scheduler'
+import { fitToBudget } from '@/lib/fit'
+import type { ScheduledStop } from '@/lib/scheduler'
 
 const START = { lat: 14.58, lng: 120.98 }
 

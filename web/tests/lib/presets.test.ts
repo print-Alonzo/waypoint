@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { PRESETS, presetHref } from './presets'
-import { decodeParams } from './params'
-import { summarizePlan } from './plan-summary'
-import { POI_MAP } from './data'
-import { START_LOCATION_MAP, DAYS_OF_WEEK, TRANSPORT_MODES } from './constants'
+import { PRESETS, presetHref } from '@/lib/presets'
+import { decodeParams } from '@/lib/params'
+import { summarizePlan } from '@/lib/plan-summary'
+import { POI_MAP } from '@/lib/data'
+import { START_LOCATION_MAP, DAYS_OF_WEEK, TRANSPORT_MODES } from '@/lib/constants'
 
 describe('curated presets', () => {
   it('has unique ids', () => {

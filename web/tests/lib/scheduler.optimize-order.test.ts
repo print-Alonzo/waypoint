@@ -4,8 +4,8 @@ import {
   scheduleAlong,
   scheduleItinerary,
   parseTime,
-} from './scheduler'
-import type { POI, TransitMatrix } from './scheduler'
+} from '@/lib/scheduler'
+import type { POI, TransitMatrix } from '@/lib/scheduler'
 
 const START_ID = 'start'
 const START_COORDS = { lat: 14.58, lng: 120.98 }

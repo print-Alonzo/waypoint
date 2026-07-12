@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { legFare, dayFare, formatFare } from './fare'
-import type { ScheduledStop } from './scheduler'
+import { legFare, dayFare, formatFare } from '@/lib/fare'
+import type { ScheduledStop } from '@/lib/scheduler'
 
 function stop(transitFromPrev: number): ScheduledStop {
   return {

@@ -6,8 +6,8 @@ import {
   pruneDurations,
   DURATION_MIN,
   DURATION_MAX,
-} from './duration'
-import type { POI } from './scheduler'
+} from '@/lib/duration'
+import type { POI } from '@/lib/scheduler'
 
 function makePOI(overrides: Partial<POI> & { id: string }): POI {
   return {

@@ -8,9 +8,9 @@ import {
   slugify,
   wallClock,
   type ExportInput,
-} from './export'
-import type { POI, ScheduledStop } from './scheduler'
-import type { ScheduleParams } from './params'
+} from '@/lib/export'
+import type { POI, ScheduledStop } from '@/lib/scheduler'
+import type { ScheduleParams } from '@/lib/params'
 
 // --- fixtures -------------------------------------------------------------
 
