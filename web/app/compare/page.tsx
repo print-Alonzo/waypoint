@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import CompareView from '@/components/CompareView'
+import CompareView from '@/components/compare/CompareView'
 import { isEnabled } from '@/lib/features'
 
 export const metadata: Metadata = {

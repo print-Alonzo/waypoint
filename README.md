@@ -128,7 +128,7 @@ TODOS.md             Deferred / future work
 ```
 
 The active city is chosen at build time via `NEXT_PUBLIC_CITY` (default `metro-manila`); adding a city
-is a new `data/<slug>/` folder plus one entry in `web/lib/data.ts`.
+is a new `data/<slug>/` folder plus one entry in `web/lib/poi/data.ts`.
 
 ---
 

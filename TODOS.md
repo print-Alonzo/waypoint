@@ -15,9 +15,9 @@ Week 1 deliverables are complete. All paths relative to `web/`.
 | Env var | `.env.local` (`NEXT_PUBLIC_CITY=metro-manila`) |
 | Design tokens + font | `app/globals.css`, `app/layout.tsx` |
 | Landmark constants | `lib/constants.ts` |
-| Scheduler algorithm | `lib/scheduler.ts` |
-| URL params module | `lib/params.ts` |
-| Unit tests (18/18 pass) | `lib/scheduler.test.ts`, `lib/params.test.ts` |
+| Scheduler algorithm | `lib/scheduling/scheduler.ts` |
+| URL params module | `lib/plan/params.ts` |
+| Unit tests (18/18 pass) | `tests/lib/scheduling/scheduler.test.ts`, `tests/lib/plan/params.test.ts` |
 | Placeholder data | `data/metro-manila/pois.json`, `data/metro-manila/transit-matrix.json` |
 
 **Next: Phase 2 (Week 2)** — POI selector component, day-of-week dropdown, full 25-30 POI curation, transit matrix generation script.
@@ -32,7 +32,7 @@ Week 1 deliverables are complete. All paths relative to `web/`.
 
 **Decision:** During /plan-eng-review (D8), URL params were promoted from V2 to V1. URL params replace sessionStorage as the primary selector→result handoff, eliminating the hard-refresh failure, multi-tab clobber, and mobile tab-kill UX issues.
 
-**Now in V1 scope:** `/lib/params.ts` (encodeParams/decodeParams) with tests in `/lib/params.test.ts`. See "Added by Eng review" in `docs/designs/waypoint-mvp.md` for full spec.
+**Now in V1 scope:** `lib/plan/params.ts` (encodeParams/decodeParams) with tests in `tests/lib/plan/params.test.ts`. See "Added by Eng review" in `docs/designs/waypoint-mvp.md` for full spec.
 
 This item is no longer deferred.
 
@@ -43,7 +43,7 @@ This item is no longer deferred.
 **Effort:** M (human: ~8h / CC: ~1h)  
 **Depends on:** V1 complete + at least 1 tester requests 'can I see this on a map?'
 
-**Status:** Done. `web/components/MapView.tsx` renders the ordered itinerary on a Leaflet +
+**Status:** Done. `web/components/result/MapView.tsx` renders the ordered itinerary on a Leaflet +
 OpenStreetMap map (no API key): a Start dot, one numbered pin per stop coloured by flag state
 (coral open / amber check-hours / red closed) so the map echoes the list, and a dashed route line
 through the stops in visit order. Loaded client-only via `next/dynamic({ ssr: false })` (Leaflet
@@ -133,7 +133,7 @@ groups (Heritage, Museums, Parks, Markets, Churches) around the POI checkbox lis
   (LCP + oversized-download warnings). Needs `sizes` tuned to actual rendered card width in
   `Selector.tsx` / `PoiSwipeDeck.tsx`. Low priority, dev-console-only signal.
 - **`prefers-reduced-motion` audit** — partly done. The itinerary reorder path now honors it
-  (`--wp-motion-reorder` + `lib/use-reduced-motion.ts`, see DESIGN.md § Motion), and `app/globals.css`
+  (`--wp-motion-reorder` + `lib/hooks/use-reduced-motion.ts`, see DESIGN.md § Motion), and `app/globals.css`
   has the `@media (prefers-reduced-motion: reduce)` block to extend. Still unaudited: the swipe deck's
   `FLY_MS` transitions (`PoiSwipeDeck.tsx`) and the ad-hoc `transition`/`hover:` states scattered
   across components — neither consults the hook.

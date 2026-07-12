@@ -5,7 +5,7 @@
 //   • Same-origin assets/data → stale-while-revalidate (instant, refreshed in bg).
 //   • Cross-origin (OSM map tiles, Google Fonts) → left untouched / network only.
 // Registered only in production and only when the `offline` feature flag is on
-// (see components/ServiceWorkerRegister.tsx).
+// (see components/shared/ServiceWorkerRegister.tsx).
 const CACHE = 'waypoint-v1'
 
 self.addEventListener('install', () => {

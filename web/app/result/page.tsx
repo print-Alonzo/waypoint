@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
-import ErrorBoundary from '@/components/ErrorBoundary'
-import ResultView from '@/components/ResultView'
+import ErrorBoundary from '@/components/shared/ErrorBoundary'
+import ResultView from '@/components/result/ResultView'
 
 export default function ResultPage() {
   return (

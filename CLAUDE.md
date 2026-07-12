@@ -21,6 +21,7 @@ For real detail, read these rather than re-deriving from source:
 - [`web/README.md`](web/README.md) — stack, routes, project layout, feature flags, adding places
 - [`web/DESIGN.md`](web/DESIGN.md) — design tokens, component patterns, accessibility, print rules
 - [`docs/designs/waypoint-mvp.md`](docs/designs/waypoint-mvp.md) — original approved spec (historical)
+- [`docs/plans/`](docs/plans/) — archived working plans for shipped features (historical)
 - [`TODOS.md`](TODOS.md) — deferred / future work
 
 `web/CLAUDE.md` imports `web/AGENTS.md`, which carries a Next.js-16-breaking-changes warning for

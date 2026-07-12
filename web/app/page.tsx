@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
-import { CITY_LABEL, POI_MAP } from '@/lib/data'
-import type { POI } from '@/lib/scheduler'
+import { CITY_LABEL, POI_MAP } from '@/lib/poi/data'
+import type { POI } from '@/lib/scheduling/scheduler'
 import { CATEGORIES, modeLabel, START_LOCATION_MAP } from '@/lib/constants'
-import { encodeParams } from '@/lib/params'
-import { PRESETS, presetHref } from '@/lib/presets'
+import { encodeParams } from '@/lib/plan/params'
+import { PRESETS, presetHref } from '@/lib/plan/presets'
 import { isEnabled } from '@/lib/features'
 
 // A hand-picked, photogenic subset for the landing hero cards (most POIs now have

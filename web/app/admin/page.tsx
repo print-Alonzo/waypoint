@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { POIS } from '@/lib/data'
-import AdminDashboard from '@/components/AdminDashboard'
+import { POIS } from '@/lib/poi/data'
+import AdminDashboard from '@/components/admin/AdminDashboard'
 
 export const metadata: Metadata = {
   title: 'Admin — Waypoint',

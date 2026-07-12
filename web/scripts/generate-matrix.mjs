@@ -1,7 +1,7 @@
 // Generates data/<city>/transit-matrix.json from pois.json by computing Haversine
 // distance between every origin/destination pair and dividing by a per-mode speed.
 //
-// This MUST stay consistent with the scheduler's fallback math in lib/scheduler.ts
+// This MUST stay consistent with the scheduler's fallback math in lib/scheduling/scheduler.ts
 // (haversineKm + Math.ceil((distKm / speed) * 60), speeds walk 4 / jeepney 12 / grab 20),
 // so generated values agree with what the scheduler would compute for a missing pair.
 //
@@ -29,7 +29,7 @@ const START_LOCATIONS = [
   { id: 'naia-terminal-3', lat: 14.5086, lng: 121.0197 },
 ]
 
-// Keep in sync with SPEED_KMH in lib/scheduler.ts.
+// Keep in sync with SPEED_KMH in lib/scheduling/scheduler.ts.
 const SPEED_KMH = { walk: 4, jeepney: 12, grab: 20 }
 
 function haversineKm(lat1, lng1, lat2, lng2) {

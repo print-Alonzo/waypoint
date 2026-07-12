@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import Selector from '@/components/Selector'
+import Selector from '@/components/plan/Selector'
 
 export const metadata: Metadata = {
   title: 'Plan your day — Waypoint',
