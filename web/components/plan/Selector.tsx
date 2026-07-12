@@ -98,7 +98,7 @@ export default function Selector() {
   const [startLocation, setStartLocation] = useState(
     prefill?.start_location ?? START_LOCATIONS[0].id,
   )
-  const [dayOfWeek, setDayOfWeek] = useState(prefill?.day_of_week ?? 'Saturday')
+  const [dayOfWeek, setDayOfWeek] = useState(prefill?.day_of_week ?? 'Monday')
   // Per-stop duration overrides carried over from a result-page edit (see
   // ResultView's handleEdit). No UI here — durations are only ever edited on
   // /result — this just prevents "Edit places" from silently discarding them.
