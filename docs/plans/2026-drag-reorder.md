@@ -1,4 +1,10 @@
-Smooth, draggable stop reordering
+# Smooth, draggable stop reordering
+
+> **Archived.** This plan shipped as commit `c4e3c56`. All file paths below — including the
+> files-touched table at the end — describe the tree as it stood *before* the 2026-07 source
+> reorganization, and are left as written so they still match that commit. `components/` is now
+> grouped by route, `lib/` by domain, and tests live under `web/tests/`.
+> For the current tree see [`web/README.md`](../../web/README.md) § Project layout.
 
      Context
 
