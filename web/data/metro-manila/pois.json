@@ -70,7 +70,14 @@
       "Monday"
     ],
     "recommended_duration_minutes": 60,
-    "notes": "Chronicles the Chinese in Filipino life."
+    "notes": "Chronicles the Chinese in Filipino life.",
+    "image": "/images/poi/bahay-tsinoy-museum.jpg",
+    "image_credit": {
+      "author": "Judgefloro",
+      "license": "Creative Commons CC0 1.0 Universal Public Domain Dedication",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e6/01368jfLandmarks_Buildings_Intramuros_Manilafvf_21.jpg"
+    }
   },
   {
     "id": "plaza-san-luis-complex",
@@ -101,7 +108,14 @@
     "close_time": "18:00",
     "closed_days": [],
     "recommended_duration_minutes": 60,
-    "notes": "Self-guided walk along the old city walls."
+    "notes": "Self-guided walk along the old city walls.",
+    "image": "/images/poi/intramuros-walls-walk.jpg",
+    "image_credit": {
+      "author": "Wijo08",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Walls_of_Intramuros.jpg"
+    }
   },
   {
     "id": "national-museum-fine-arts",
@@ -242,7 +256,12 @@
       "Monday"
     ],
     "recommended_duration_minutes": 120,
-    "notes": "In Makati. Gold of Ancestors collection."
+    "notes": "In Makati. Gold of Ancestors collection.",
+    "image": "/images/poi/ayala-museum.jpg",
+    "image_credit": {
+      "author": "Budget Biyahera",
+      "source_url": "https://www.budgetbiyahera.com/2017/03/art-history-fix-at-ayala-museum-makati.html"
+    }
   },
   {
     "id": "the-mind-museum",
@@ -256,7 +275,12 @@
       "Monday"
     ],
     "recommended_duration_minutes": 150,
-    "notes": "In BGC. Timed-entry science museum."
+    "notes": "In BGC. Timed-entry science museum.",
+    "image": "/images/poi/mind-museum.jpg",
+    "image_credit": {
+      "author": "Katalina Rosario",
+      "source_url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh6E6UCaupK4zrB9ZaXw7T4sIi4ZdRvIZX4yween45AV25aGG1E_m-OKqJZ-4PqrrQ44c4dEDcc9ECHJx6OzLzyKBGJQDDbMA2IuMqUcrotX_VmbK9G7pbzsxKaOrwmVDT-AvJTS5qqxbE/s1600/mind+museum.JPG"
+    }
   },
   {
     "id": "paco-park",
@@ -431,7 +455,12 @@
       "Friday"
     ],
     "recommended_duration_minutes": 60,
-    "notes": "In Makati. Open Saturdays only."
+    "notes": "In Makati. Open Saturdays only.",
+    "image": "/images/poi/salcedo-market.jpg",
+    "image_credit": {
+      "author": "Trip Advisor",
+      "source_url": "https://www.tripadvisor.com.ph/Attraction_Review-g298450-d1869046-Reviews-Salcedo_Saturday_Market-Makati_Metro_Manila_Luzon.html"
+    }
   },
   {
     "id": "manila-cathedral",
