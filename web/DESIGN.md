@@ -73,7 +73,7 @@ moved. The only place it carries real weight today is reordering the itinerary.
 
 - **Tokens** (`app/globals.css`): `--wp-motion-reorder` (220ms) and `--wp-ease-reorder`
   (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). dnd-kit builds its transition
-  string in JS, so `REORDER_MS` / `REORDER_EASING` in [`components/SortableStop.tsx`](components/SortableStop.tsx)
+  string in JS, so `REORDER_MS` / `REORDER_EASING` in [`components/result/SortableStop.tsx`](components/result/SortableStop.tsx)
   mirror these as raw values. **Change both or neither.**
 - **Every order change animates, by any route** — `↑ ↓`, drag, Re-optimize, Reset to auto, browser
   back. `useSortable` is given `animateLayoutChanges: () => defaultAnimateLayoutChanges({...args,
@@ -107,10 +107,10 @@ moved. The only place it carries real weight today is reordering the itinerary.
   POI pre-selected. Photos are **CC-licensed** (sourced from Wikimedia Commons), stored in
   `public/images/poi/` and carried on the POI as optional `image` + `image_credit`
   (`author`/`license`/`license_url`/`source_url`). Attribution (required for CC BY / BY-SA) lives on
-  a dedicated **`/credits`** page rendered by [`components/PhotoCredits.tsx`](components/PhotoCredits.tsx);
+  a dedicated **`/credits`** page rendered by [`components/credits/PhotoCredits.tsx`](components/credits/PhotoCredits.tsx);
   the landing and selector each carry only a small muted "Photo credits" footer link to it, so the
   attribution stays compliant without cluttering the page. Only curated landmarks have a photo.
-- **POI picker — responsive two-mode** ([`components/Selector.tsx`](components/Selector.tsx)): the
+- **POI picker — responsive two-mode** ([`components/plan/Selector.tsx`](components/plan/Selector.tsx)): the
   selector renders **both** views and lets **CSS** pick (no `matchMedia`/JS gate — that read stale
   under device emulation and risked a hydration mismatch; CSS `@media` is reliable and flash-free):
   - **Tablet/desktop (≥ sm): image-forward card grid** (`hidden sm:block`; `grid-cols-2
@@ -118,7 +118,7 @@ moved. The only place it carries real weight today is reordering the itinerary.
     (category line-icon placeholder for the ~5 POIs without a photo) above the name + muted hours. The
     whole card is the tap target wrapping a visually-hidden (but focusable) checkbox; selected = coral
     border + ring and a coral check badge top-right. Mirrors the landing's featured cards.
-  - **Phone (< sm): swipe deck** ([`components/PoiSwipeDeck.tsx`](components/PoiSwipeDeck.tsx),
+  - **Phone (< sm): swipe deck** ([`components/plan/PoiSwipeDeck.tsx`](components/plan/PoiSwipeDeck.tsx),
     `sm:hidden`) — a Tinder-style stack of one place at a time (two cards peeking behind for depth)
     so the traveler *looks before deciding*. A big `next/image` fills the card; category eyebrow,
     name, hours, and a 2-line note sit below. **Swipe right / tap ✓ = add, swipe left / tap ✕ = skip**;
@@ -132,11 +132,11 @@ moved. The only place it carries real weight today is reordering the itinerary.
     badge if you revisit it via a different filter. Both modes share one selection `Set` (via
     `setSelectedOne(id, value)`), so the sticky CTA count and the result are identical however you
     pick. `hoursLabel`
-    ([`lib/poi-format.ts`](lib/poi-format.ts)) and `CategoryGlyph`
-    ([`components/CategoryGlyph.tsx`](components/CategoryGlyph.tsx)) are shared by both so the card
+    ([`lib/poi/format.ts`](lib/poi/format.ts)) and `CategoryGlyph`
+    ([`components/shared/CategoryGlyph.tsx`](components/shared/CategoryGlyph.tsx)) are shared by both so the card
     copy can't drift.
 - **Sticky CTA bar:** fixed to the viewport bottom, top border, centered to the container width.
-- **Stop card** ([`components/ResultView.tsx`](components/ResultView.tsx)): icon (⚠/✕ when flagged) +
+- **Stop card** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): icon (⚠/✕ when flagged) +
   stop number (muted) + arrival time (semibold) + name (semibold) on line 1; `~N min · status` on
   line 2 (the effective, possibly user-overridden, duration — see **Duration stepper** below);
   a screen-only **"Time here" stepper** (flag: `customDuration`); optional italic muted notes; a
@@ -144,13 +144,13 @@ moved. The only place it carries real weight today is reordering the itinerary.
   ordering choice. Background = flag tint per state. The reason line **prints** with the list (it's
   the faithful record); on clear cards it is `text-[var(--color-text-muted)]`, on flagged cards it
   inherits the card's flag text colour at full opacity to keep WCAG AA contrast on the tint. Copy
-  comes from `reasonLine` ([`lib/reason.ts`](lib/reason.ts)) — the **single source of truth** the page
+  comes from `reasonLine` ([`lib/scheduling/reason.ts`](lib/scheduling/reason.ts)) — the **single source of truth** the page
   and both exports share. For an `optimized` stop it renders the scheduler's structured `reason` data,
   so it can never claim something the algorithm didn't do (e.g. it only says "closes earliest" when
   closing time *strictly* decided a tie); for a **pinned** stop it says "Pinned by you — the rest of
   the day was optimized around it," and for a **hand-arranged** stop "You placed this stop here." A
   user-placed stop never shows an algorithmic claim, on the page or in the copied text / `.ics`.
-- **Duration stepper** ([`components/ResultView.tsx`](components/ResultView.tsx), flag:
+- **Duration stepper** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx), flag:
   `customDuration`): a screen-only (`no-print`) `− / value / +` row under the status line that lets
   you override how long you spend at a stop. The POI's authored `recommended_duration_minutes` stays
   visible as "Suggested N min" — the guide for getting the most out of the stop — even once
@@ -161,22 +161,22 @@ moved. The only place it carries real weight today is reordering the itinerary.
   text, never color alone) — this does **not** flip the stop's flag state (yellow stays
   arrival-based), so the map, exports, and Live mode are unaffected by the hint itself, only by the
   resulting later times. State is the single source of truth in the **URL** (`dur` param via
-  [`lib/params.ts`](lib/params.ts) / [`lib/duration.ts`](lib/duration.ts)), written the same way
+  [`lib/plan/params.ts`](lib/plan/params.ts) / [`lib/scheduling/duration.ts`](lib/scheduling/duration.ts)), written the same way
   reorder/pin/budget/lunch are — so an edited plan stays shareable + refresh-safe, and the result page,
   map, Compare, Live, and both exports never disagree on times.
-- **Reorder & pin (lock)** ([`components/ResultView.tsx`](components/ResultView.tsx)): the day is
+- **Reorder & pin (lock)** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): the day is
   yours to arrange — the optimizer only sequences what you haven't pinned. Each stop card carries
   screen-only `↑ ↓` move controls, a **drag handle**, and a **pin** toggle (an inline lock glyph,
   coral-filled when pinned). A controls bar reads "Reorder with ↑ ↓…" by default and switches to
   "Your order · N pinned" with **Re-optimize unpinned** (reflows the free stops by nearest-neighbor
   while pinned stops hold their slot) and **Reset to auto** once customized. State is the single
-  source of truth in the **URL** (`order` + `locked` params via [`lib/params.ts`](lib/params.ts)),
+  source of truth in the **URL** (`order` + `locked` params via [`lib/plan/params.ts`](lib/plan/params.ts)),
   written with `router.replace` (`scroll:false`) so every arrangement stays shareable + refresh-safe
   without piling up history. Placement is computed faithfully: a stop is labelled `optimized` only
   when the working order equals `optimizeOrder(order, locked)` (what the algorithm would produce given
   the pins); otherwise the unpinned stops are `manual`. Map, list, and exports all re-derive from the
   chosen order, so they never disagree.
-  - **Drag** ([`components/SortableStop.tsx`](components/SortableStop.tsx), dnd-kit): a grip handle on
+  - **Drag** ([`components/result/SortableStop.tsx`](components/result/SortableStop.tsx), dnd-kit): a grip handle on
     the card's leading edge, restricted to the vertical axis. It is **pointer-only on purpose** —
     `aria-hidden` + `tabIndex={-1}`, with dnd-kit's `attributes` deliberately NOT spread onto the card
     (they would make every card a focusable `role="button"`, and their `aria-describedby` breaks
@@ -193,19 +193,19 @@ moved. The only place it carries real weight today is reordering the itinerary.
 - **Transit connector:** centered, muted — `↓ N min by {mode}` + a fine-print "Estimated — verify
   with Google Maps" line.
 - **Banner** (all-stops-closed): full-width error-tint card above the list.
-- **Route map** ([`components/MapView.tsx`](components/MapView.tsx)): Leaflet + OpenStreetMap on the
+- **Route map** ([`components/result/MapView.tsx`](components/result/MapView.tsx)): Leaflet + OpenStreetMap on the
   result page, above the list. A hollow coral **Start** dot, then a circular **numbered pin** per
   stop whose fill echoes the list's flag state — `--color-primary` (open), `--color-flag-warning-border`
   (check hours), `--color-flag-error-text` (closed) — plus a dashed `--color-primary` route line in
   visit order. Pins are 28px, white-bordered, with a soft shadow; styles live in `app/globals.css`
   (`.wp-pin`, `.wp-pin--warning`, `.wp-pin--error`, `.wp-start`). The map is a **supplementary
   visual** — `no-print`, with the text list remaining the accessible + print source of truth.
-- **Utility bar** ([`components/ResultView.tsx`](components/ResultView.tsx)): `no-print`, `flex
+- **Utility bar** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): `no-print`, `flex
   flex-wrap justify-between` — `← Edit this list` on the left; `Copy text`, `Download .ics`, `Print`
   grouped on the right (each a text button with `underline-offset-2 hover:underline`). `Copy text`
   swaps its label to `Copied!` / `Copy failed` for ~2.5s (`aria-live="polite"`); the timer is cleared
   on unmount and on re-click.
-- **Share / export** ([`lib/export.ts`](lib/export.ts)): pure builders for a copyable text
+- **Share / export** ([`lib/plan/export.ts`](lib/plan/export.ts)): pure builders for a copyable text
   itinerary and an RFC 5545 `.ics` file (side effects — clipboard, Blob download — stay in
   ResultView, which injects `now`). Both **carry the same flags the page shows**: a `[CLOSED]` /
   `[CHECK HOURS]` tag (red wins, never both) and the all-closed heads-up, sourced from the shared
@@ -223,32 +223,32 @@ All of the below are gated by [`lib/features.ts`](lib/features.ts) — one boole
 `false` removes the entry point and tree-shakes the code out. They preserve the transparency thesis:
 nothing is dropped, and every estimate is shown as a labelled range.
 
-- **"Adjust your day" panel** ([`components/ResultView.tsx`](components/ResultView.tsx)): a bordered
+- **"Adjust your day" panel** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): a bordered
   `no-print` section grouping the result-page options — a **lunch break** checkbox (reserves
   `LUNCH_WINDOW` 12:00–13:30; later arrivals shift, with a centered "🍴 Lunch …" pill in the list), a
   **"Fit my day to a time limit"** checkbox + range slider (`fitToHours`), and a **"Compare walk /
   jeepney / Grab"** disclosure (`aria-expanded`).
-- **Fit to hours** ([`lib/fit.ts`](lib/fit.ts)): over-budget stops are **greyed (`opacity-60`) with a
+- **Fit to hours** ([`lib/scheduling/fit.ts`](lib/scheduling/fit.ts)): over-budget stops are **greyed (`opacity-60`) with a
   "Beyond your Nh" pill — never removed** — plus an honest summary line ("N stops fall beyond your Nh
   budget…", or "getting back to {start} would run past your Nh budget"). `budget` lives in the URL.
-- **Fare estimator** ([`lib/fare.ts`](lib/fare.ts)): a `~₱low–high` range in the header and on each
+- **Fare estimator** ([`lib/scheduling/fare.ts`](lib/scheduling/fare.ts)): a `~₱low–high` range in the header and on each
   transit connector (walking is "Free"); ranges only, never false precision. Speeds match the scheduler.
-- **What-if drawer** ([`components/WhatIfDrawer.tsx`](components/WhatIfDrawer.tsx)): a small table
+- **What-if drawer** ([`components/result/WhatIfDrawer.tsx`](components/result/WhatIfDrawer.tsx)): a small table
   comparing the same places **re-optimized per mode** (ends / length / flagged / fare), with a "Use {mode}"
   action; figures are recomputed by the real scheduler, labelled estimates.
-- **Live mode** ([`components/LiveView.tsx`](components/LiveView.tsx), `/live`): device-clock companion —
+- **Live mode** ([`components/live/LiveView.tsx`](components/live/LiveView.tsx), `/live`): device-clock companion —
   a coral "right now" card (at / on the way to / done), countdowns, an **"I'm running late (+15 min)"**
   shift, and a dimmed/✓ timeline. Clock read in an effect (no hydration drift).
-- **Compare plans** ([`components/CompareView.tsx`](components/CompareView.tsx), `/compare`): two saved
+- **Compare plans** ([`components/compare/CompareView.tsx`](components/compare/CompareView.tsx), `/compare`): two saved
   plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Plans are saved to
-  `localStorage` ([`lib/saved-plans.ts`](lib/saved-plans.ts)) via **Save plan** on the result page,
+  `localStorage` ([`lib/storage/saved-plans.ts`](lib/storage/saved-plans.ts)) via **Save plan** on the result page,
   which prompts for a name inline so plans stay distinguishable when comparing.
-- **Presets** ([`lib/presets.ts`](lib/presets.ts)): landing-page cards that deep-link to a ready-made
+- **Presets** ([`lib/plan/presets.ts`](lib/plan/presets.ts)): landing-page cards that deep-link to a ready-made
   `/result` URL — no special-casing, fully editable on arrival.
 - **Offline** ([`public/sw.js`](public/sw.js)): a service worker (network-first pages, stale-while-
   revalidate assets; cross-origin tiles/fonts untouched), registered only in production and only when
   the flag is on — and **unregistered when the flag is off**.
-- **Group vote** ([`components/VoteView.tsx`](components/VoteView.tsx), `/vote`): **off by default** —
+- **Group vote** ([`components/vote/VoteView.tsx`](components/vote/VoteView.tsx), `/vote`): **off by default** —
   a single-device thumbs-up tally that plans the winners. Multi-device voting would need a backend,
   which Waypoint deliberately omits; the flag and route make this explicit.
 

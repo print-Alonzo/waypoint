@@ -82,62 +82,87 @@ refresh-safe like everything else.
 
 ## Project layout
 
+`components/` is grouped by the route that owns it, so `app/<route>/` → `components/<route>/` with no
+exceptions. `lib/` is grouped by domain. Tests mirror the source tree under `tests/`.
+
 ```
 app/                  App Router routes
   page.tsx            Landing page (product pitch; CTAs → /plan + sample /result; presets section)
-  plan/page.tsx       Selector (Suspense → components/Selector)
+  plan/page.tsx       Selector (Suspense → components/plan/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
-  result/page.tsx     Result view (ErrorBoundary → Suspense → components/ResultView)
+  result/page.tsx     Result view (ErrorBoundary → Suspense → components/result/ResultView)
   live/page.tsx       Live mode (flag: liveMode; redirects home if off)
   compare/page.tsx    Compare two saved plans (flag: comparePlans; redirects home if off)
   vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
-  admin/page.tsx      Local-only content tool (→ components/AdminDashboard); hidden on Vercel
+  admin/page.tsx      Local-only content tool (→ components/admin/AdminDashboard); hidden on Vercel
   admin/create/route.ts  POST handler that writes a validated place into data/<city>/ (local only)
   layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
   globals.css         Design tokens + print rules
-components/            Client components
-  Selector.tsx        Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
-  PoiSwipeDeck.tsx    Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
-  CategoryGlyph.tsx   Inline line-icon per category (placeholder when a POI has no photo)
-  MapView.tsx         Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
-  WhatIfDrawer.tsx    Walk/Jeepney/Grab comparison table (re-optimized per mode)
-  SavePlanButton.tsx  Save the current plan to this device, prompting for a name (→ /compare)
-  CompareView.tsx     Side-by-side comparison of two saved plans
-  LiveView.tsx        Device-clock companion (now/next, countdowns, running-late reflow)
-  VoteView.tsx        Single-device thumbs-up tally → plan the winners
-  AdminDashboard.tsx  Local-only form for adding a place to the dataset (→ admin/create/route.ts)
-  ServiceWorkerRegister.tsx  Registers /sw.js in prod when `offline` is on (unregisters when off)
+components/            Client components, grouped by owning route
+  plan/               → /plan
+    Selector.tsx      Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
+    PoiSwipeDeck.tsx  Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
+  result/             → /result
+    ResultView.tsx    The scheduled day: stop cards, reasons, reorder/pin, utility bar
+    SortableStop.tsx  dnd-kit drag wrapper for a stop card (exports REORDER_MS)
+    MapView.tsx       Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
+    WhatIfDrawer.tsx  Walk/Jeepney/Grab comparison table (re-optimized per mode)
+    SavePlanButton.tsx  Save the current plan to this device, prompting for a name (→ /compare)
+  live/LiveView.tsx   Device-clock companion (now/next, countdowns, running-late reflow)
+  compare/CompareView.tsx  Side-by-side comparison of two saved plans
+  vote/VoteView.tsx   Single-device thumbs-up tally → plan the winners
+  admin/AdminDashboard.tsx  Local-only form for adding a place (→ admin/create/route.ts)
+  credits/PhotoCredits.tsx  CC attribution for the POI photos
+  shared/             Used by 2+ routes, or route-agnostic infra
+    CategoryGlyph.tsx Inline line-icon per category (placeholder when a POI has no photo)
+    ErrorBoundary.tsx Generic render-error fallback (no domain knowledge)
+    ServiceWorkerRegister.tsx  Registers /sw.js in prod when `offline` is on (unregisters when off)
 lib/
-  features.ts         Central feature-flag registry (one boolean per power feature)
-  scheduler.ts        Nearest-neighbor optimizer + scheduleAlong (+ lunch window) + estimateTransitMinutes
-  reason.ts           reasonLine: placement-aware "Why this stop" (optimized / pinned / hand-arranged)
-  fit.ts              fitToBudget: faithful time-budget overlay (greys out, never drops)
-  fare.ts             Per-leg + per-day fare ranges (estimate; consistent with scheduler speeds)
-  presets.ts          Curated starter itineraries (landing page)
-  plan-model.ts       resolvePlan: shared order/lunch resolution → scheduled stops
-  plan-summary.ts     summarizePlan: compact figures for the compare view
-  saved-plans.ts      localStorage CRUD for saved plans (guarded; this-device only)
-  poi-format.ts       Shared hoursLabel() used by the grid card + swipe deck
-  poi-validate.ts     validatePoi: shared by AdminDashboard's form and admin/create/route.ts
-  export.ts           Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
-  params.ts           URL-param encode/decode (incl. order/locked/budget/lunch)
   constants.ts        Start landmarks, categories, days, transport modes, modeLabel, LUNCH_WINDOW
-  data.ts             Loads POIs + transit matrix by NEXT_PUBLIC_CITY
-  routing.ts          Runtime road routes (Mapbox Directions) layered over the static matrix
+  features.ts         Central feature-flag registry (one boolean per power feature)
+                      ^ these two are the layer-0 kernel: imported by everything, so they stay flat
+  scheduling/         When and how long — the leg/time engine
+    scheduler.ts      Nearest-neighbor optimizer + scheduleAlong (+ lunch window) + estimateTransitMinutes
+    routing.ts        Runtime road routes (Mapbox Directions) layered over the static matrix
+    fare.ts           Per-leg + per-day fare ranges (estimate; consistent with scheduler speeds)
+    duration.ts       Per-stop dwell overrides (clamp, prune, encode)
+    fit.ts            fitToBudget: faithful time-budget overlay (greys out, never drops)
+    reason.ts         reasonLine: placement-aware "Why this stop" (optimized / pinned / hand-arranged)
+  plan/               A whole day: encode it, resolve it, summarize it, export it
+    params.ts         URL-param encode/decode (incl. order/locked/budget/lunch)
+    presets.ts        Curated starter itineraries (landing page)
+    export.ts         Builds the copyable text + RFC 5545 .ics export (pure; shared flag helpers)
+    whatif.ts         Re-optimizes the day per transport mode (drives the What-if drawer)
+    model.ts          resolvePlan: shared order/lunch resolution → scheduled stops
+    summary.ts        summarizePlan: compact figures for the compare view
+  poi/                The places themselves
+    data.ts           Loads POIs + transit matrix by NEXT_PUBLIC_CITY
+    format.ts         Shared hoursLabel() used by the grid card + swipe deck
+    validate.ts       validatePoi: shared by AdminDashboard's form and admin/create/route.ts
+  storage/saved-plans.ts  localStorage CRUD for saved plans (guarded; this-device only)
+  hooks/use-reduced-motion.ts  usePrefersReducedMotion
+tests/                Mirrors the source tree; no tests live beside source
+  app/  components/  lib/
+  flows/              Cross-component tests (e.g. the /plan → URL → /result round-trip)
 data/<city>/          pois.json + transit-matrix.json
 public/
   sw.js               Service worker (network-first pages, stale-while-revalidate assets)
   manifest.webmanifest  PWA manifest
   images/poi/         Featured landmark photos (CC-licensed; credited on the landing)
 scripts/
-  generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduler.ts)
+  generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
 ```
+
+> Untested today (the mirrored `tests/` tree makes the gaps easy to see): `lib/plan/model.ts`,
+> `lib/poi/*`, `lib/constants.ts`, `lib/features.ts`, `lib/hooks/*`, and `components/shared/*`,
+> `components/compare/`, `components/vote/`, `components/admin/`, `result/WhatIfDrawer`,
+> `result/SortableStop`.
 
 ## Data / cities
 
 The active city is chosen at build time via `NEXT_PUBLIC_CITY` (see `.env.local`,
 default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop in a new
-`data/<slug>/` folder, register it in `lib/data.ts`, and set the env var — no other code changes.
+`data/<slug>/` folder, register it in `lib/poi/data.ts`, and set the env var — no other code changes.
 
 > **Note:** the current `data/metro-manila/` POIs are **placeholder** data for build and demo.
 > Real POI curation is owned by the venture lead (spec open question #1), and transit-matrix
@@ -146,7 +171,7 @@ default `metro-manila`). Data lives under `data/<city>/`. Adding a city = drop i
 ## Road routing (optional)
 
 By default the map draws a straight line between stops and travel time is haversine distance ÷ a
-fixed per-mode speed (see `lib/scheduler.ts`). Set `NEXT_PUBLIC_MAPBOX_TOKEN` (see `.env.example`)
+fixed per-mode speed (see `lib/scheduling/scheduler.ts`). Set `NEXT_PUBLIC_MAPBOX_TOKEN` (see `.env.example`)
 to a [Mapbox](https://www.mapbox.com/) public access token and the result page fetches real road
 routes at runtime instead: `walk` gets a pedestrian route, `jeepney`/`grab` share a driving route,
 and each leg's travel time is `road distance ÷ that mode's speed`. This is entirely client-side —
@@ -164,7 +189,7 @@ locally" notice there instead of the form.
 
 Workflow: fill out the form at `/admin` → it `POST`s to
 [`app/admin/create/route.ts`](app/admin/create/route.ts) → validated by
-[`lib/poi-validate.ts`](lib/poi-validate.ts) (the same validation the form uses client-side, so
+[`lib/poi/validate.ts`](lib/poi/validate.ts) (the same validation the form uses client-side, so
 errors surface before you submit) → appended to `data/<city>/pois.json` → the transit matrix is
 regenerated in place (same math as `npm run gen:matrix`) → review the resulting git diff → commit →
 redeploy to publish.
