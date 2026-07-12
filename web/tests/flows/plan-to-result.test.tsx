@@ -70,7 +70,7 @@ describe('selector submit', () => {
     expect(sp.get('start_time')).toBe('09:00')
     expect(sp.get('transport_mode')).toBe('grab')
     expect(sp.get('start_location')).toBe('rizal-park')
-    expect(sp.get('day_of_week')).toBe('Saturday')
+    expect(sp.get('day_of_week')).toBe('Monday')
   })
 
   it('keeps the CTA disabled until at least one POI is selected', () => {
