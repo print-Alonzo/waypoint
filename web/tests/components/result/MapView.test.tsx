@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import MapView from '@/components/MapView'
+import MapView from '@/components/result/MapView'
 import type { ScheduledStop } from '@/lib/scheduling/scheduler'
 
 const START = { name: 'Rizal Park', lat: 14.5831, lng: 120.9794 }

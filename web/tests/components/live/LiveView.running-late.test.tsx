@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-import LiveView from '@/components/LiveView'
+import LiveView from '@/components/live/LiveView'
 import type { ResolvedPlan } from '@/lib/plan/model'
 
 // FINDING-003: once the whole day is already complete, "I'm running late (+15 min)"

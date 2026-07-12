@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-import Selector from '@/components/Selector'
-import ResultView from '@/components/ResultView'
+import Selector from '@/components/plan/Selector'
+import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
 import { scheduleItinerary } from '@/lib/scheduling/scheduler'

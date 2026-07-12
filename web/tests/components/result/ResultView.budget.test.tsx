@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-import ResultView from '@/components/ResultView'
+import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import { POI_MAP } from '@/lib/poi/data'
 import { estimateTransitMinutes } from '@/lib/scheduling/scheduler'

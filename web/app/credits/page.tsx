@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { POIS } from '@/lib/poi/data'
-import PhotoCredits from '@/components/PhotoCredits'
+import PhotoCredits from '@/components/credits/PhotoCredits'
 
 export const metadata: Metadata = {
   title: 'Photo credits — Waypoint',

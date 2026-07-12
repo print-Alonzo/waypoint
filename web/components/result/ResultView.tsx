@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import type { Announcements, DragEndEvent, Modifier } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import SortableStop from '@/components/SortableStop'
+import SortableStop from '@/components/result/SortableStop'
 import { usePrefersReducedMotion } from '@/lib/hooks/use-reduced-motion'
 import { decodeParams, encodeParams } from '@/lib/plan/params'
 import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduling/scheduler'
@@ -29,8 +29,8 @@ import { isEnabled } from '@/lib/features'
 import { clampDuration, pruneDurations, DURATION_MIN, DURATION_MAX, DURATION_STEP } from '@/lib/scheduling/duration'
 import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/scheduling/routing'
 import type { RouteLeg, RoadOverlay } from '@/lib/scheduling/routing'
-import WhatIfDrawer from '@/components/WhatIfDrawer'
-import SavePlanButton from '@/components/SavePlanButton'
+import WhatIfDrawer from '@/components/result/WhatIfDrawer'
+import SavePlanButton from '@/components/result/SavePlanButton'
 import {
   buildItineraryText,
   buildIcs,
@@ -45,7 +45,7 @@ const BUDGET_MIN = 2
 const BUDGET_MAX = 12
 
 // Leaflet needs `window`, so load the map client-only (no SSR/prerender).
-const MapView = dynamic(() => import('@/components/MapView'), {
+const MapView = dynamic(() => import('@/components/result/MapView'), {
   ssr: false,
   loading: () => (
     <div className="flex h-72 w-full items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-sm text-[var(--color-text-muted)]">

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import PoiSwipeDeck from '@/components/PoiSwipeDeck'
+import PoiSwipeDeck from '@/components/plan/PoiSwipeDeck'
 import type { POI } from '@/lib/scheduling/scheduler'
 
 // next/image -> plain img so the deck renders in jsdom.

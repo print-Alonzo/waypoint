@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-import ResultView from '@/components/ResultView'
+import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
 import { optimizeOrder } from '@/lib/scheduling/scheduler'

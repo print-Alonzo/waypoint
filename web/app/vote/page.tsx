@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import VoteView from '@/components/VoteView'
+import VoteView from '@/components/vote/VoteView'
 import { isEnabled } from '@/lib/features'
 
 export const metadata: Metadata = {

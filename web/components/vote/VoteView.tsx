@@ -7,7 +7,7 @@ import { POIS } from '@/lib/poi/data'
 import { CATEGORIES } from '@/lib/constants'
 import { hoursLabel } from '@/lib/poi/format'
 import { encodeParams } from '@/lib/plan/params'
-import { CategoryGlyph } from './CategoryGlyph'
+import { CategoryGlyph } from '@/components/shared/CategoryGlyph'
 
 // Single-device group vote: pass one phone around, everyone taps a thumb on the
 // places they want, then plan the winners. This is intentionally device-local —

@@ -15,7 +15,7 @@ import { encodeParams, decodeParams } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
 import type { POI, TransportMode } from '@/lib/scheduling/scheduler'
 import { hoursLabel } from '@/lib/poi/format'
-import { CategoryGlyph } from './CategoryGlyph'
+import { CategoryGlyph } from '@/components/shared/CategoryGlyph'
 import PoiSwipeDeck from './PoiSwipeDeck'
 
 function categoryLabel(key: string): string {

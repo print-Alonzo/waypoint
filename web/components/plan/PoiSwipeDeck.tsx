@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import type { POI } from '@/lib/scheduling/scheduler'
 import { hoursLabel } from '@/lib/poi/format'
-import { CategoryGlyph } from './CategoryGlyph'
+import { CategoryGlyph } from '@/components/shared/CategoryGlyph'
 
 // Tinder-style stacked card picker for phones. The traveler swipes (or taps the
 // buttons) through one place at a time so they actually look at each before

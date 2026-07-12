@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import LiveView from '@/components/LiveView'
+import LiveView from '@/components/live/LiveView'
 import { isEnabled } from '@/lib/features'
 
 export const metadata: Metadata = {

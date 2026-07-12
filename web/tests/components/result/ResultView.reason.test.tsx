@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 
-import ResultView from '@/components/ResultView'
+import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import { POI_MAP } from '@/lib/poi/data'
 import type { ScheduledStop } from '@/lib/scheduling/scheduler'

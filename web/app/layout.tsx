@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
-import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister'
 
 // Plus Jakarta Sans stands in for Airbnb's proprietary "Cereal" typeface.
 const plusJakartaSans = Plus_Jakarta_Sans({

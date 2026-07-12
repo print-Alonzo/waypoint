@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
-import ResultView from '@/components/ResultView'
+import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
 import { scheduleAlong } from '@/lib/scheduling/scheduler'
