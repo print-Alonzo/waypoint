@@ -241,7 +241,8 @@ nothing is dropped, and every estimate is shown as a labelled range.
   shift, and a dimmed/✓ timeline. Clock read in an effect (no hydration drift).
 - **Compare plans** ([`components/CompareView.tsx`](components/CompareView.tsx), `/compare`): two saved
   plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Plans are saved to
-  `localStorage` ([`lib/saved-plans.ts`](lib/saved-plans.ts)) via **Save plan** on the result page.
+  `localStorage` ([`lib/saved-plans.ts`](lib/saved-plans.ts)) via **Save plan** on the result page,
+  which prompts for a name inline so plans stay distinguishable when comparing.
 - **Presets** ([`lib/presets.ts`](lib/presets.ts)): landing-page cards that deep-link to a ready-made
   `/result` URL — no special-casing, fully editable on arrival.
 - **Offline** ([`public/sw.js`](public/sw.js)): a service worker (network-first pages, stale-while-
