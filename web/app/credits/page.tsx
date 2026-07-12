@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { POIS } from '@/lib/data'
+import { POIS } from '@/lib/poi/data'
 import PhotoCredits from '@/components/PhotoCredits'
 
 export const metadata: Metadata = {

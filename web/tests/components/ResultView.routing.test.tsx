@@ -2,14 +2,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import ResultView from '@/components/ResultView'
-import { encodeParams } from '@/lib/params'
-import type { ScheduleParams } from '@/lib/params'
-import { scheduleAlong } from '@/lib/scheduler'
-import { POI_MAP, TRANSIT_MATRIX } from '@/lib/data'
+import { encodeParams } from '@/lib/plan/params'
+import type { ScheduleParams } from '@/lib/plan/params'
+import { scheduleAlong } from '@/lib/scheduling/scheduler'
+import { POI_MAP, TRANSIT_MATRIX } from '@/lib/poi/data'
 import { START_LOCATION_MAP } from '@/lib/constants'
-import { wallClock } from '@/lib/export'
-import { mergeTransitMatrix, roadTransitMinutes } from '@/lib/routing'
-import type { TransitMatrix } from '@/lib/scheduler'
+import { wallClock } from '@/lib/plan/export'
+import { mergeTransitMatrix, roadTransitMinutes } from '@/lib/scheduling/routing'
+import type { TransitMatrix } from '@/lib/scheduling/scheduler'
 
 // next/navigation mock — mirrors scheduler-integration.test.tsx's setup.
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))

@@ -1,10 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { POI } from '@/lib/scheduler'
+import type { POI } from '@/lib/scheduling/scheduler'
 import { CATEGORIES, DAYS_OF_WEEK } from '@/lib/constants'
-import { hoursLabel } from '@/lib/poi-format'
-import { validatePoi, slugify, type PoiErrors } from '@/lib/poi-validate'
+import { hoursLabel } from '@/lib/poi/format'
+import { validatePoi, slugify, type PoiErrors } from '@/lib/poi/validate'
 import { CategoryGlyph } from './CategoryGlyph'
 
 // Local content tool for adding places to the Waypoint catalog. Posts to

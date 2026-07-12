@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { savePlan } from '@/lib/saved-plans'
+import { savePlan } from '@/lib/storage/saved-plans'
 
 // Saves the current plan to this device (localStorage) so it can be compared with
 // another. Tapping "Save plan" opens an inline name field (pre-filled with an

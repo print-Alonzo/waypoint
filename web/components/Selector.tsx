@@ -4,17 +4,17 @@ import { useCallback, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { POIS } from '@/lib/data'
+import { POIS } from '@/lib/poi/data'
 import {
   CATEGORIES,
   DAYS_OF_WEEK,
   TRANSPORT_MODES,
   START_LOCATIONS,
 } from '@/lib/constants'
-import { encodeParams, decodeParams } from '@/lib/params'
-import type { ScheduleParams } from '@/lib/params'
-import type { POI, TransportMode } from '@/lib/scheduler'
-import { hoursLabel } from '@/lib/poi-format'
+import { encodeParams, decodeParams } from '@/lib/plan/params'
+import type { ScheduleParams } from '@/lib/plan/params'
+import type { POI, TransportMode } from '@/lib/scheduling/scheduler'
+import { hoursLabel } from '@/lib/poi/format'
 import { CategoryGlyph } from './CategoryGlyph'
 import PoiSwipeDeck from './PoiSwipeDeck'
 

@@ -3,8 +3,8 @@
 import { useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { ScheduledStop } from '@/lib/scheduler'
-import { stopStatusLine, wallClock } from '@/lib/export'
+import type { ScheduledStop } from '@/lib/scheduling/scheduler'
+import { stopStatusLine, wallClock } from '@/lib/plan/export'
 
 type StartPoint = { name: string; lat: number; lng: number }
 

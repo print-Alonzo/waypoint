@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { decodeParams } from '@/lib/params'
-import { resolvePlan } from '@/lib/plan-model'
-import { parseTime } from '@/lib/scheduler'
-import { wallClock } from '@/lib/export'
+import { decodeParams } from '@/lib/plan/params'
+import { resolvePlan } from '@/lib/plan/model'
+import { parseTime } from '@/lib/scheduling/scheduler'
+import { wallClock } from '@/lib/plan/export'
 import { modeLabel } from '@/lib/constants'
 
 // Device-clock companion for the day. Reads the same plan URL, then — against this

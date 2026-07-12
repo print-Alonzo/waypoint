@@ -4,11 +4,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 import Selector from '@/components/Selector'
 import ResultView from '@/components/ResultView'
-import { encodeParams } from '@/lib/params'
-import type { ScheduleParams } from '@/lib/params'
-import { scheduleItinerary } from '@/lib/scheduler'
-import type { POI } from '@/lib/scheduler'
-import { POI_MAP, TRANSIT_MATRIX } from '@/lib/data'
+import { encodeParams } from '@/lib/plan/params'
+import type { ScheduleParams } from '@/lib/plan/params'
+import { scheduleItinerary } from '@/lib/scheduling/scheduler'
+import type { POI } from '@/lib/scheduling/scheduler'
+import { POI_MAP, TRANSIT_MATRIX } from '@/lib/poi/data'
 import { START_LOCATION_MAP } from '@/lib/constants'
 
 // next/navigation mock — spies + a mutable search string controlled per test.

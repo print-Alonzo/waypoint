@@ -3,9 +3,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 
 import ResultView from '@/components/ResultView'
-import { encodeParams } from '@/lib/params'
-import { POI_MAP } from '@/lib/data'
-import type { ScheduledStop } from '@/lib/scheduler'
+import { encodeParams } from '@/lib/plan/params'
+import { POI_MAP } from '@/lib/poi/data'
+import type { ScheduledStop } from '@/lib/scheduling/scheduler'
 
 // next/navigation mock — a fixed valid search string.
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
@@ -27,8 +27,8 @@ vi.mock('next/navigation', () => ({
 // ResultView now schedules via scheduleAlong, so that's the seam to stub;
 // optimizeOrder (used to derive the order) and parseTime/types stay real.
 const stubbed = vi.hoisted(() => ({ stops: [] as ScheduledStop[] }))
-vi.mock('@/lib/scheduler', async (importActual) => {
-  const actual = (await importActual()) as typeof import('@/lib/scheduler')
+vi.mock('@/lib/scheduling/scheduler', async (importActual) => {
+  const actual = (await importActual()) as typeof import('@/lib/scheduling/scheduler')
   return { ...actual, scheduleAlong: () => stubbed.stops }
 })
 

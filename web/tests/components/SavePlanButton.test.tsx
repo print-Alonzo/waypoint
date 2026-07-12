@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 import SavePlanButton from '@/components/SavePlanButton'
-import { listSavedPlans } from '@/lib/saved-plans'
+import { listSavedPlans } from '@/lib/storage/saved-plans'
 
 // next/link renders a plain anchor for assertion (no router context needed).
 vi.mock('next/link', () => ({

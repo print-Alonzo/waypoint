@@ -7,12 +7,12 @@ import {
   removePlan,
   subscribeSavedPlans,
   type SavedPlan,
-} from '@/lib/saved-plans'
-import { decodeParams } from '@/lib/params'
-import { summarizePlan, type PlanSummary } from '@/lib/plan-summary'
-import { CITY_LABEL } from '@/lib/data'
+} from '@/lib/storage/saved-plans'
+import { decodeParams } from '@/lib/plan/params'
+import { summarizePlan, type PlanSummary } from '@/lib/plan/summary'
+import { CITY_LABEL } from '@/lib/poi/data'
 import { modeLabel } from '@/lib/constants'
-import { formatFare } from '@/lib/fare'
+import { formatFare } from '@/lib/scheduling/fare'
 
 const EMPTY_PLANS: SavedPlan[] = []
 

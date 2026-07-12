@@ -1,4 +1,4 @@
-import type { POI } from '@/lib/scheduler'
+import type { POI } from '@/lib/scheduling/scheduler'
 
 // CC attribution list for the landmark photos. Plain (no hooks / no 'use client')
 // so any route can render it. Lives on the dedicated /credits page; the main pages

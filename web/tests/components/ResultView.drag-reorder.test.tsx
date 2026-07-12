@@ -15,9 +15,9 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 import ResultView from '@/components/ResultView'
 import { REORDER_MS } from '@/components/SortableStop'
-import { encodeParams } from '@/lib/params'
-import type { ScheduleParams } from '@/lib/params'
-import { POI_MAP } from '@/lib/data'
+import { encodeParams } from '@/lib/plan/params'
+import type { ScheduleParams } from '@/lib/plan/params'
+import { POI_MAP } from '@/lib/poi/data'
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
 vi.mock('next/navigation', () => ({

@@ -3,11 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 import ResultView from '@/components/ResultView'
-import { encodeParams } from '@/lib/params'
-import { POI_MAP } from '@/lib/data'
-import { estimateTransitMinutes } from '@/lib/scheduler'
+import { encodeParams } from '@/lib/plan/params'
+import { POI_MAP } from '@/lib/poi/data'
+import { estimateTransitMinutes } from '@/lib/scheduling/scheduler'
 import { START_LOCATION_MAP } from '@/lib/constants'
-import type { ScheduledStop } from '@/lib/scheduler'
+import type { ScheduledStop } from '@/lib/scheduling/scheduler'
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
 vi.mock('next/navigation', () => ({
@@ -27,8 +27,8 @@ vi.mock('next/navigation', () => ({
 // controllable, without depending on (or being flaked by) the async road-routing
 // overlay. optimizeOrder/estimateTransitMinutes/types stay real.
 const stubbed = vi.hoisted(() => ({ stops: [] as ScheduledStop[] }))
-vi.mock('@/lib/scheduler', async (importActual) => {
-  const actual = (await importActual()) as typeof import('@/lib/scheduler')
+vi.mock('@/lib/scheduling/scheduler', async (importActual) => {
+  const actual = (await importActual()) as typeof import('@/lib/scheduling/scheduler')
   return { ...actual, scheduleAlong: () => stubbed.stops }
 })
 

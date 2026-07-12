@@ -16,19 +16,19 @@ import {
 import type { Announcements, DragEndEvent, Modifier } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import SortableStop from '@/components/SortableStop'
-import { usePrefersReducedMotion } from '@/lib/use-reduced-motion'
-import { decodeParams, encodeParams } from '@/lib/params'
-import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduler'
-import type { POI, ScheduledStop, StopReason, TransportMode, DurationOverrides } from '@/lib/scheduler'
-import { POI_MAP, TRANSIT_MATRIX, CITY_LABEL } from '@/lib/data'
+import { usePrefersReducedMotion } from '@/lib/hooks/use-reduced-motion'
+import { decodeParams, encodeParams } from '@/lib/plan/params'
+import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduling/scheduler'
+import type { POI, ScheduledStop, StopReason, TransportMode, DurationOverrides } from '@/lib/scheduling/scheduler'
+import { POI_MAP, TRANSIT_MATRIX, CITY_LABEL } from '@/lib/poi/data'
 import { START_LOCATION_MAP, modeLabel, LUNCH_WINDOW } from '@/lib/constants'
-import { reasonLine } from '@/lib/reason'
-import { fitToBudget } from '@/lib/fit'
-import { dayFare, legFare, formatFare } from '@/lib/fare'
+import { reasonLine } from '@/lib/scheduling/reason'
+import { fitToBudget } from '@/lib/scheduling/fit'
+import { dayFare, legFare, formatFare } from '@/lib/scheduling/fare'
 import { isEnabled } from '@/lib/features'
-import { clampDuration, pruneDurations, DURATION_MIN, DURATION_MAX, DURATION_STEP } from '@/lib/duration'
-import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/routing'
-import type { RouteLeg, RoadOverlay } from '@/lib/routing'
+import { clampDuration, pruneDurations, DURATION_MIN, DURATION_MAX, DURATION_STEP } from '@/lib/scheduling/duration'
+import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/scheduling/routing'
+import type { RouteLeg, RoadOverlay } from '@/lib/scheduling/routing'
 import WhatIfDrawer from '@/components/WhatIfDrawer'
 import SavePlanButton from '@/components/SavePlanButton'
 import {
@@ -38,7 +38,7 @@ import {
   stopStatusLine,
   stopDurationLine,
   wallClock,
-} from '@/lib/export'
+} from '@/lib/plan/export'
 
 // Bounds for the "fit my day to N hours" slider.
 const BUDGET_MIN = 2

@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { POI, TransitMatrix } from '@/lib/scheduler'
-import { estimateTransitMinutes } from '@/lib/scheduler'
+import type { POI, TransitMatrix } from '@/lib/scheduling/scheduler'
+import { estimateTransitMinutes } from '@/lib/scheduling/scheduler'
 import { START_LOCATIONS } from '@/lib/constants'
-import { validatePoi } from '@/lib/poi-validate'
+import { validatePoi } from '@/lib/poi/validate'
 
 // Local-only content tool: appends a validated place to the committed dataset and
 // regenerates the transit matrix. It writes to the repo on disk, so it MUST NOT run

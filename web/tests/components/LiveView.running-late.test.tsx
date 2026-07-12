@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 import LiveView from '@/components/LiveView'
-import type { ResolvedPlan } from '@/lib/plan-model'
+import type { ResolvedPlan } from '@/lib/plan/model'
 
 // FINDING-003: once the whole day is already complete, "I'm running late (+15 min)"
 // stayed clickable and produced contradictory copy — "Your day is complete" next to
@@ -19,7 +19,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 const plan = vi.hoisted(() => ({ value: null as ResolvedPlan | null }))
-vi.mock('@/lib/plan-model', () => ({
+vi.mock('@/lib/plan/model', () => ({
   resolvePlan: () => plan.value,
 }))
 

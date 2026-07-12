@@ -1,10 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { POI, TransportMode, LunchWindow, DurationOverrides } from '@/lib/scheduler'
+import type { POI, TransportMode, LunchWindow, DurationOverrides } from '@/lib/scheduling/scheduler'
 import { modeLabel } from '@/lib/constants'
-import { computeWhatIfVariants } from '@/lib/whatif'
-import type { ScheduleParams } from '@/lib/params'
+import { computeWhatIfVariants } from '@/lib/plan/whatif'
+import type { ScheduleParams } from '@/lib/plan/params'
 
 // "What if" comparison: the same set of places, re-optimized under each transport
 // mode, shown side by side so the speed-vs-cost trade-off is visible. Every figure

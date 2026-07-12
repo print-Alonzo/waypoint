@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { POIS } from '@/lib/data'
+import { POIS } from '@/lib/poi/data'
 import AdminDashboard from '@/components/AdminDashboard'
 
 export const metadata: Metadata = {

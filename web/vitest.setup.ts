@@ -12,7 +12,7 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver
 }
 
-// lib/use-reduced-motion.ts reads matchMedia; jsdom's support is partial. The
+// lib/hooks/use-reduced-motion.ts reads matchMedia; jsdom's support is partial. The
 // stub reports "motion is fine", so tests exercise the animated code path.
 // Guarded on `window`: this setup file also runs for the node-env lib suites.
 if (typeof window !== 'undefined' && !window.matchMedia) {

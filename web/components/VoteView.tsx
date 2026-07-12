@@ -3,10 +3,10 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { POIS } from '@/lib/data'
+import { POIS } from '@/lib/poi/data'
 import { CATEGORIES } from '@/lib/constants'
-import { hoursLabel } from '@/lib/poi-format'
-import { encodeParams } from '@/lib/params'
+import { hoursLabel } from '@/lib/poi/format'
+import { encodeParams } from '@/lib/plan/params'
 import { CategoryGlyph } from './CategoryGlyph'
 
 // Single-device group vote: pass one phone around, everyone taps a thumb on the
