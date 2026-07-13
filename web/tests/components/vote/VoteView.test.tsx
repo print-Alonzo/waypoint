@@ -85,4 +85,11 @@ describe('VoteView', () => {
     render(<VoteView />)
     expect(screen.getByRole('link', { name: /skip voting/i })).toHaveAttribute('href', '/plan')
   })
+
+  it('renders with zero votes instead of crashing when localStorage holds corrupted JSON', () => {
+    localStorage.setItem('waypoint:votes', 'not json')
+    render(<VoteView />)
+    const voteRow = screen.getByText(firstPoi.name).closest('li')!
+    expect(voteRow).toHaveTextContent('0')
+  })
 })

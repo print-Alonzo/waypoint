@@ -84,4 +84,12 @@ describe('CompareView', () => {
     const openLinks = screen.getAllByRole('link', { name: /^open$/i })
     expect(openLinks[0]).toHaveAttribute('href', `/result?${query}`)
   })
+
+  it('shows an unreadable-plan notice instead of the metrics table when a saved query can no longer be decoded', () => {
+    savePlan('Good day', encodeParams(SHORT).toString(), 1000)
+    savePlan('Broken day', 'poi_ids=fort-santiago', 2000)
+    render(<CompareView />)
+    expect(screen.getByText(/one of these plans can no longer be read/i)).toBeInTheDocument()
+    expect(screen.queryByText('Stops')).not.toBeInTheDocument()
+  })
 })

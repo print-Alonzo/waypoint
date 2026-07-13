@@ -109,6 +109,18 @@ describe('AdminDashboard', () => {
     expect(screen.getByText('A place with that ID already exists.')).toBeInTheDocument()
   })
 
+  it('shows the server-provided generic error message when the response is not ok and has no field errors', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ ok: false, error: 'disk full' }),
+    })
+    render(<AdminDashboard initialPois={INITIAL_POIS} />)
+    fillMinimumValidFields()
+    fireEvent.click(screen.getByRole('button', { name: 'Add place' }))
+
+    expect(await screen.findByText('disk full')).toBeInTheDocument()
+  })
+
   it('shows a network-failure message when the request cannot reach the server', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
     render(<AdminDashboard initialPois={INITIAL_POIS} />)
