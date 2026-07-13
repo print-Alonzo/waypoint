@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister'
 
 function installServiceWorkerStub() {
@@ -32,19 +32,16 @@ describe('ServiceWorkerRegister', () => {
     vi.stubEnv('NODE_ENV', 'production')
     const { register } = installServiceWorkerStub()
     render(<ServiceWorkerRegister />)
-    await Promise.resolve()
-    expect(register).toHaveBeenCalledWith('/sw.js')
+    await waitFor(() => expect(register).toHaveBeenCalledWith('/sw.js'))
   })
 
   it('unregisters any existing worker outside production', async () => {
     vi.stubEnv('NODE_ENV', 'test')
     const { register, unregister, getRegistrations } = installServiceWorkerStub()
     render(<ServiceWorkerRegister />)
-    await Promise.resolve()
-    await Promise.resolve()
+    await waitFor(() => expect(unregister).toHaveBeenCalled())
     expect(register).not.toHaveBeenCalled()
     expect(getRegistrations).toHaveBeenCalled()
-    expect(unregister).toHaveBeenCalled()
   })
 
   it('does nothing when the browser has no serviceWorker support', () => {
