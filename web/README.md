@@ -153,10 +153,11 @@ scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
 ```
 
-> Untested today (the mirrored `tests/` tree makes the gaps easy to see): `lib/plan/model.ts`,
-> `lib/poi/*`, `lib/constants.ts`, `lib/features.ts`, `lib/hooks/*`, and `components/shared/*`,
-> `components/compare/`, `components/vote/`, `components/admin/`, `result/WhatIfDrawer`,
-> `result/SortableStop`.
+> Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin
+> root-layout wiring (font, header, manifest, `ServiceWorkerRegister`, which is itself covered under
+> `components/shared/`). `components/plan/Selector.tsx` and `components/credits/PhotoCredits.tsx`
+> have no dedicated test file but are exercised indirectly, in real (non-mocked) renders, by
+> `tests/flows/plan-to-result.test.tsx` and `tests/app/credits/page.test.tsx` respectively.
 
 ## Data / cities
 
