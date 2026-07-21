@@ -72,10 +72,15 @@ describe('POST /api/validation', () => {
       postWith({
         sid: 'abc-123',
         milestone: 'submitted',
+        currentPlanning: 'maps-winging',
+        pastSpending: '500-2000',
+        timeLost: '1-2h',
         interest: 'definitely',
         willingToPay: 'yes',
         vanWestendorp: { tooCheap: 50, goodValue: 150, gettingExpensive: 300, tooExpensive: 500 },
         pricingModel: 'monthly',
+        priceUnit: 'per-month',
+        budgetSource: 'personal',
         email: 'traveler@example.com',
         consent: true,
       }),
@@ -83,6 +88,7 @@ describe('POST /api/validation', () => {
     expect(res.status).toBe(200)
     const [, update] = mongoMock.updateOne.mock.calls[0]
     expect(update.$set.email).toBe('traveler@example.com')
+    expect(update.$set.priceUnit).toBe('per-month')
     expect(typeof update.$set.submittedAt).toBe('number')
   })
 
