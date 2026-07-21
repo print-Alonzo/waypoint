@@ -1,0 +1,89 @@
+import { describe, it, expect } from 'vitest'
+import { validateSubmission } from '@/lib/validation/validate'
+
+const VALID_SUBMITTED = {
+  sid: 'abc-123',
+  milestone: 'submitted',
+  interest: 'definitely',
+  willingToPay: 'yes',
+  vanWestendorp: { tooCheap: 50, goodValue: 150, gettingExpensive: 300, tooExpensive: 500 },
+  pricingModel: 'monthly',
+  email: 'traveler@example.com',
+  consent: true,
+}
+
+describe('validateSubmission', () => {
+  it('rejects a missing sid', () => {
+    const { errors, sid, doc } = validateSubmission({ milestone: 'tried_app' })
+    expect(errors.sid).toBeTruthy()
+    expect(sid).toBeNull()
+    expect(doc).toBeNull()
+  })
+
+  it('rejects an unknown milestone', () => {
+    const { errors } = validateSubmission({ sid: 'abc', milestone: 'bogus' })
+    expect(errors.milestone).toBeTruthy()
+  })
+
+  it('accepts a lightweight milestone with no extra fields', () => {
+    const { errors, sid, doc } = validateSubmission({ sid: 'abc-123', milestone: 'tried_app' })
+    expect(errors).toEqual({})
+    expect(sid).toBe('abc-123')
+    expect(doc).toEqual({ milestone: 'tried_app' })
+  })
+
+  it('accepts a valid quiz_completed submission with persona fields', () => {
+    const { errors, doc } = validateSubmission({
+      sid: 'abc-123',
+      milestone: 'quiz_completed',
+      persona: 'time-poor',
+      personaScores: { timePoor: 8, meticulous: 2 },
+      quizAnswers: ['Wing it', 'Hit the highlights'],
+    })
+    expect(errors).toEqual({})
+    expect(doc?.persona).toBe('time-poor')
+    expect(doc?.personaScores).toEqual({ timePoor: 8, meticulous: 2 })
+    expect(doc?.quizAnswers).toEqual(['Wing it', 'Hit the highlights'])
+  })
+
+  it('accepts a fully valid submitted payload', () => {
+    const { errors, sid, doc } = validateSubmission(VALID_SUBMITTED)
+    expect(errors).toEqual({})
+    expect(sid).toBe('abc-123')
+    expect(doc?.email).toBe('traveler@example.com')
+    expect(doc?.vanWestendorp).toEqual({
+      tooCheap: 50,
+      goodValue: 150,
+      gettingExpensive: 300,
+      tooExpensive: 500,
+    })
+  })
+
+  it('rejects a malformed email', () => {
+    const { errors } = validateSubmission({ ...VALID_SUBMITTED, email: 'not-an-email' })
+    expect(errors.email).toBeTruthy()
+  })
+
+  it('rejects a negative price', () => {
+    const { errors } = validateSubmission({
+      ...VALID_SUBMITTED,
+      vanWestendorp: { ...VALID_SUBMITTED.vanWestendorp, tooCheap: -10 },
+    })
+    expect(errors.vanWestendorp).toBeTruthy()
+  })
+
+  it('rejects an unknown pricing model', () => {
+    const { errors } = validateSubmission({ ...VALID_SUBMITTED, pricingModel: 'lifetime' })
+    expect(errors.pricingModel).toBeTruthy()
+  })
+
+  it('requires consent for a submitted payload', () => {
+    const { errors } = validateSubmission({ ...VALID_SUBMITTED, consent: false })
+    expect(errors.consent).toBeTruthy()
+  })
+
+  it('strips unknown keys from the built doc', () => {
+    const { doc } = validateSubmission({ ...VALID_SUBMITTED, evil: '$where: 1' })
+    expect(doc).not.toHaveProperty('evil')
+  })
+})

@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-
-import Home from '@/app/page'
 
 // next/link renders a plain anchor for assertion (no router context needed).
 vi.mock('next/link', () => ({
@@ -17,6 +15,25 @@ vi.mock('next/link', () => ({
 vi.mock('next/image', () => ({
   default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
 }))
+
+// Only `validation` is overridden here (default on, matching lib/features.ts);
+// every other flag keeps its real value so unrelated sections (presets, etc.)
+// render exactly as they do outside tests.
+const flag = vi.hoisted(() => ({ validation: true }))
+vi.mock('@/lib/features', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/features')>()
+  return {
+    ...actual,
+    isEnabled: (f: keyof typeof actual.FEATURES) =>
+      f === 'validation' ? flag.validation : actual.isEnabled(f),
+  }
+})
+
+import Home from '@/app/page'
+
+afterEach(() => {
+  flag.validation = true
+})
 
 describe('landing page', () => {
   it('leads with the thesis headline and a "how it works" section', () => {
@@ -34,10 +51,30 @@ describe('landing page', () => {
     planLinks.forEach((l) => expect(l).toHaveAttribute('href', '/plan'))
   })
 
-  it('offers a sample itinerary that deep-links into /result', () => {
+  it('hides the sample-day link while the validation funnel is running', () => {
+    render(<Home />)
+    expect(screen.queryByRole('link', { name: /sample day/i })).not.toBeInTheDocument()
+  })
+
+  it('offers a sample itinerary that deep-links into /result once validation ends', () => {
+    flag.validation = false
     render(<Home />)
     const sample = screen.getByRole('link', { name: /sample day/i })
     expect(sample.getAttribute('href')).toMatch(/^\/result\?/)
+  })
+
+  it('hides the "Compare saved plans" link while the validation funnel is running', () => {
+    render(<Home />)
+    expect(screen.queryByRole('link', { name: /compare saved plans/i })).not.toBeInTheDocument()
+  })
+
+  it('offers "Compare saved plans" once validation ends', () => {
+    flag.validation = false
+    render(<Home />)
+    expect(screen.getByRole('link', { name: /compare saved plans/i })).toHaveAttribute(
+      'href',
+      '/compare',
+    )
   })
 
   it('explains the steps and the trust differentiators', () => {

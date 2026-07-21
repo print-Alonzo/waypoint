@@ -118,6 +118,12 @@ const FEATURES = [
 ]
 
 export default function Home() {
+  // The validation funnel repurposes the landing's primary CTA to route through
+  // the persona quiz first (/quiz → /plan) instead of straight to /plan. Gated
+  // by a single flag so ending the study reverts this page to today's copy —
+  // see lib/features.ts.
+  const validating = isEnabled('validation')
+
   return (
     <div>
       {/* Hero */}
@@ -129,19 +135,28 @@ export default function Home() {
           Your day, in the right order.
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--color-text-muted)]">
-          You choose the places. Waypoint sequences your day for less time on the road — and shows
-          its work, flagging anything closed or out of reach instead of quietly dropping it.
+          {validating
+            ? "We're building Waypoint for real travelers, and we'd love your take. Take a 60-second quiz, try planning a real day, then tell us what you think."
+            : 'You choose the places. Waypoint sequences your day for less time on the road — and shows its work, flagging anything closed or out of reach instead of quietly dropping it.'}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Link href="/plan" className={primaryCta}>
-            Plan my day →
-          </Link>
-          <Link href={SAMPLE_ITINERARY} className={secondaryCta}>
-            See a sample day
-          </Link>
+          {validating ? (
+            <Link href="/quiz" className={primaryCta}>
+              Find your travel style →
+            </Link>
+          ) : (
+            <>
+              <Link href="/plan" className={primaryCta}>
+                Plan my day →
+              </Link>
+              <Link href={SAMPLE_ITINERARY} className={secondaryCta}>
+                See a sample day
+              </Link>
+            </>
+          )}
         </div>
 
-        {(isEnabled('groupVote') || isEnabled('comparePlans')) && (
+        {(isEnabled('groupVote') || (isEnabled('comparePlans') && !validating)) && (
           <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm">
             {isEnabled('groupVote') && (
               <Link
@@ -151,7 +166,7 @@ export default function Home() {
                 Vote with friends
               </Link>
             )}
-            {isEnabled('comparePlans') && (
+            {isEnabled('comparePlans') && !validating && (
               <Link
                 href="/compare"
                 className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
@@ -207,8 +222,13 @@ export default function Home() {
             />
             <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-6">
               {STEPS.map((step, i) => (
-                <li key={step.title}>
-                  <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
+                <li key={step.title} className="text-center">
+                  {/* No z-index: the dashed line behind it is `absolute` and comes
+                      first in the DOM, so plain paint order already puts this on top —
+                      an explicit z-index here would escalate it into the root stacking
+                      context and fight the header's own `z-10` (layout.tsx) while
+                      scrolling. */}
+                  <span className="relative mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
                     {i + 1}
                   </span>
                   <h3 className="mt-4 font-bold">{step.title}</h3>
