@@ -222,8 +222,13 @@ export default function Home() {
             />
             <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-6">
               {STEPS.map((step, i) => (
-                <li key={step.title}>
-                  <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
+                <li key={step.title} className="text-center">
+                  {/* No z-index: the dashed line behind it is `absolute` and comes
+                      first in the DOM, so plain paint order already puts this on top —
+                      an explicit z-index here would escalate it into the root stacking
+                      context and fight the header's own `z-10` (layout.tsx) while
+                      scrolling. */}
+                  <span className="relative mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
                     {i + 1}
                   </span>
                   <h3 className="mt-4 font-bold">{step.title}</h3>
