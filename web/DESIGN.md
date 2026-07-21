@@ -143,8 +143,10 @@ moved. The only place it carries real weight today is reordering the itinerary.
     copy can't drift.
 - **Sticky CTA bar:** fixed to the viewport bottom, top border, centered to the container width.
 - **Stop card** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): icon (⚠/✕ when flagged) +
-  stop number (muted) + arrival time (semibold) + name (semibold) on line 1; `~N min · status` on
-  line 2 (the effective, possibly user-overridden, duration — see **Duration stepper** below);
+  stop number (muted) + an arrival–departure time range (semibold, e.g. "09:05–10:35" — so the
+  expected end time doesn't need mental math from the duration line) + name (semibold) on line 1;
+  `~N min · status` on line 2 (the effective, possibly user-overridden, duration — see **Duration
+  stepper** below);
   a screen-only **"Time here" stepper** (flag: `customDuration`); optional italic muted notes; a
   **"Why this stop:" reason line** (top hairline divider, `text-xs`) explaining the scheduler's
   ordering choice. Background = flag tint per state. The reason line **prints** with the list (it's
@@ -211,8 +213,10 @@ moved. The only place it carries real weight today is reordering the itinerary.
   (`.wp-pin`, `.wp-pin--warning`, `.wp-pin--error`, `.wp-start`). The map is a **supplementary
   visual** — `no-print`, with the text list remaining the accessible + print source of truth.
 - **Utility bar** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): `no-print`, `flex
-  flex-wrap justify-between` — `← Edit this list` on the left; `Copy text`, `Download .ics`, `Print`
-  grouped on the right (each a text button with `underline-offset-2 hover:underline`). `Copy text`
+  flex-wrap justify-between` — `← Edit this list` on the left; `Live mode`, **Save plan**, **Saved
+  plans** (→ `/saved`), `Copy text`, `Download .ics`, `Print` grouped on the right (each a text button
+  with `underline-offset-2 hover:underline`, except **Save plan** — see Save + saved plans below).
+  `Copy text`
   swaps its label to `Copied!` / `Copy failed` for ~2.5s (`aria-live="polite"`); the timer is cleared
   on unmount and on re-click. `← Edit this list` carries order/locked/budget/lunch/durations back to
   the Selector (`handleEdit`) so returning there and submitting again doesn't discard a result-page
@@ -259,14 +263,23 @@ nothing is dropped, and every estimate is shown as a labelled range.
 - **Live mode** ([`components/live/LiveView.tsx`](components/live/LiveView.tsx), `/live`): device-clock companion —
   a coral "right now" card (at / on the way to / done), countdowns, an **"I'm running late (+15 min)"**
   shift, and a dimmed/✓ timeline. Clock read in an effect (no hydration drift).
-- **Compare plans** ([`components/compare/CompareView.tsx`](components/compare/CompareView.tsx), `/compare`): two saved
-  plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Plans are saved to
+- **Save + saved plans** ([`components/result/SavePlanButton.tsx`](components/result/SavePlanButton.tsx),
+  [`components/saved/SavedPlansView.tsx`](components/saved/SavedPlansView.tsx), `/saved`): plans are saved to
   `localStorage` ([`lib/storage/saved-plans.ts`](lib/storage/saved-plans.ts)) via a bordered **Save plan**
-  button ([`components/result/SavePlanButton.tsx`](components/result/SavePlanButton.tsx), ≥44px tap target) on
-  the result page, which prompts for a name inline so plans stay distinguishable when comparing. A
-  **"Saved plans"** link to `/compare` sits in the result-page utility bar at all times (not gated
-  behind having saved anything first — a usability test found the only prior path to saved plans,
-  the post-save "Compare" link, went undiscovered).
+  button (≥44px tap target) on the result page, which prompts for a name inline so plans stay
+  distinguishable later. `/saved` lists **every** saved plan (not just two) — name, day, mode, quick
+  figures via `summarizePlan` ([`lib/plan/summary.ts`](lib/plan/summary.ts)), with **Open** and **Forget**
+  per plan, plus a **"Compare plans →"** link into `/compare`. Three entry points all lead here
+  (never straight to `/compare`): the result page's persistent **"Saved plans"** utility-bar link (not
+  gated behind having saved anything first — a usability test found the prior direct-to-Compare path
+  went undiscovered), `SavePlanButton`'s post-save **"View saved plans"** link, and the landing page's
+  **"View saved plans"** link.
+- **Compare plans** ([`components/compare/CompareView.tsx`](components/compare/CompareView.tsx), `/compare`): two
+  saved plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Reachable only
+  from `/saved`'s "Compare plans →" link (or a direct URL) — with zero saved plans it redirects to
+  `/saved` client-side (`useEffect` + `useRouter`, since plans are localStorage-only and unknown at
+  the server); with exactly one it shows a "comparing a plan with itself" notice rather than
+  redirecting, since that's still a legitimate state to land in.
 - **Presets** ([`lib/plan/presets.ts`](lib/plan/presets.ts)): landing-page cards that deep-link to a ready-made
   `/result` URL — no special-casing, fully editable on arrival.
 - **Offline** ([`public/sw.js`](public/sw.js)): a service worker (network-first pages, stale-while-

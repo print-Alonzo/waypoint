@@ -54,7 +54,7 @@ No other edits needed; that's the kill switch.
 | `customDuration` | Per-stop **"Time here" stepper** — override how long you spend at a place; the POI's authored duration stays on screen as the suggestion | Result page |
 | `offline` | **Service worker** so a visited plan keeps working without a connection | Whole app (prod only) |
 | `liveMode` | `/live` — device-clock companion: now / next, "leave in ~N min", "I'm running late" reflow | `/live` |
-| `comparePlans` | **Save plans** (this device) and compare two side by side | Result page → `/compare` |
+| `comparePlans` | **Save plans** (this device); browse and compare two side by side | Result page → `/saved` → `/compare` |
 | `groupVote` | `/vote` — single-device thumbs-up tally, then plan the winners. **Off by default** | `/vote` |
 
 Faithfulness still holds across all of them: nothing is ever silently dropped (over-budget stops are
@@ -92,6 +92,7 @@ app/                  App Router routes
   credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/result/ResultView)
   live/page.tsx       Live mode (flag: liveMode; redirects home if off)
+  saved/page.tsx      List of saved plans (flag: comparePlans; redirects home if off)
   compare/page.tsx    Compare two saved plans (flag: comparePlans; redirects home if off)
   vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
   admin/page.tsx      Local-only content tool (→ components/admin/AdminDashboard); hidden on Vercel
@@ -107,8 +108,9 @@ components/            Client components, grouped by owning route
     SortableStop.tsx  dnd-kit drag wrapper for a stop card (exports REORDER_MS)
     MapView.tsx       Leaflet route map (numbered pins + line); loaded client-only (ssr:false)
     WhatIfDrawer.tsx  Walk/Jeepney/Grab comparison table (re-optimized per mode)
-    SavePlanButton.tsx  Save the current plan to this device, prompting for a name (→ /compare)
+    SavePlanButton.tsx  Save the current plan to this device, prompting for a name (→ /saved)
   live/LiveView.tsx   Device-clock companion (now/next, countdowns, running-late reflow)
+  saved/SavedPlansView.tsx  List of every saved plan, with Open/Forget and a link to /compare
   compare/CompareView.tsx  Side-by-side comparison of two saved plans
   vote/VoteView.tsx   Single-device thumbs-up tally → plan the winners
   admin/AdminDashboard.tsx  Local-only form for adding a place (→ admin/create/route.ts)

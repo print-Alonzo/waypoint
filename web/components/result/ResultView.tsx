@@ -50,7 +50,7 @@ import {
 } from '@/lib/plan/export'
 
 // Bounds for the "fit my day to N hours" slider.
-const BUDGET_MIN = 2
+const BUDGET_MIN = 1
 const BUDGET_MAX = 12
 
 // Leaflet needs `window`, so load the map client-only (no SSR/prerender).
@@ -1096,7 +1096,7 @@ export default function ResultView() {
             // Always reachable — not gated behind having saved a plan first — so
             // "where are my saved plans?" has one answer, always in the same place.
             <Link
-              href="/compare"
+              href="/saved"
               className="font-semibold underline-offset-2 hover:underline"
             >
               Saved plans
@@ -1519,7 +1519,9 @@ export default function ResultView() {
                           {stop.redFlag && <span aria-hidden>✕</span>}
                           {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
                           <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
-                          <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
+                          <span className="font-semibold">
+                            {wallClock(stop.arrivalTime)}–{wallClock(stop.departureTime)}
+                          </span>
                           <h2 className="font-semibold">{stop.poi.name}</h2>
                           {outOfBudget && (
                             <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">

@@ -84,14 +84,14 @@ export default function SavePlanButton({
       </button>
       {mode === 'saved' && (
         <Link
-          href="/compare"
+          href="/saved"
           className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
         >
-          Compare
+          View saved plans
         </Link>
       )}
       <span aria-live="polite" className="sr-only">
-        {mode === 'saved' ? 'Plan saved — Compare is now available.' : ''}
+        {mode === 'saved' ? 'Plan saved — view it in Saved plans.' : ''}
       </span>
     </span>
   )

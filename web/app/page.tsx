@@ -168,10 +168,10 @@ export default function Home() {
             )}
             {isEnabled('comparePlans') && !validating && (
               <Link
-                href="/compare"
+                href="/saved"
                 className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
               >
-                Compare saved plans
+                View saved plans
               </Link>
             )}
           </div>

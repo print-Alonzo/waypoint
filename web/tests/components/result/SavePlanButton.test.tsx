@@ -33,7 +33,10 @@ describe('SavePlanButton', () => {
 
     expect(listSavedPlans().map((p) => p.name)).toEqual(['Rainy day plan'])
     expect(screen.getByText('Saved ✓')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /compare/i })).toHaveAttribute('href', '/compare')
+    expect(screen.getByRole('link', { name: /view saved plans/i })).toHaveAttribute(
+      'href',
+      '/saved',
+    )
   })
 
   it('submits on Enter', () => {

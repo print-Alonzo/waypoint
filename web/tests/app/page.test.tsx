@@ -63,17 +63,17 @@ describe('landing page', () => {
     expect(sample.getAttribute('href')).toMatch(/^\/result\?/)
   })
 
-  it('hides the "Compare saved plans" link while the validation funnel is running', () => {
+  it('hides the "View saved plans" link while the validation funnel is running', () => {
     render(<Home />)
-    expect(screen.queryByRole('link', { name: /compare saved plans/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /view saved plans/i })).not.toBeInTheDocument()
   })
 
-  it('offers "Compare saved plans" once validation ends', () => {
+  it('offers "View saved plans" once validation ends', () => {
     flag.validation = false
     render(<Home />)
-    expect(screen.getByRole('link', { name: /compare saved plans/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /view saved plans/i })).toHaveAttribute(
       'href',
-      '/compare',
+      '/saved',
     )
   })
 

@@ -10,6 +10,7 @@ import { scheduleItinerary, optimizeOrder } from '@/lib/scheduling/scheduler'
 import type { POI } from '@/lib/scheduling/scheduler'
 import { POI_MAP, TRANSIT_MATRIX } from '@/lib/poi/data'
 import { START_LOCATION_MAP } from '@/lib/constants'
+import { wallClock } from '@/lib/plan/export'
 
 // next/navigation mock — spies + a mutable search string controlled per test.
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
@@ -125,6 +126,36 @@ describe('result view (valid URL)', () => {
     const positions = expected.map((name) => text.indexOf(name))
     const sorted = [...positions].sort((a, b) => a - b)
     expect(positions).toEqual(sorted)
+  })
+
+  it('shows both the arrival AND expected end time on each stop card', () => {
+    const params: ScheduleParams = {
+      poi_ids: ['fort-santiago', 'manila-cathedral'],
+      start_time: '09:00',
+      transport_mode: 'walk',
+      start_location: 'rizal-park',
+      day_of_week: 'Tuesday',
+    }
+    nav.search = encodeParams(params).toString()
+
+    const selected = params.poi_ids.map((id) => POI_MAP[id]).filter(Boolean) as POI[]
+    const start = START_LOCATION_MAP[params.start_location]
+    const expected = scheduleItinerary(
+      selected,
+      TRANSIT_MATRIX,
+      params.start_location,
+      { lat: start.lat, lng: start.lng },
+      params.start_time,
+      params.transport_mode,
+      params.day_of_week,
+    )
+
+    render(<ResultView />)
+    expected.forEach((stop) => {
+      expect(
+        screen.getByText(`${wallClock(stop.arrivalTime)}–${wallClock(stop.departureTime)}`),
+      ).toBeInTheDocument()
+    })
   })
 })
 

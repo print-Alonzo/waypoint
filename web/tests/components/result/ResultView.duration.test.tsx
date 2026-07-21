@@ -55,9 +55,10 @@ function defaultOrderIds(): string[] {
   ).order.map((p) => p.id)
 }
 
-// Predicts stop[1]'s arrival wall clock for a given duration override on stop[0],
-// using the real scheduler — so the DOM assertions below aren't guessing numbers.
-function secondStopArrival(durations?: Record<string, number>): number {
+// Predicts stop[1]'s arrival/departure wall clocks for a given duration override
+// on stop[0], using the real scheduler — so the DOM assertions below aren't
+// guessing numbers.
+function secondStopTimes(durations?: Record<string, number>): { arrivalTime: number; departureTime: number } {
   const order = defaultOrderIds().map((id) => POI_MAP[id])
   const stops = scheduleAlong(
     order,
@@ -71,7 +72,7 @@ function secondStopArrival(durations?: Record<string, number>): number {
     null,
     durations,
   )
-  return stops[1].arrivalTime
+  return stops[1]
 }
 
 function queryFrom(call: string): URLSearchParams {
@@ -161,20 +162,22 @@ describe('ResultView duration stepper', () => {
     expect(screen.getAllByText(/closes at .* — your stay runs to/).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('a dur override on stop 1 shifts stop 2s rendered arrival time later', () => {
+  it('a dur override on stop 1 shifts stop 2s rendered arrival–departure range later', () => {
     const order = defaultOrderIds()
     const id = order[0]
     const rec = POI_MAP[id].recommended_duration_minutes
     const bumped = rec + 180
 
-    const baseArrival = wallClock(secondStopArrival(undefined))
-    const laterArrival = wallClock(secondStopArrival({ [id]: bumped }))
-    expect(laterArrival).not.toBe(baseArrival)
+    const base = secondStopTimes(undefined)
+    const later = secondStopTimes({ [id]: bumped })
+    const baseRange = `${wallClock(base.arrivalTime)}–${wallClock(base.departureTime)}`
+    const laterRange = `${wallClock(later.arrivalTime)}–${wallClock(later.departureTime)}`
+    expect(laterRange).not.toBe(baseRange)
 
     nav.search = encodeParams({ ...BASE, durations: { [id]: bumped } }).toString()
     render(<ResultView />)
-    expect(screen.getByText(laterArrival)).toBeInTheDocument()
-    expect(screen.queryByText(baseArrival)).toBeNull()
+    expect(screen.getByText(laterRange)).toBeInTheDocument()
+    expect(screen.queryByText(baseRange)).toBeNull()
   })
 })
 
