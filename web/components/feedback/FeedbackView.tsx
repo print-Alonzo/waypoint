@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Interest, WillingToPay, PricingModel } from '@/lib/validation/validate'
+import type {
+  Interest,
+  WillingToPay,
+  PricingModel,
+  CurrentPlanning,
+  PastSpending,
+  TimeLost,
+  BudgetSource,
+} from '@/lib/validation/validate'
+import { PRICE_UNIT_BY_MODEL } from '@/lib/validation/validate'
 import { track } from '@/lib/validation/track'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -18,6 +27,43 @@ const PRICING_MODEL_OPTIONS: { value: PricingModel; label: string }[] = [
   { value: 'freemium', label: 'Free, with a paid upgrade' },
   { value: 'free-ads', label: 'Free, supported by ads' },
 ]
+
+const CURRENT_PLANNING_OPTIONS: { value: CurrentPlanning; label: string }[] = [
+  { value: 'maps-winging', label: 'Google Maps and winging it' },
+  { value: 'content-research', label: 'Blogs, vlogs, or social media' },
+  { value: 'app-tool', label: 'A travel app or planner tool' },
+  { value: 'tours', label: 'Tours or travel agencies' },
+  { value: 'someone-else', label: 'Someone else plans it' },
+]
+
+const PAST_SPENDING_OPTIONS: { value: PastSpending; label: string }[] = [
+  { value: 'none', label: 'No, never' },
+  { value: 'under-500', label: 'Yes — under ₱500' },
+  { value: '500-2000', label: 'Yes — ₱500–₱2,000' },
+  { value: 'over-2000', label: 'Yes — over ₱2,000' },
+]
+
+const TIME_LOST_OPTIONS: { value: TimeLost; label: string }[] = [
+  { value: 'none', label: 'Almost none' },
+  { value: 'under-1h', label: 'Under an hour' },
+  { value: '1-2h', label: '1–2 hours' },
+  { value: 'over-2h', label: 'More than 2 hours' },
+]
+
+const BUDGET_SOURCE_OPTIONS: { value: BudgetSource; label: string }[] = [
+  { value: 'personal', label: 'My own money' },
+  { value: 'shared', label: 'Split with travel companions' },
+  { value: 'family', label: 'Family or allowance' },
+  { value: 'employer', label: 'An employer or organization' },
+]
+
+const PRICE_UNIT_SUFFIX: Record<PricingModel, string> = {
+  'one-time': 'one-time',
+  monthly: 'per month',
+  'per-trip': 'per trip',
+  freemium: 'per month for the paid tier',
+  'free-ads': 'per month to go ad-free',
+}
 
 // Reusable pill-button group for the 3-option interest / willingness-to-pay
 // questions — same "active = coral fill" pattern as PoiSwipeDeck's category Chip.
@@ -62,12 +108,16 @@ function PriceField({
   hint,
   value,
   onChange,
+  unitSuffix,
+  disabled,
 }: {
   id: string
   label: string
   hint: string
   value: string
   onChange: (v: string) => void
+  unitSuffix: string | null
+  disabled: boolean
 }) {
   return (
     <div>
@@ -83,11 +133,15 @@ function PriceField({
           inputMode="numeric"
           min={0}
           step={1}
-          className={inputClass}
+          disabled={disabled}
+          className={`${inputClass} disabled:cursor-not-allowed disabled:bg-[var(--color-bg-subtle)] disabled:text-[var(--color-text-muted)]`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
       </div>
+      {unitSuffix && (
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{unitSuffix}</p>
+      )}
     </div>
   )
 }
@@ -104,6 +158,9 @@ export default function FeedbackView() {
     void track('feedback_opened')
   }, [])
 
+  const [currentPlanning, setCurrentPlanning] = useState<CurrentPlanning | null>(null)
+  const [pastSpending, setPastSpending] = useState<PastSpending | null>(null)
+  const [timeLost, setTimeLost] = useState<TimeLost | null>(null)
   const [interest, setInterest] = useState<Interest | null>(null)
   const [willingToPay, setWillingToPay] = useState<WillingToPay | null>(null)
   const [tooCheap, setTooCheap] = useState('')
@@ -111,6 +168,8 @@ export default function FeedbackView() {
   const [gettingExpensive, setGettingExpensive] = useState('')
   const [tooExpensive, setTooExpensive] = useState('')
   const [pricingModel, setPricingModel] = useState<PricingModel | ''>('')
+  const [worthPaying, setWorthPaying] = useState('')
+  const [budgetSource, setBudgetSource] = useState<BudgetSource | null>(null)
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
@@ -122,10 +181,14 @@ export default function FeedbackView() {
     isValidPrice(tooExpensive)
   const emailValid = EMAIL_RE.test(email.trim())
   const canSubmit =
+    currentPlanning !== null &&
+    pastSpending !== null &&
+    timeLost !== null &&
     interest !== null &&
     willingToPay !== null &&
-    pricesValid &&
     pricingModel !== '' &&
+    pricesValid &&
+    budgetSource !== null &&
     emailValid &&
     consent &&
     status !== 'submitting'
@@ -135,6 +198,9 @@ export default function FeedbackView() {
     if (!canSubmit) return
     setStatus('submitting')
     const { ok } = await track('submitted', {
+      currentPlanning,
+      pastSpending,
+      timeLost,
       interest,
       willingToPay,
       vanWestendorp: {
@@ -144,6 +210,9 @@ export default function FeedbackView() {
         tooExpensive: Number(tooExpensive),
       },
       pricingModel,
+      priceUnit: PRICE_UNIT_BY_MODEL[pricingModel as PricingModel],
+      ...(worthPaying.trim() ? { worthPaying: worthPaying.trim() } : {}),
+      budgetSource,
       email: email.trim(),
       consent,
     })
@@ -161,22 +230,61 @@ export default function FeedbackView() {
         A few quick questions — this helps us decide what to build next.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-8 mb-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          Your trips today
+        </span>
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+      </div>
+
+      <PillGroup
+        legend="How do you usually plan a day trip today?"
+        options={CURRENT_PLANNING_OPTIONS}
+        value={currentPlanning}
+        onChange={setCurrentPlanning}
+      />
+
+      <div className="mt-7">
         <PillGroup
-          legend="Would you use Waypoint to plan a real trip?"
-          options={[
-            { value: 'definitely', label: 'Definitely' },
-            { value: 'maybe', label: 'Maybe' },
-            { value: 'no', label: 'No' },
-          ]}
-          value={interest}
-          onChange={setInterest}
+          legend="In the past year, have you paid for anything to help plan a trip — apps, guides, tours?"
+          options={PAST_SPENDING_OPTIONS}
+          value={pastSpending}
+          onChange={setPastSpending}
         />
       </div>
 
       <div className="mt-7">
         <PillGroup
-          legend="Would you pay for it?"
+          legend="On your last day trip, how much time did you lose to figuring out routes, backtracking, or waiting?"
+          options={TIME_LOST_OPTIONS}
+          value={timeLost}
+          onChange={setTimeLost}
+        />
+      </div>
+
+      <div className="mt-9 mb-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          Waypoint
+        </span>
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+      </div>
+
+      <PillGroup
+        legend="Would you use Waypoint to plan a real trip?"
+        options={[
+          { value: 'definitely', label: 'Definitely' },
+          { value: 'maybe', label: 'Maybe' },
+          { value: 'no', label: 'No' },
+        ]}
+        value={interest}
+        onChange={setInterest}
+      />
+
+      <div className="mt-7">
+        <PillGroup
+          legend="Would paying for a tool like this be on the table?"
           options={[
             { value: 'yes', label: 'Yes' },
             { value: 'maybe', label: 'Maybe' },
@@ -195,45 +303,9 @@ export default function FeedbackView() {
         <span className="h-px flex-1 bg-[var(--color-border)]" />
       </div>
 
-      <p className="text-sm text-[var(--color-text-muted)]">
-        Thinking about a price for Waypoint, in Philippine pesos (₱) — prices usually run from
-        low to high across the four questions below.
-      </p>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <PriceField
-          id="too-cheap"
-          label="Too cheap"
-          hint="So cheap you'd doubt its quality"
-          value={tooCheap}
-          onChange={setTooCheap}
-        />
-        <PriceField
-          id="good-value"
-          label="A bargain"
-          hint="Good value for what you'd get"
-          value={goodValue}
-          onChange={setGoodValue}
-        />
-        <PriceField
-          id="getting-expensive"
-          label="Getting pricey"
-          hint="Starting to feel expensive, but you'd still consider it"
-          value={gettingExpensive}
-          onChange={setGettingExpensive}
-        />
-        <PriceField
-          id="too-expensive"
-          label="Too expensive"
-          hint="So expensive you wouldn't consider it"
-          value={tooExpensive}
-          onChange={setTooExpensive}
-        />
-      </div>
-
-      <div className="mt-7">
+      <div>
         <label htmlFor="pricing-model" className="mb-1.5 block text-sm font-semibold">
-          Which pricing model would you prefer?
+          Which pricing structure would feel most reasonable for a tool like this?
         </label>
         <select
           id="pricing-model"
@@ -250,6 +322,78 @@ export default function FeedbackView() {
             </option>
           ))}
         </select>
+      </div>
+
+      <p className="mt-4 text-sm text-[var(--color-text-muted)]" aria-live="polite">
+        {pricingModel === ''
+          ? 'Choose a pricing structure above to unlock the price questions.'
+          : `Thinking about a price for Waypoint, in Philippine pesos (₱) ${PRICE_UNIT_SUFFIX[pricingModel]} — prices usually run from low to high across the four questions below.`}
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <PriceField
+          id="too-cheap"
+          label="Too cheap"
+          hint="So cheap you'd doubt its quality"
+          value={tooCheap}
+          onChange={setTooCheap}
+          unitSuffix={pricingModel ? PRICE_UNIT_SUFFIX[pricingModel] : null}
+          disabled={pricingModel === ''}
+        />
+        <PriceField
+          id="good-value"
+          label="A bargain"
+          hint="Good value for what you'd get"
+          value={goodValue}
+          onChange={setGoodValue}
+          unitSuffix={pricingModel ? PRICE_UNIT_SUFFIX[pricingModel] : null}
+          disabled={pricingModel === ''}
+        />
+        <PriceField
+          id="getting-expensive"
+          label="Getting pricey"
+          hint="Starting to feel expensive, but you'd still consider it"
+          value={gettingExpensive}
+          onChange={setGettingExpensive}
+          unitSuffix={pricingModel ? PRICE_UNIT_SUFFIX[pricingModel] : null}
+          disabled={pricingModel === ''}
+        />
+        <PriceField
+          id="too-expensive"
+          label="Too expensive"
+          hint="So expensive you wouldn't consider it"
+          value={tooExpensive}
+          onChange={setTooExpensive}
+          unitSuffix={pricingModel ? PRICE_UNIT_SUFFIX[pricingModel] : null}
+          disabled={pricingModel === ''}
+        />
+      </div>
+
+      <div className="mt-7">
+        <label htmlFor="worth-paying" className="mb-1.5 block text-sm font-semibold">
+          What would make Waypoint worth paying for?
+        </label>
+        <p className="mb-1.5 text-xs text-[var(--color-text-muted)]">Optional</p>
+        <textarea
+          id="worth-paying"
+          rows={3}
+          maxLength={500}
+          className={inputClass}
+          value={worthPaying}
+          onChange={(e) => setWorthPaying(e.target.value)}
+        />
+        <p className="mt-1 text-right text-xs text-[var(--color-text-muted)]">
+          {worthPaying.length}/500
+        </p>
+      </div>
+
+      <div className="mt-7">
+        <PillGroup
+          legend="If you paid for Waypoint, whose budget would it come from?"
+          options={BUDGET_SOURCE_OPTIONS}
+          value={budgetSource}
+          onChange={setBudgetSource}
+        />
       </div>
 
       <div className="mt-9 mb-5 flex items-center gap-3">
