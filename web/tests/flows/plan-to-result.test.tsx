@@ -6,10 +6,11 @@ import Selector from '@/components/plan/Selector'
 import ResultView from '@/components/result/ResultView'
 import { encodeParams } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
-import { scheduleItinerary } from '@/lib/scheduling/scheduler'
+import { scheduleItinerary, optimizeOrder } from '@/lib/scheduling/scheduler'
 import type { POI } from '@/lib/scheduling/scheduler'
 import { POI_MAP, TRANSIT_MATRIX } from '@/lib/poi/data'
 import { START_LOCATION_MAP } from '@/lib/constants'
+import { wallClock } from '@/lib/plan/export'
 
 // next/navigation mock — spies + a mutable search string controlled per test.
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
@@ -125,6 +126,36 @@ describe('result view (valid URL)', () => {
     const positions = expected.map((name) => text.indexOf(name))
     const sorted = [...positions].sort((a, b) => a - b)
     expect(positions).toEqual(sorted)
+  })
+
+  it('shows both the arrival AND expected end time on each stop card', () => {
+    const params: ScheduleParams = {
+      poi_ids: ['fort-santiago', 'manila-cathedral'],
+      start_time: '09:00',
+      transport_mode: 'walk',
+      start_location: 'rizal-park',
+      day_of_week: 'Tuesday',
+    }
+    nav.search = encodeParams(params).toString()
+
+    const selected = params.poi_ids.map((id) => POI_MAP[id]).filter(Boolean) as POI[]
+    const start = START_LOCATION_MAP[params.start_location]
+    const expected = scheduleItinerary(
+      selected,
+      TRANSIT_MATRIX,
+      params.start_location,
+      { lat: start.lat, lng: start.lng },
+      params.start_time,
+      params.transport_mode,
+      params.day_of_week,
+    )
+
+    render(<ResultView />)
+    expected.forEach((stop) => {
+      expect(
+        screen.getByText(`${wallClock(stop.arrivalTime)}–${wallClock(stop.departureTime)}`),
+      ).toBeInTheDocument()
+    })
   })
 })
 
@@ -327,5 +358,136 @@ describe('result view share/export', () => {
     expect(ics).toContain('TRANSP:TRANSPARENT')
     expect(ics).not.toContain('STATUS:CANCELLED')
     clickSpy.mockRestore()
+  })
+})
+
+// (7) P0-3B: "Edit this list" used to drop order/locked/budget/lunch on the way to
+// the Selector. It now carries them, and the Selector prunes anything referencing
+// a place the user deselects there.
+describe('edit back-link carries customization non-destructively', () => {
+  // Geographically spread (Intramuros / Quiapo / BGC) so the optimizer has a
+  // STRICT order and a hand-picked order is verifiably non-default — mirrors
+  // ResultView.reorder.test.tsx's rationale.
+  const spreadPoiIds = ['fort-santiago', 'quiapo-market', 'the-mind-museum']
+  const spreadParams: ScheduleParams = {
+    poi_ids: spreadPoiIds,
+    start_time: '09:00',
+    transport_mode: 'grab',
+    start_location: 'rizal-park',
+    day_of_week: 'Saturday',
+  }
+
+  function sameArr(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((v, i) => v === b[i])
+  }
+  function optimizeIds(orderIds: string[], locked: Set<string>): string[] {
+    const sl = START_LOCATION_MAP[spreadParams.start_location]
+    return optimizeOrder(
+      orderIds.map((id) => POI_MAP[id]),
+      locked,
+      TRANSIT_MATRIX,
+      spreadParams.start_location,
+      { lat: sl.lat, lng: sl.lng },
+      spreadParams.transport_mode,
+    ).order.map((x) => x.id)
+  }
+  function permute<T>(arr: T[]): T[][] {
+    if (arr.length <= 1) return [arr]
+    return arr.flatMap((x, i) =>
+      permute([...arr.slice(0, i), ...arr.slice(i + 1)]).map((rest) => [x, ...rest]),
+    )
+  }
+  // A visit order the greedy optimizer would NOT reproduce on its own.
+  function nonOptimalOrder(): string[] {
+    for (const perm of permute(spreadPoiIds)) {
+      if (!sameArr(optimizeIds(perm, new Set()), perm)) return perm
+    }
+    throw new Error('all permutations are greedy-stable for this data')
+  }
+
+  it('handleEdit forwards a non-default order/locked/budget/lunch to /plan, and the Selector re-emits them on submit', () => {
+    const customOrder = nonOptimalOrder()
+    const params: ScheduleParams = {
+      ...spreadParams,
+      order: customOrder,
+      locked: [customOrder[0]],
+      budget: 5,
+      lunch: true,
+    }
+    nav.search = encodeParams(params).toString()
+
+    const { unmount } = render(<ResultView />)
+    fireEvent.click(screen.getByRole('button', { name: /Edit this list/ }))
+    const editUrl = nav.push.mock.calls[0][0] as string
+    unmount()
+
+    nav.push.mockClear()
+    nav.search = editUrl.split('?')[1] ?? ''
+    render(<Selector />)
+    fireEvent.click(screen.getByRole('button', { name: /Plan my day/ }))
+
+    expect(nav.push).toHaveBeenCalledTimes(1)
+    const sp = queryFrom(nav.push.mock.calls[0][0] as string)
+    expect(sp.get('order')?.split(',')).toEqual(customOrder)
+    expect(sp.get('locked')).toBe(customOrder[0])
+    expect(sp.get('budget')).toBe('5')
+    expect(sp.get('lunch')).toBe('1')
+  })
+
+  it('prunes order/locked entries for a place deselected in the Selector', () => {
+    const customOrder = nonOptimalOrder()
+    const removedId = customOrder[0]
+    nav.search = encodeParams({
+      ...spreadParams,
+      order: customOrder,
+      locked: [removedId],
+    }).toString()
+    render(<Selector />)
+
+    const removedName = POI_MAP[removedId].name
+    fireEvent.click(screen.getByRole('checkbox', { name: new RegExp(removedName) }))
+    fireEvent.click(screen.getByRole('button', { name: /Plan my day/ }))
+
+    const sp = queryFrom(nav.push.mock.calls[0][0] as string)
+    expect(sp.get('poi_ids')?.split(',')).not.toContain(removedId)
+    expect(sp.get('order')?.split(',') ?? []).not.toContain(removedId)
+    // The only pinned stop was the one just deselected, so `locked` drops out entirely.
+    expect(sp.get('locked')).toBeNull()
+  })
+})
+
+// (8) P1-5: the picker flags a place closed on the currently-selected trip day.
+describe('picker flags places closed on the selected day', () => {
+  it('shows a "Closed on {day}" warning on a card closed that day, in the desktop grid', () => {
+    // Casa Manila is closed on Monday in the dataset; the Selector defaults to Monday.
+    render(<Selector />)
+    const closedCard = screen.getByRole('checkbox', { name: /Casa Manila/ }).closest('label')!
+    expect(closedCard).toHaveTextContent(/Closed on Monday/)
+  })
+
+  it('does not flag a place that is open on the selected day', () => {
+    render(<Selector />)
+    const openCard = screen.getByRole('checkbox', { name: /Fort Santiago/ }).closest('label')!
+    expect(openCard).not.toHaveTextContent(/Closed on/)
+  })
+
+  it('the flag follows the day when it is changed from the top-of-picker control', () => {
+    render(<Selector />)
+    // Fort Santiago is open every day, so it starts unflagged...
+    const fortCard = screen.getByRole('checkbox', { name: /Fort Santiago/ }).closest('label')!
+    expect(fortCard).not.toHaveTextContent(/Closed on/)
+
+    // ...and Casa Manila (closed only Monday) starts flagged on the default day.
+    const casaCard = screen.getByRole('checkbox', { name: /Casa Manila/ }).closest('label')!
+    expect(casaCard).toHaveTextContent(/Closed on Monday/)
+
+    fireEvent.change(screen.getByLabelText('Day of trip:'), { target: { value: 'Tuesday' } })
+    expect(casaCard).not.toHaveTextContent(/Closed on/)
+  })
+
+  it('shows a heads-up above the CTA when a selected place is closed on the chosen day', () => {
+    render(<Selector />)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Casa Manila/ }))
+    expect(screen.getByText(/1 selected place is closed on Monday/)).toBeInTheDocument()
   })
 })

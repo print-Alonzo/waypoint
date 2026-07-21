@@ -154,6 +154,34 @@ Full report: `.gstack/qa-reports/qa-report-localhost-2026-07-11.md`
 
 ---
 
+## Deferred from usability test (2026-07-21)
+
+3-participant moderated test (P1 Time-Poor Professional, P2/P3 Meticulous Router; see
+`docs/venture/Waypoint Usability Test Participant Tracker.xlsx`). The discoverability/edit-flow
+findings from this test were fixed directly (see `web/DESIGN.md`); the feature requests below are
+new capabilities, out of scope for that fix pass, and deferred here:
+
+- **Multi-modal transit (Grab + Walk in one plan)** — P1: "Is there an option to do both Grab and
+  walk?" Currently one transport mode applies to the whole day. Would need per-leg mode assignment
+  in the scheduler, not just a day-level `transport_mode` param.
+- **Food / restaurant recommendations** — P1 and P2 both asked for nearby-restaurant suggestions
+  (P2: "you could also input like restaurants around the area"); P2 also floated an "experience"
+  filter (e.g. "bar hopping"). Needs a new POI category/dataset dimension and probably a stronger
+  data source than the current static `pois.json`.
+- **Richer POI info (ticket prices, "what to do there")** — P1: would pay more "if it had more
+  information on POIs (what to do there, ticket prices, other POIs such as restaurants)". New
+  authored fields on the POI dataset.
+- **"Be back by X PM" end-time constraint** — P1: "I wish I could put a time na I want to be back
+  in my hotel by [time]." Distinct from the existing `fitToHours` budget (an hours-elapsed cap, not
+  a wall-clock return-by target) — would need new scheduling logic.
+- **Export to Google Maps / Waze** — P3 debrief: expected a file/link to navigate the plan in Maps
+  or Waze. Current export is copy-text, `.ics`, and print only (`lib/plan/export.ts`).
+- **Per-leg distance in km** — P1 wanted to gauge walkability ("maybe it's walkable"). Distance is
+  computed internally (`haversineKm`, `lib/scheduling/scheduler.ts`) but never surfaced; only
+  travel time/fare are shown. Low effort if picked up — mostly a display change.
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds

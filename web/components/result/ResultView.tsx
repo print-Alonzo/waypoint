@@ -17,11 +17,18 @@ import type { Announcements, DragEndEvent, Modifier } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import SortableStop from '@/components/result/SortableStop'
 import { usePrefersReducedMotion } from '@/lib/hooks/use-reduced-motion'
-import { decodeParams, encodeParams } from '@/lib/plan/params'
+import { decodeParams, encodeParams, pruneOrderAndLocked } from '@/lib/plan/params'
 import { optimizeOrder, scheduleAlong, parseTime, formatTime, dwellFor } from '@/lib/scheduling/scheduler'
 import type { POI, ScheduledStop, StopReason, TransportMode, DurationOverrides } from '@/lib/scheduling/scheduler'
 import { POI_MAP, TRANSIT_MATRIX, CITY_LABEL } from '@/lib/poi/data'
-import { START_LOCATION_MAP, modeLabel, LUNCH_WINDOW } from '@/lib/constants'
+import {
+  START_LOCATIONS,
+  START_LOCATION_MAP,
+  DAYS_OF_WEEK,
+  TRANSPORT_MODES,
+  modeLabel,
+  LUNCH_WINDOW,
+} from '@/lib/constants'
 import { reasonLine } from '@/lib/scheduling/reason'
 import { fitToBudget } from '@/lib/scheduling/fit'
 import { dayFare, legFare, formatFare } from '@/lib/scheduling/fare'
@@ -43,7 +50,7 @@ import {
 } from '@/lib/plan/export'
 
 // Bounds for the "fit my day to N hours" slider.
-const BUDGET_MIN = 2
+const BUDGET_MIN = 1
 const BUDGET_MAX = 12
 
 // Leaflet needs `window`, so load the map client-only (no SSR/prerender).
@@ -161,6 +168,13 @@ const ctrlBtn =
   'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-border)] ' +
   'bg-white text-[var(--color-text)] transition hover:bg-[var(--color-bg-subtle)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
+
+// Trip-details fields inside "Adjust your day" (day / start time / starting point /
+// transport). Mirrors the Selector's input styling so editing on the result page
+// feels like the same control, just relocated.
+const tripFieldClass =
+  'w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm ' +
+  'focus:outline-none focus:border-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-text)]'
 
 // Compact at-a-glance summary pill. `warning` tone reuses the flag tokens so a
 // "N flagged" chip carries the same caution signal as the cards it summarizes.
@@ -377,7 +391,7 @@ export default function ResultView() {
       }
       if (setPOIs.length === 0) return null
 
-      // The auto-optimized order (no locks) — the baseline + the "Reset to auto" target.
+      // The auto-optimized order (no locks) — the baseline + the "Reset order" target.
       const defaultOrder = optimizeOrder(
         setPOIs,
         new Set(),
@@ -561,16 +575,12 @@ export default function ResultView() {
   const [liveMsg, setLiveMsg] = useState('')
   // What-if comparison drawer (lazy: only computes when open).
   const [whatIfOpen, setWhatIfOpen] = useState(false)
-  // "Adjust your day" disclosure: collapsed by default to lead with the itinerary,
-  // but opened on first paint when the shared URL already carries adjustments so an
-  // active limit/lunch/arrangement (and its summary) isn't hidden from the viewer.
-  const [adjustOpen, setAdjustOpen] = useState(
-    () =>
-      searchParams.get('lunch') === '1' ||
-      Number(searchParams.get('budget')) > 0 ||
-      !!searchParams.get('order') ||
-      !!searchParams.get('locked'),
-  )
+  // "Adjust your day" disclosure: open by default so the controls (re-optimize,
+  // lunch break, time limit, transport comparison) aren't hidden from a first-time
+  // visitor — a usability test found participants who never noticed the panel while
+  // it defaulted closed, missing features entirely. It stays a collapsible <details>
+  // so a user who doesn't need it can close it; the toggle itself is unaffected.
+  const [adjustOpen, setAdjustOpen] = useState(true)
   // Stable POI array for the what-if drawer so its internal memo isn't busted on
   // every ResultView render (which happens often: copy/live-message state, etc.).
   const whatIfPois = useMemo(
@@ -648,13 +658,21 @@ export default function ResultView() {
     stops.length === 1 ? 'stop' : 'stops'
   } · ${modeLabel(params.transport_mode)}`
 
-  // Summary shown beside the collapsed "Adjust your day" header so active tweaks
-  // stay visible without expanding the panel.
+  // Summary shown beside the "Adjust your day" header so active tweaks stay visible
+  // without expanding the panel.
   const adjustments: string[] = []
   if (model.isCustom) adjustments.push('your order')
   if (model.lunchOn) adjustments.push('lunch break')
   if (model.budget != null) adjustments.push(`${model.budget}h limit`)
   const adjustHint = adjustments.join(' · ')
+
+  // Before anything is customized, name what's inside so the panel isn't a mystery
+  // disclosure — this is what a first-time visitor sees instead of `adjustHint`.
+  const panelContents: string[] = ['trip details', 'reorder & pin']
+  if (isEnabled('lunchBreak')) panelContents.push('lunch break')
+  if (isEnabled('fitToHours')) panelContents.push('time limit')
+  if (isEnabled('whatIf')) panelContents.push('compare transport')
+  const adjustContentsHint = panelContents.join(' · ')
 
   // Single writer for the result URL (the source of truth → shareable + refresh-
   // safe). Every view tweak — reorder, pin, budget, lunch — merges over the CURRENT
@@ -690,6 +708,33 @@ export default function ResultView() {
 
   function writeArrangement(nextOrder: string[], nextLocked: string[]) {
     writeUrl({ order: nextOrder, locked: nextLocked })
+  }
+
+  // Edit day / start time / starting point right on the result page, instead of
+  // round-tripping through the Selector — a usability test found that trip caught
+  // a user's reorder/pin edits and silently discarded them. Unlike chooseMode
+  // (below, used for transport mode), these fields don't change the distances
+  // between stops, so the working order/pins/budget/lunch/durations stay valid and
+  // are carried over unchanged; the model recomputes times/flags from the new params.
+  function updateTripDetails(patch: {
+    day_of_week?: string
+    start_time?: string
+    start_location?: string
+  }) {
+    const m = model!
+    const sp = encodeParams({
+      poi_ids: safeParams.poi_ids,
+      start_time: patch.start_time ?? safeParams.start_time,
+      transport_mode: safeParams.transport_mode,
+      start_location: patch.start_location ?? safeParams.start_location,
+      day_of_week: patch.day_of_week ?? safeParams.day_of_week,
+      order: sameOrder(m.order, m.defaultOrder) ? undefined : m.order,
+      locked: m.locked.size ? [...m.locked] : undefined,
+      budget: m.budget ?? undefined,
+      lunch: m.lunchOn || undefined,
+      durations: Object.keys(m.durations).length ? m.durations : undefined,
+    })
+    router.replace('/result?' + sp.toString(), { scroll: false })
   }
 
   // The single entry point for every order change — ↑/↓, drag, Re-optimize, Reset.
@@ -794,6 +839,42 @@ export default function ResultView() {
     writeArrangement(model!.order, [...next])
   }
 
+  // Drop a stop straight from the result page — a usability test found the only
+  // way to shed a closed/flagged stop was the full round-trip through "Edit this
+  // list". Explicit user action, so this doesn't compromise the faithfulness thesis
+  // (the algorithm silently dropping a stop would; the traveler choosing to isn't).
+  // Guarded against emptying the day by disabling the control when it's the only
+  // stop left (see the disabled prop at the call site).
+  function removeStop(id: string) {
+    const poi = POI_MAP[id]
+    const nextIds = safeParams.poi_ids.filter((pid) => pid !== id)
+    if (nextIds.length === 0) return
+    const selectedIds = new Set(nextIds)
+    const { order: nextOrder, locked: nextLocked } = pruneOrderAndLocked(
+      model!.order,
+      [...model!.locked],
+      selectedIds,
+    )
+    const nextDurations = pruneDurations(
+      model!.durations,
+      nextIds.map((pid) => POI_MAP[pid]),
+    )
+    setLiveMsg(`Removed ${poi?.name ?? 'stop'} from your day.`)
+    const sp = encodeParams({
+      poi_ids: nextIds,
+      start_time: safeParams.start_time,
+      transport_mode: safeParams.transport_mode,
+      start_location: safeParams.start_location,
+      day_of_week: safeParams.day_of_week,
+      order: nextOrder,
+      locked: nextLocked,
+      budget: model!.budget ?? undefined,
+      lunch: model!.lunchOn || undefined,
+      durations: Object.keys(nextDurations).length ? nextDurations : undefined,
+    })
+    router.replace('/result?' + sp.toString(), { scroll: false })
+  }
+
   function reOptimize() {
     const orderPOIs = model!.order.map((id) => POI_MAP[id])
     const opt = optimizeOrder(
@@ -868,9 +949,13 @@ export default function ResultView() {
   }
 
   function handleEdit() {
-    // Drop result-only customization (order/locked/budget/lunch) when returning to
-    // the selector, but carry durations along — the user's tuning of a place is a
-    // property of the place, not of this particular arrangement.
+    // Carry every customization back to the selector — order/locked/budget/lunch/
+    // durations — so returning to "Edit places" no longer silently discards a
+    // reorder/pin/time-limit/lunch adjustment (a usability test found this
+    // destructive: a user going back just to change the day lost unrelated edits).
+    // The Selector re-emits these on submit and prunes anything referencing a POI
+    // the user has since deselected (see pruneToSelection in lib/plan/params.ts).
+    const m = model!
     router.push(
       '/plan?' +
         encodeParams({
@@ -879,7 +964,11 @@ export default function ResultView() {
           transport_mode: safeParams.transport_mode,
           start_location: safeParams.start_location,
           day_of_week: safeParams.day_of_week,
-          durations: Object.keys(model!.durations).length ? model!.durations : undefined,
+          order: sameOrder(m.order, m.defaultOrder) ? undefined : m.order,
+          locked: m.locked.size ? [...m.locked] : undefined,
+          budget: m.budget ?? undefined,
+          lunch: m.lunchOn || undefined,
+          durations: Object.keys(m.durations).length ? m.durations : undefined,
         }).toString(),
     )
   }
@@ -1003,6 +1092,16 @@ export default function ResultView() {
             // an edited arrangement is already saved.
             <SavePlanButton key={currentQuery} query={currentQuery} defaultName={planName} />
           )}
+          {isEnabled('comparePlans') && (
+            // Always reachable — not gated behind having saved a plan first — so
+            // "where are my saved plans?" has one answer, always in the same place.
+            <Link
+              href="/saved"
+              className="font-semibold underline-offset-2 hover:underline"
+            >
+              Saved plans
+            </Link>
+          )}
           {/* Copy / Download / Print tucked behind one trigger to keep the bar calm. */}
           <ExportMenu
             copyLabel={copyLabel}
@@ -1061,19 +1160,21 @@ export default function ResultView() {
         </div>
       </div>
 
-      {/* Adjust your day — arrangement + (feature-flagged) lunch / budget / what-if,
-          collapsed by default so the page leads with the itinerary, not the controls. */}
+      {/* Adjust your day — arrangement + (feature-flagged) lunch / budget / what-if.
+          Open by default (see adjustOpen) so the controls aren't a hidden mystery
+          disclosure; the summary names what's inside either way. */}
       <details
         open={adjustOpen}
         onToggle={(e) => setAdjustOpen(e.currentTarget.open)}
-        className="no-print mt-5 rounded-xl border border-[var(--color-border)] text-sm"
+        className="no-print mt-5 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-sm"
       >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 font-semibold [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 font-semibold transition hover:bg-white [&::-webkit-details-marker]:hidden">
           <span>
             Adjust your day
-            {adjustHint && (
-              <span className="font-normal text-[var(--color-text-muted)]"> · {adjustHint}</span>
-            )}
+            <span className="font-normal text-[var(--color-text-muted)]">
+              {' '}
+              · {adjustHint || adjustContentsHint}
+            </span>
           </span>
           <span
             aria-hidden
@@ -1086,9 +1187,90 @@ export default function ResultView() {
         </summary>
 
         <div className="border-t border-[var(--color-border)]">
+          {/* Trip details: change day / start time / starting point right here
+              instead of leaving for the Selector, which used to silently drop any
+              reorder/pin/budget/lunch customization on return (see updateTripDetails). */}
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="edit-day-of-week"
+                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
+                Day of trip
+              </label>
+              <select
+                id="edit-day-of-week"
+                value={params.day_of_week}
+                onChange={(e) => updateTripDetails({ day_of_week: e.target.value })}
+                className={tripFieldClass}
+              >
+                {DAYS_OF_WEEK.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-start-time"
+                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
+                Start time
+              </label>
+              <input
+                id="edit-start-time"
+                type="time"
+                value={params.start_time}
+                onChange={(e) => updateTripDetails({ start_time: e.target.value })}
+                className={tripFieldClass}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-start-location"
+                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
+                Starting from
+              </label>
+              <select
+                id="edit-start-location"
+                value={params.start_location}
+                onChange={(e) => updateTripDetails({ start_location: e.target.value })}
+                className={tripFieldClass}
+              >
+                {START_LOCATIONS.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-transport-mode"
+                className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
+                Getting around
+              </label>
+              <select
+                id="edit-transport-mode"
+                value={params.transport_mode}
+                onChange={(e) => chooseMode(e.target.value as TransportMode)}
+                className={tripFieldClass}
+              >
+                {TRANSPORT_MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Arrangement: reorder/pin status + reset controls. The day is yours to
               arrange; the optimizer only touches what you haven't pinned. */}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[var(--color-border)] p-4">
             <span className="text-[var(--color-text-muted)]">
               {model.isCustom ? (
                 <>
@@ -1115,7 +1297,7 @@ export default function ResultView() {
                   onClick={resetAuto}
                   className="font-semibold underline-offset-2 hover:underline"
                 >
-                  Reset to auto
+                  Reset order
                 </button>
               </div>
             )}
@@ -1160,7 +1342,37 @@ export default function ResultView() {
                 </label>
                 {model.budget != null && (
                   <div className="mt-3 pl-7">
+                    {/* − / value / + stepper (DurationStepper pattern) for an exact hour
+                        count without fiddling with the drag — a usability tester struggled
+                        to land the slider on a precise value. The slider below it stays for
+                        coarse, at-a-glance adjustment. */}
                     <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setBudget(Math.max(BUDGET_MIN, model.budget! - 1))}
+                        aria-disabled={model.budget <= BUDGET_MIN}
+                        aria-label="Fewer hours"
+                        className={`${ctrlBtn}${
+                          model.budget <= BUDGET_MIN ? ' cursor-not-allowed opacity-40' : ''
+                        }`}
+                      >
+                        −
+                      </button>
+                      <span className="w-12 text-center font-semibold">{model.budget}h</span>
+                      <button
+                        type="button"
+                        onClick={() => setBudget(Math.min(BUDGET_MAX, model.budget! + 1))}
+                        aria-disabled={model.budget >= BUDGET_MAX}
+                        aria-label="More hours"
+                        className={`${ctrlBtn}${
+                          model.budget >= BUDGET_MAX ? ' cursor-not-allowed opacity-40' : ''
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-[var(--color-text-muted)]">{BUDGET_MIN}h</span>
                       <input
                         type="range"
                         min={BUDGET_MIN}
@@ -1172,7 +1384,7 @@ export default function ResultView() {
                         aria-valuetext={`${model.budget} hours`}
                         className="w-full accent-[var(--color-primary)]"
                       />
-                      <span className="w-12 shrink-0 text-right font-semibold">{model.budget}h</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">{BUDGET_MAX}h</span>
                     </div>
                     {/* aria-live so screen-reader / keyboard users hear the recomputed
                         consequence as they adjust the slider (the feature's payload). */}
@@ -1307,7 +1519,9 @@ export default function ResultView() {
                           {stop.redFlag && <span aria-hidden>✕</span>}
                           {!stop.redFlag && stop.yellowFlag && <span aria-hidden>⚠</span>}
                           <span className="text-sm text-[var(--color-text-muted)]">{i + 1}</span>
-                          <span className="font-semibold">{wallClock(stop.arrivalTime)}</span>
+                          <span className="font-semibold">
+                            {wallClock(stop.arrivalTime)}–{wallClock(stop.departureTime)}
+                          </span>
                           <h2 className="font-semibold">{stop.poi.name}</h2>
                           {outOfBudget && (
                             <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
@@ -1353,6 +1567,22 @@ export default function ResultView() {
                             }
                           >
                             <LockIcon locked={locked} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeStop(stop.poi.id)}
+                            aria-disabled={stops.length === 1}
+                            aria-label={`Remove ${stop.poi.name}`}
+                            title={
+                              stops.length === 1
+                                ? "Can't remove your only stop — edit your list instead"
+                                : undefined
+                            }
+                            className={`${ctrlBtn}${
+                              stops.length === 1 ? ' cursor-not-allowed opacity-40' : ''
+                            }`}
+                          >
+                            ✕
                           </button>
                         </div>
                       </div>

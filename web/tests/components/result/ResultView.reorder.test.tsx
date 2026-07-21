@@ -143,12 +143,12 @@ describe('ResultView reorder + lock', () => {
     expect(text).not.toMatch(/Closest|Among the nearest/)
   })
 
-  it('Reset to auto clears both order and locked params', () => {
+  it('Reset order clears both order and locked params', () => {
     const ids = BASE.poi_ids
     nav.search = encodeParams({ ...BASE, order: [...ids].reverse(), locked: [ids[0]] }).toString()
     render(<ResultView />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Reset to auto/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Reset order/ }))
     const sp = queryFrom(nav.replace.mock.calls[0][0] as string)
     expect(sp.has('order')).toBe(false)
     expect(sp.has('locked')).toBe(false)

@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   getSavedPlansSnapshot,
   removePlan,
@@ -54,8 +55,18 @@ export default function CompareView() {
   // first client render (server snapshot is the stable empty array) with no
   // separate mount effect.
   const plans = useSyncExternalStore(subscribeSavedPlans, getSavedPlansSnapshot, () => EMPTY_PLANS)
+  const router = useRouter()
   const [aId, setAId] = useState<string>('')
   const [bId, setBId] = useState<string>('')
+
+  // Compare is a pure 2-plan tool; with nothing saved there's nothing to compare,
+  // and /saved already owns the "you haven't saved anything" message — so redirect
+  // there instead of duplicating that copy here. This has to be a client-side
+  // effect (not a server check in app/compare/page.tsx) since plans are
+  // localStorage-only, unknown until the first client render.
+  useEffect(() => {
+    if (plans.length === 0) router.replace('/saved')
+  }, [plans.length, router])
 
   // Default to the first two plans until the traveler picks explicitly.
   const effectiveAId = aId || plans[0]?.id || ''
@@ -74,24 +85,9 @@ export default function CompareView() {
     setBId((prev) => (prev === id ? '' : prev))
   }
 
-  if (plans.length === 0) {
-    return (
-      <div className="mx-auto max-w-2xl px-5 py-10">
-        <h1 className="text-2xl font-bold tracking-tight">Compare plans</h1>
-        <p className="mt-3 text-[var(--color-text-muted)]">
-          You haven’t saved any plans yet. Open a plan and tap{' '}
-          <span className="font-semibold text-[var(--color-text)]">Save plan</span> on the result
-          page, then come back here to compare two side by side.
-        </p>
-        <Link
-          href="/plan"
-          className="mt-6 inline-flex rounded-lg bg-[var(--color-primary)] px-5 py-3 font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-        >
-          Plan a day →
-        </Link>
-      </div>
-    )
-  }
+  // The redirect effect above fires, but only after this first render — return
+  // nothing rather than flashing dropdowns/table with no plans to populate them.
+  if (plans.length === 0) return null
 
   const selectClass =
     'w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm ' +

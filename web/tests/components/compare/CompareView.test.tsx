@@ -14,6 +14,11 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+const nav = vi.hoisted(() => ({ replace: vi.fn() }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: nav.replace }),
+}))
+
 const SHORT: ScheduleParams = {
   poi_ids: ['fort-santiago'],
   start_time: '09:00',
@@ -31,13 +36,14 @@ const LONG: ScheduleParams = {
 
 beforeEach(() => {
   localStorage.clear()
+  nav.replace.mockClear()
 })
 
 describe('CompareView', () => {
-  it('shows an empty state with a link to /plan when nothing is saved', () => {
+  it('redirects to /saved when nothing is saved, instead of rendering the tool', () => {
     render(<CompareView />)
-    expect(screen.getByText(/haven.t saved any plans yet/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /plan a day/i })).toHaveAttribute('href', '/plan')
+    expect(nav.replace).toHaveBeenCalledWith('/saved')
+    expect(screen.queryByText(/compare plans/i)).not.toBeInTheDocument()
   })
 
   it('defaults to comparing the two most recently saved plans', () => {

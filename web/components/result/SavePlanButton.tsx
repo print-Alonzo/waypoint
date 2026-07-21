@@ -78,20 +78,20 @@ export default function SavePlanButton({
         type="button"
         onClick={() => setMode('naming')}
         aria-label={mode === 'saved' ? 'Plan saved' : 'Save this plan to compare later'}
-        className="font-semibold underline-offset-2 hover:underline"
+        className="flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-white px-4 text-sm font-semibold transition hover:bg-[var(--color-bg-subtle)]"
       >
         {mode === 'saved' ? 'Saved ✓' : 'Save plan'}
       </button>
       {mode === 'saved' && (
         <Link
-          href="/compare"
+          href="/saved"
           className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
         >
-          Compare
+          View saved plans
         </Link>
       )}
       <span aria-live="polite" className="sr-only">
-        {mode === 'saved' ? 'Plan saved — Compare is now available.' : ''}
+        {mode === 'saved' ? 'Plan saved — view it in Saved plans.' : ''}
       </span>
     </span>
   )

@@ -127,12 +127,12 @@ describe('optimistic order (the foundation drag-and-drop sorts against)', () => 
     expect(renderedNames().map((n) => NAME_TO_ID[n])).toEqual(reversed)
   })
 
-  it('Reset to auto still clears both order and locked through the optimistic path', () => {
+  it('Reset order still clears both order and locked through the optimistic path', () => {
     const ids = BASE.poi_ids
     nav.search = encodeParams({ ...BASE, order: [...ids].reverse(), locked: [ids[0]] }).toString()
     render(<ResultView />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Reset to auto/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Reset order/ }))
 
     const sp = queryFrom(nav.replace.mock.calls[0][0] as string)
     expect(sp.has('order')).toBe(false)

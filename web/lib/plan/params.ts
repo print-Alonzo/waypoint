@@ -43,6 +43,24 @@ export function encodeParams(params: ScheduleParams): URLSearchParams {
   return sp
 }
 
+// Drop any order/locked id that's no longer in the current selection — mirrors
+// pruneDurations' discipline (lib/scheduling/duration.ts). Used when a result-page
+// arrangement is carried back through the Selector (ResultView's "Edit this list")
+// and the user then adds/removes a place there, so a deselected POI doesn't linger
+// as a ghost id in the order/pins carried forward to the new /result URL.
+export function pruneOrderAndLocked(
+  order: string[] | undefined,
+  locked: string[] | undefined,
+  selectedIds: Set<string>,
+): { order?: string[]; locked?: string[] } {
+  const prunedOrder = order?.filter((id) => selectedIds.has(id))
+  const prunedLocked = locked?.filter((id) => selectedIds.has(id))
+  return {
+    order: prunedOrder && prunedOrder.length ? prunedOrder : undefined,
+    locked: prunedLocked && prunedLocked.length ? prunedLocked : undefined,
+  }
+}
+
 export function decodeParams(sp: URLSearchParams): ScheduleParams | null {
   const poi_ids_raw = sp.get('poi_ids')
   const start_time = sp.get('start_time')
