@@ -11,7 +11,7 @@ import {
   TRANSPORT_MODES,
   START_LOCATIONS,
 } from '@/lib/constants'
-import { encodeParams, decodeParams } from '@/lib/plan/params'
+import { encodeParams, decodeParams, pruneOrderAndLocked } from '@/lib/plan/params'
 import type { ScheduleParams } from '@/lib/plan/params'
 import type { POI, TransportMode } from '@/lib/scheduling/scheduler'
 import { hoursLabel } from '@/lib/poi/format'
@@ -22,15 +22,29 @@ function categoryLabel(key: string): string {
   return CATEGORIES.find((c) => c.key === key)?.label ?? key
 }
 
+// A prominent warning pill for a place closed on the currently-selected trip day —
+// bg + icon + text, never color alone (DESIGN.md flag tints). A usability tester
+// added a place without noticing the small muted hours line already said it was
+// closed that day; this makes the SELECTED day's closure impossible to miss.
+function ClosedOnDayPill({ day }: { day: string }) {
+  return (
+    <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border border-[var(--color-flag-warning-border)] bg-[var(--color-flag-warning-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--color-flag-warning-text)]">
+      <span aria-hidden>⚠</span> Closed on {day}
+    </span>
+  )
+}
+
 // An image-forward, tappable place card (Airbnb-style). The whole card toggles a
 // visually-hidden (but focusable) checkbox; selection shows a coral ring + check.
 function PoiCard({
   poi,
   selected,
+  dayOfWeek,
   onToggle,
 }: {
   poi: POI
   selected: boolean
+  dayOfWeek: string
   onToggle: () => void
 }) {
   return (
@@ -69,6 +83,7 @@ function PoiCard({
       <span className="flex flex-1 flex-col p-3">
         <span className="text-sm font-semibold leading-tight">{poi.name}</span>
         <span className="mt-0.5 text-xs text-[var(--color-text-muted)]">{hoursLabel(poi)}</span>
+        {poi.closed_days.includes(dayOfWeek) && <ClosedOnDayPill day={dayOfWeek} />}
       </span>
     </label>
   )
@@ -99,10 +114,16 @@ export default function Selector() {
     prefill?.start_location ?? START_LOCATIONS[0].id,
   )
   const [dayOfWeek, setDayOfWeek] = useState(prefill?.day_of_week ?? 'Monday')
-  // Per-stop duration overrides carried over from a result-page edit (see
-  // ResultView's handleEdit). No UI here — durations are only ever edited on
-  // /result — this just prevents "Edit places" from silently discarding them.
+  // Result-page customization carried over from a result-page edit (see
+  // ResultView's handleEdit). No UI here for any of these — they're only ever
+  // edited on /result — this just prevents "Edit places" from silently discarding
+  // them. order/locked are pruned to the surviving selection on submit below;
+  // budget/lunch aren't POI-specific so they need no pruning.
   const [durations] = useState(() => prefill?.durations ?? {})
+  const [carriedOrder] = useState(() => prefill?.order)
+  const [carriedLocked] = useState(() => prefill?.locked)
+  const [carriedBudget] = useState(() => prefill?.budget)
+  const [carriedLunch] = useState(() => prefill?.lunch)
 
   const grouped = useMemo(
     () =>
@@ -142,6 +163,11 @@ export default function Selector() {
     const carriedDurations = Object.fromEntries(
       Object.entries(durations).filter(([id]) => selected.has(id)),
     )
+    const { order: carriedOrderPruned, locked: carriedLockedPruned } = pruneOrderAndLocked(
+      carriedOrder,
+      carriedLocked,
+      selected,
+    )
     const params: ScheduleParams = {
       // Keep dataset order; the scheduler reorders anyway.
       poi_ids: POIS.filter((p) => selected.has(p.id)).map((p) => p.id),
@@ -149,19 +175,54 @@ export default function Selector() {
       transport_mode: transportMode,
       start_location: startLocation,
       day_of_week: dayOfWeek,
+      ...(carriedOrderPruned ? { order: carriedOrderPruned } : {}),
+      ...(carriedLockedPruned ? { locked: carriedLockedPruned } : {}),
+      ...(carriedBudget ? { budget: carriedBudget } : {}),
+      ...(carriedLunch ? { lunch: carriedLunch } : {}),
       ...(Object.keys(carriedDurations).length ? { durations: carriedDurations } : {}),
     }
     router.push('/result?' + encodeParams(params).toString())
   }
 
   const count = selected.size
+  // Heads-up near the CTA when the current selection includes a place that's
+  // closed on the chosen day — a usability tester picked a place without
+  // noticing it was closed that day (the hours line alone wasn't enough).
+  const closedSelectedCount = POIS.filter(
+    (p) => selected.has(p.id) && p.closed_days.includes(dayOfWeek),
+  ).length
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-2xl px-5 py-8 pb-28">
       <h1 className="text-3xl font-bold tracking-tight">Where do you want to go?</h1>
       <p className="mt-2 text-[var(--color-text-muted)]">
-        Select the places you want to visit, then plan your day.
+        Select the places you want to visit, then plan your day. Pick in any order — Waypoint
+        arranges the best route for you.
       </p>
+
+      {/* Trip day, surfaced above the picker (not just in "Trip details" below) so
+          it's set before — not after — a place is chosen, and so a place closed on
+          it is flagged live as you pick. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-4 py-3 text-sm">
+        <label htmlFor="day-of-week-top" className="font-semibold">
+          Day of trip:
+        </label>
+        <select
+          id="day-of-week-top"
+          value={dayOfWeek}
+          onChange={(e) => setDayOfWeek(e.target.value)}
+          className="rounded-md border border-[var(--color-border)] bg-white px-2 py-1 font-semibold focus:outline-none focus:border-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-text)]"
+        >
+          {DAYS_OF_WEEK.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <span className="text-[var(--color-text-muted)]">
+          Places closed that day are flagged below.
+        </span>
+      </div>
 
       {/* Phones: swipe deck (CSS-hidden ≥sm). Tablet/desktop: category grid
           (CSS-hidden <sm). Both render; visibility is pure CSS so there's no
@@ -172,6 +233,7 @@ export default function Selector() {
           isSelected={(id) => selected.has(id)}
           setSelected={setSelectedOne}
           categoryLabel={categoryLabel}
+          dayOfWeek={dayOfWeek}
         />
       </div>
 
@@ -187,6 +249,7 @@ export default function Selector() {
                   key={poi.id}
                   poi={poi}
                   selected={selected.has(poi.id)}
+                  dayOfWeek={dayOfWeek}
                   onToggle={() => toggle(poi.id)}
                 />
               ))}
@@ -281,6 +344,14 @@ export default function Selector() {
       {/* Sticky CTA bar (Airbnb-style) */}
       <div className="fixed inset-x-0 bottom-0 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-4">
         <div className="mx-auto max-w-2xl">
+          {closedSelectedCount > 0 && (
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-flag-warning-text)]">
+              <span aria-hidden>⚠</span>
+              {closedSelectedCount === 1
+                ? `1 selected place is closed on ${dayOfWeek}.`
+                : `${closedSelectedCount} selected places are closed on ${dayOfWeek}.`}
+            </p>
+          )}
           <button
             type="submit"
             disabled={count === 0}

@@ -75,7 +75,7 @@ moved. The only place it carries real weight today is reordering the itinerary.
   (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). dnd-kit builds its transition
   string in JS, so `REORDER_MS` / `REORDER_EASING` in [`components/result/SortableStop.tsx`](components/result/SortableStop.tsx)
   mirror these as raw values. **Change both or neither.**
-- **Every order change animates, by any route** — `↑ ↓`, drag, Re-optimize, Reset to auto, browser
+- **Every order change animates, by any route** — `↑ ↓`, drag, Re-optimize, Reset order, browser
   back. `useSortable` is given `animateLayoutChanges: () => defaultAnimateLayoutChanges({...args,
   wasDragging: true })`, which makes dnd-kit FLIP on any index change rather than only after a drag.
   There is no hand-rolled FLIP anywhere in the app, and there shouldn't be a second one.
@@ -112,7 +112,13 @@ moved. The only place it carries real weight today is reordering the itinerary.
   attribution stays compliant without cluttering the page. Only curated landmarks have a photo.
 - **POI picker — responsive two-mode** ([`components/plan/Selector.tsx`](components/plan/Selector.tsx)): the
   selector renders **both** views and lets **CSS** pick (no `matchMedia`/JS gate — that read stale
-  under device emulation and risked a hydration mismatch; CSS `@media` is reliable and flash-free):
+  under device emulation and risked a hydration mismatch; CSS `@media` is reliable and flash-free).
+  The **trip day** is surfaced in a compact bar above the picker (not only in "Trip details" below
+  it), bound to the same `dayOfWeek` state, so it's set before a place is chosen rather than
+  discovered as a below-the-fold surprise. Any place closed on that day gets a prominent warning pill
+  (bg + ⚠ + text — never color alone) on its card in **both** modes, beyond the small muted hours
+  line — a usability test found the hours line alone went unnoticed. A heads-up also sits above the
+  sticky CTA when the current selection includes a place closed on the chosen day.
   - **Tablet/desktop (≥ sm): image-forward card grid** (`hidden sm:block`; `grid-cols-2
     sm:grid-cols-3`, grouped by category `<fieldset>`/`<legend>`) — each card is a `4/3` `next/image`
     (category line-icon placeholder for the ~5 POIs without a photo) above the name + muted hours. The
@@ -166,10 +172,14 @@ moved. The only place it carries real weight today is reordering the itinerary.
   map, Compare, Live, and both exports never disagree on times.
 - **Reorder & pin (lock)** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): the day is
   yours to arrange — the optimizer only sequences what you haven't pinned. Each stop card carries
-  screen-only `↑ ↓` move controls, a **drag handle**, and a **pin** toggle (an inline lock glyph,
-  coral-filled when pinned). A controls bar reads "Reorder with ↑ ↓…" by default and switches to
+  screen-only `↑ ↓` move controls, a **drag handle**, a **pin** toggle (an inline lock glyph,
+  coral-filled when pinned), and a **✕ remove** control (`removeStop`, disabled with a title hint on
+  the day's only remaining stop) — dropping a stop is an explicit traveler action, not the algorithm
+  silently dropping it, so it doesn't compromise the faithfulness thesis. Removing prunes that id out
+  of `order`/`locked`/`durations` the same way `handleEdit`'s round-trip does
+  (`pruneOrderAndLocked`, [`lib/plan/params.ts`](lib/plan/params.ts)). A controls bar reads "Reorder with ↑ ↓…" by default and switches to
   "Your order · N pinned" with **Re-optimize unpinned** (reflows the free stops by nearest-neighbor
-  while pinned stops hold their slot) and **Reset to auto** once customized. State is the single
+  while pinned stops hold their slot) and **Reset order** once customized. State is the single
   source of truth in the **URL** (`order` + `locked` params via [`lib/plan/params.ts`](lib/plan/params.ts)),
   written with `router.replace` (`scroll:false`) so every arrangement stays shareable + refresh-safe
   without piling up history. Placement is computed faithfully: a stop is labelled `optimized` only
@@ -204,7 +214,10 @@ moved. The only place it carries real weight today is reordering the itinerary.
   flex-wrap justify-between` — `← Edit this list` on the left; `Copy text`, `Download .ics`, `Print`
   grouped on the right (each a text button with `underline-offset-2 hover:underline`). `Copy text`
   swaps its label to `Copied!` / `Copy failed` for ~2.5s (`aria-live="polite"`); the timer is cleared
-  on unmount and on re-click.
+  on unmount and on re-click. `← Edit this list` carries order/locked/budget/lunch/durations back to
+  the Selector (`handleEdit`) so returning there and submitting again doesn't discard a result-page
+  customization; the Selector prunes any of it that references a since-deselected place
+  (`pruneOrderAndLocked`, [`lib/plan/params.ts`](lib/plan/params.ts)).
 - **Share / export** ([`lib/plan/export.ts`](lib/plan/export.ts)): pure builders for a copyable text
   itinerary and an RFC 5545 `.ics` file (side effects — clipboard, Blob download — stay in
   ResultView, which injects `now`). Both **carry the same flags the page shows**: a `[CLOSED]` /
@@ -223,14 +236,21 @@ All of the below are gated by [`lib/features.ts`](lib/features.ts) — one boole
 `false` removes the entry point and tree-shakes the code out. They preserve the transparency thesis:
 nothing is dropped, and every estimate is shown as a labelled range.
 
-- **"Adjust your day" panel** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): a bordered
-  `no-print` section grouping the result-page options — a **lunch break** checkbox (reserves
-  `LUNCH_WINDOW` 12:00–13:30; later arrivals shift, with a centered "🍴 Lunch …" pill in the list), a
-  **"Fit my day to a time limit"** checkbox + range slider (`fitToHours`), and a **"Compare walk /
-  jeepney / Grab"** disclosure (`aria-expanded`).
+- **"Adjust your day" panel** ([`components/result/ResultView.tsx`](components/result/ResultView.tsx)): a bordered,
+  subtly-tinted `no-print` `<details>` grouping the result-page options — a **Trip details** grid
+  (day of trip, start time, starting point, transport mode) so those can be changed without leaving
+  for the Selector, reorder/pin status, a **lunch break** checkbox (reserves `LUNCH_WINDOW` 12:00–13:30; later arrivals shift, with a centered
+  "🍴 Lunch …" pill in the list), a **"Fit my day to a time limit"** checkbox + range slider
+  (`fitToHours`), and a **"Compare walk / jeepney / Grab"** disclosure (`aria-expanded`). **Open by
+  default** (a usability test found the panel went unnoticed while collapsed, hiding features
+  entirely) — the summary names its contents even before anything is customized, and stays user-
+  collapsible via the native `<details>` toggle.
 - **Fit to hours** ([`lib/scheduling/fit.ts`](lib/scheduling/fit.ts)): over-budget stops are **greyed (`opacity-60`) with a
   "Beyond your Nh" pill — never removed** — plus an honest summary line ("N stops fall beyond your Nh
   budget…", or "getting back to {start} would run past your Nh budget"). `budget` lives in the URL.
+  Set via a **− / value / + stepper** (the `DurationStepper` pattern, exact hour counts without
+  fiddling a drag) above a range slider with `{BUDGET_MIN}h`/`{BUDGET_MAX}h` endpoint labels for
+  coarse adjustment.
 - **Fare estimator** ([`lib/scheduling/fare.ts`](lib/scheduling/fare.ts)): a `~₱low–high` range in the header and on each
   transit connector (walking is "Free"); ranges only, never false precision. Speeds match the scheduler.
 - **What-if drawer** ([`components/result/WhatIfDrawer.tsx`](components/result/WhatIfDrawer.tsx)): a small table
@@ -241,8 +261,12 @@ nothing is dropped, and every estimate is shown as a labelled range.
   shift, and a dimmed/✓ timeline. Clock read in an effect (no hydration drift).
 - **Compare plans** ([`components/compare/CompareView.tsx`](components/compare/CompareView.tsx), `/compare`): two saved
   plans side by side; fewer hours / fewer flags / cheaper fare are highlighted. Plans are saved to
-  `localStorage` ([`lib/storage/saved-plans.ts`](lib/storage/saved-plans.ts)) via **Save plan** on the result page,
-  which prompts for a name inline so plans stay distinguishable when comparing.
+  `localStorage` ([`lib/storage/saved-plans.ts`](lib/storage/saved-plans.ts)) via a bordered **Save plan**
+  button ([`components/result/SavePlanButton.tsx`](components/result/SavePlanButton.tsx), ≥44px tap target) on
+  the result page, which prompts for a name inline so plans stay distinguishable when comparing. A
+  **"Saved plans"** link to `/compare` sits in the result-page utility bar at all times (not gated
+  behind having saved anything first — a usability test found the only prior path to saved plans,
+  the post-save "Compare" link, went undiscovered).
 - **Presets** ([`lib/plan/presets.ts`](lib/plan/presets.ts)): landing-page cards that deep-link to a ready-made
   `/result` URL — no special-casing, fully editable on arrival.
 - **Offline** ([`public/sw.js`](public/sw.js)): a service worker (network-first pages, stale-while-

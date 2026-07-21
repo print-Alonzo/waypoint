@@ -21,6 +21,7 @@ type Decision = { id: string; prev: boolean }
 function DeckCard({
   poi,
   categoryLabel,
+  dayOfWeek,
   style,
   className = '',
   interactive,
@@ -30,6 +31,7 @@ function DeckCard({
 }: {
   poi: POI
   categoryLabel: string
+  dayOfWeek: string
   style?: React.CSSProperties
   className?: string
   interactive?: boolean
@@ -92,6 +94,11 @@ function DeckCard({
         </p>
         <h3 className="mt-1 text-lg font-bold leading-tight">{poi.name}</h3>
         <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">{hoursLabel(poi)}</p>
+        {poi.closed_days.includes(dayOfWeek) && (
+          <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-full border border-[var(--color-flag-warning-border)] bg-[var(--color-flag-warning-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--color-flag-warning-text)]">
+            <span aria-hidden>⚠</span> Closed on {dayOfWeek}
+          </span>
+        )}
         {poi.notes ? (
           <p className="mt-1.5 line-clamp-2 text-sm italic text-[var(--color-text-muted)]">
             {poi.notes}
@@ -137,11 +144,13 @@ export default function PoiSwipeDeck({
   isSelected,
   setSelected,
   categoryLabel,
+  dayOfWeek,
 }: {
   pois: POI[]
   isSelected: (id: string) => boolean
   setSelected: (id: string, value: boolean) => void
   categoryLabel: (key: string) => string
+  dayOfWeek: string
 }) {
   const [activeCat, setActiveCat] = useState('all')
   const [index, setIndex] = useState(0)
@@ -353,6 +362,7 @@ export default function PoiSwipeDeck({
                 key={deck[index + 2].id}
                 poi={deck[index + 2]}
                 categoryLabel={categoryLabel(deck[index + 2].category)}
+                dayOfWeek={dayOfWeek}
                 aria-hidden
                 style={{
                   transform: 'translateY(16px) scale(0.92)',
@@ -366,6 +376,7 @@ export default function PoiSwipeDeck({
                 key={deck[index + 1].id}
                 poi={deck[index + 1]}
                 categoryLabel={categoryLabel(deck[index + 1].category)}
+                dayOfWeek={dayOfWeek}
                 aria-hidden
                 style={{
                   transform: 'translateY(8px) scale(0.96)',
@@ -378,6 +389,7 @@ export default function PoiSwipeDeck({
               key={current.id}
               poi={current}
               categoryLabel={categoryLabel(current.category)}
+              dayOfWeek={dayOfWeek}
               interactive
               added={isSelected(current.id)}
               drag={offset}

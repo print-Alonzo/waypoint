@@ -42,7 +42,7 @@ export default function SortableStop({
 }: Props) {
   // dnd-kit only animates layout changes that FOLLOW a drag by default. Forcing
   // `wasDragging` makes it FLIP on ANY index change, so the ↑ ↓ buttons,
-  // Re-optimize, Reset to auto and browser-back all animate through this one path
+  // Re-optimize, Reset order and browser-back all animate through this one path
   // — no hand-rolled FLIP anywhere else in the app.
   const animateLayoutChanges: AnimateLayoutChanges = (args) =>
     reduceMotion ? false : defaultAnimateLayoutChanges({ ...args, wasDragging: true })
