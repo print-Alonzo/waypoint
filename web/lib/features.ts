@@ -32,6 +32,11 @@ export const FEATURES = {
   // (everyone votes on one phone). True multi-device voting needs a shared backend,
   // which Waypoint deliberately doesn't have — see web/README.md.
   groupVote: false,
+  // Willingness-to-pay validation funnel: landing → persona quiz → app trial →
+  // survey → waitlist email, capturing data to MongoDB Atlas. Set to `false` to
+  // end the study — the landing CTA and every funnel entry point (`/quiz`,
+  // `/feedback`, `/thanks`) revert/redirect home and the code tree-shakes out.
+  validation: true,
 } as const
 
 export type FeatureFlag = keyof typeof FEATURES

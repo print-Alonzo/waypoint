@@ -26,6 +26,8 @@ import { reasonLine } from '@/lib/scheduling/reason'
 import { fitToBudget } from '@/lib/scheduling/fit'
 import { dayFare, legFare, formatFare } from '@/lib/scheduling/fare'
 import { isEnabled } from '@/lib/features'
+import { hasSession } from '@/lib/validation/session'
+import { track } from '@/lib/validation/track'
 import { clampDuration, pruneDurations, DURATION_MIN, DURATION_MAX, DURATION_STEP } from '@/lib/scheduling/duration'
 import { fetchRoadOverlay, mergeTransitMatrix, isRoadRoutingConfigured } from '@/lib/scheduling/routing'
 import type { RouteLeg, RoadOverlay } from '@/lib/scheduling/routing'
@@ -581,6 +583,18 @@ export default function ResultView() {
     if (!model) router.replace('/')
   }, [model, router])
 
+  // Validation funnel: a visitor who arrived via the quiz (or already has a
+  // session from an earlier quiz completion) has now tried the real app — record
+  // that milestone once per mount, and let them dismiss the feedback banner.
+  const [feedbackBannerDismissed, setFeedbackBannerDismissed] = useState(false)
+  const triedAppTracked = useRef(false)
+  useEffect(() => {
+    if (!isEnabled('validation') || triedAppTracked.current) return
+    if (searchParams.get('from') !== 'quiz' && !hasSession()) return
+    triedAppTracked.current = true
+    void track('tried_app')
+  }, [searchParams])
+
   if (!model || !params) return null
 
   const { startLocation, stops, legGeometry } = model
@@ -946,6 +960,24 @@ export default function ResultView() {
         {totalFare && <Chip>~{formatFare(totalFare)} fare</Chip>}
         {model.isCustom && <Chip>Your order</Chip>}
       </div>
+
+      {/* Validation-funnel banner: dismissible, screen-only. Disappears entirely
+          once the `validation` flag flips off (see lib/features.ts). */}
+      {isEnabled('validation') && !feedbackBannerDismissed && (
+        <div className="no-print mt-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-4 py-3 text-sm">
+          <Link href="/feedback" className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline">
+            Finished exploring? Tell us what you think →
+          </Link>
+          <button
+            type="button"
+            onClick={() => setFeedbackBannerDismissed(true)}
+            aria-label="Dismiss"
+            className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Utility bar */}
       <div className="no-print mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-y border-[var(--color-border)] py-2 text-sm text-[var(--color-text-muted)]">
