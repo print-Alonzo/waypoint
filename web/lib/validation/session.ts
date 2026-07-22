@@ -16,6 +16,8 @@ export type ValidationSession = {
   triedAppAt: number | null
   feedbackOpenedAt: number | null
   submittedAt: number | null
+  surveyPromptCount: number
+  surveyPromptLastAt: number | null
 }
 
 const KEY = 'waypoint:validation'
@@ -31,6 +33,8 @@ function freshSession(now: number): ValidationSession {
     triedAppAt: null,
     feedbackOpenedAt: null,
     submittedAt: null,
+    surveyPromptCount: 0,
+    surveyPromptLastAt: null,
   }
 }
 
