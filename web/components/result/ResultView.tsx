@@ -605,6 +605,10 @@ export default function ResultView() {
     void track('tried_app')
   }, [searchParams])
 
+  // The dwell-triggered survey modal itself now lives in SurveyPromptController
+  // (mounted app-wide in app/layout.tsx) so it can track dwell across pages
+  // instead of resetting every time the visitor navigates away from /result.
+
   if (!model || !params) return null
 
   const { startLocation, stops, legGeometry } = model

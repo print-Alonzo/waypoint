@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister'
+import SurveyPromptController from '@/components/validation/SurveyPromptController'
 
 // Plus Jakarta Sans stands in for Airbnb's proprietary "Cereal" typeface.
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main className="flex-1">{children}</main>
         <ServiceWorkerRegister />
+        <SurveyPromptController />
       </body>
     </html>
   )
