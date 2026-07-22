@@ -188,6 +188,7 @@ export default function FeedbackView() {
     willingToPay !== null &&
     pricingModel !== '' &&
     pricesValid &&
+    worthPaying.trim() !== '' &&
     budgetSource !== null &&
     emailValid &&
     consent &&
@@ -211,7 +212,7 @@ export default function FeedbackView() {
       },
       pricingModel,
       priceUnit: PRICE_UNIT_BY_MODEL[pricingModel as PricingModel],
-      ...(worthPaying.trim() ? { worthPaying: worthPaying.trim() } : {}),
+      worthPaying: worthPaying.trim(),
       budgetSource,
       email: email.trim(),
       consent,
@@ -373,11 +374,11 @@ export default function FeedbackView() {
         <label htmlFor="worth-paying" className="mb-1.5 block text-sm font-semibold">
           What would make Waypoint worth paying for?
         </label>
-        <p className="mb-1.5 text-xs text-[var(--color-text-muted)]">Optional</p>
         <textarea
           id="worth-paying"
           rows={3}
           maxLength={500}
+          required
           className={inputClass}
           value={worthPaying}
           onChange={(e) => setWorthPaying(e.target.value)}

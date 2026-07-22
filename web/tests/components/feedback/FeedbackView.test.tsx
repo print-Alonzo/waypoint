@@ -30,6 +30,7 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Getting pricey'), '300')
   await user.type(screen.getByLabelText('Too expensive'), '500')
   await user.click(screen.getByRole('button', { name: 'My own money' }))
+  await user.type(screen.getByLabelText(/worth paying for/i), 'faster planning')
   await user.type(screen.getByLabelText('Email'), 'traveler@example.com')
   await user.click(screen.getByRole('checkbox'))
 }
@@ -90,7 +91,7 @@ describe('FeedbackView', () => {
     expect(body.timeLost).toBe('under-1h')
     expect(body.budgetSource).toBe('personal')
     expect(body.priceUnit).toBe('per-month')
-    expect(body).not.toHaveProperty('worthPaying')
+    expect(body.worthPaying).toBe('faster planning')
   })
 
   it('disables price fields until a pricing structure is chosen and shows the unit', async () => {
@@ -124,10 +125,11 @@ describe('FeedbackView', () => {
     expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled()
   })
 
-  it('includes a trimmed worthPaying in the payload when filled', async () => {
+  it('trims whitespace from worthPaying before submitting', async () => {
     const user = userEvent.setup()
     render(<FeedbackView />)
     await fillValidForm(user)
+    await user.clear(screen.getByLabelText(/worth paying for/i))
     await user.type(screen.getByLabelText(/worth paying for/i), '  faster planning  ')
 
     await user.click(screen.getByRole('button', { name: /^submit$/i }))
@@ -137,6 +139,14 @@ describe('FeedbackView', () => {
     const submitCall = calls.find((c) => JSON.parse(c[1].body).milestone === 'submitted')
     const body = JSON.parse(submitCall![1].body)
     expect(body.worthPaying).toBe('faster planning')
+  })
+
+  it('keeps submit disabled when worthPaying is left blank', async () => {
+    const user = userEvent.setup()
+    render(<FeedbackView />)
+    await fillValidForm(user)
+    await user.clear(screen.getByLabelText(/worth paying for/i))
+    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled()
   })
 
   it('shows an inline error and keeps entered data when the submit fails', async () => {
