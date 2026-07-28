@@ -143,4 +143,35 @@ describe('validateSubmission', () => {
     const { errors } = validateSubmission({ ...VALID_SUBMITTED, worthPaying: 42 })
     expect(errors.worthPaying).toBeTruthy()
   })
+
+  describe('waitlist milestone', () => {
+    const VALID_WAITLIST = {
+      sid: 'abc-123',
+      milestone: 'waitlist',
+      email: 'traveler@example.com',
+      consent: true,
+    }
+
+    it('accepts a valid email and consent', () => {
+      const { errors, sid, doc } = validateSubmission(VALID_WAITLIST)
+      expect(errors).toEqual({})
+      expect(sid).toBe('abc-123')
+      expect(doc).toEqual({ milestone: 'waitlist', email: 'traveler@example.com', consent: true })
+    })
+
+    it('rejects a malformed email', () => {
+      const { errors } = validateSubmission({ ...VALID_WAITLIST, email: 'not-an-email' })
+      expect(errors.email).toBeTruthy()
+    })
+
+    it('rejects a missing email', () => {
+      const { errors } = validateSubmission({ ...VALID_WAITLIST, email: undefined })
+      expect(errors.email).toBeTruthy()
+    })
+
+    it('requires consent', () => {
+      const { errors } = validateSubmission({ ...VALID_WAITLIST, consent: false })
+      expect(errors.consent).toBeTruthy()
+    })
+  })
 })

@@ -23,11 +23,28 @@
      which must hand dnd-kit the same numbers as JS values. */
   --wp-motion-reorder: 220ms;
   --wp-ease-reorder: cubic-bezier(0.2, 0, 0, 1); /* quick departure, gentle settle */
+
+  /* Motion — landing-page scroll reveals (components/landing/Reveal.tsx). Scoped
+     to marketing content; see DESIGN.md's "Motion" section for why the in-app
+     reorder motion above and these reveals follow different rules. */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-text);
+}
+
+/* Smooth in-page jumps for the landing's anchor nav (header links, hero "See how
+   it works", footer CTAs). Scoped to no-preference rather than added to the
+   reduced-motion block below: unlike the other tokens, there's no reduced state
+   to fall back to — this just opts out of the browser's default instant jump. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Leaflet map — numbered itinerary pins (components/MapView.tsx).
@@ -115,6 +132,8 @@ ol[data-reordering] .wp-leg {
 @media (prefers-reduced-motion: reduce) {
   :root {
     --wp-motion-reorder: 1ms;
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
   }
   ol[data-reordering] .wp-leg,
   .wp-stop[data-landed] {

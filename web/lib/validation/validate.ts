@@ -61,6 +61,7 @@ const MILESTONES: ReadonlySet<Milestone> = new Set([
   'tried_app',
   'feedback_opened',
   'submitted',
+  'waitlist',
 ])
 const PERSONAS: ReadonlySet<Persona> = new Set(['time-poor', 'meticulous', 'explorer'])
 const INTERESTS: ReadonlySet<Interest> = new Set(['definitely', 'maybe', 'no'])
@@ -218,6 +219,18 @@ export function validateSubmission(
     if (!BUDGET_SOURCES.has(budgetSource)) errors.budgetSource = 'Pick whose budget it would come from.'
     else doc.budgetSource = budgetSource
 
+    const email = asString(body.email)
+    if (!email || email.length > MAX_EMAIL_LEN || !EMAIL_RE.test(email)) {
+      errors.email = 'Enter a valid email address.'
+    } else {
+      doc.email = email
+    }
+
+    if (body.consent !== true) errors.consent = 'Consent is required to join the waitlist.'
+    else doc.consent = true
+  }
+
+  if (milestone === 'waitlist') {
     const email = asString(body.email)
     if (!email || email.length > MAX_EMAIL_LEN || !EMAIL_RE.test(email)) {
       errors.email = 'Enter a valid email address.'

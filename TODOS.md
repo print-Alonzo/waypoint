@@ -182,6 +182,20 @@ new capabilities, out of scope for that fix pass, and deferred here:
 
 ---
 
+## Deferred from landing-page redesign (2026-07-28)
+
+Implemented the Claude Design landing page (`Waypoint Landing Page.dc.html`): a waitlist-first hero,
+a new "Where Waypoint is headed" roadmap section, and real usability-round quotes replacing invented
+testimonial copy. Full detail in `web/DESIGN.md`'s "Landing page" component-pattern entry.
+
+- **`presets` flag now gates nothing.** "Or start from a ready-made day" (`PRESETS` / `presetHref`,
+  `lib/plan/presets.ts`) was cut from the landing to match the design section-for-section — it was
+  the feature's only UI entry point. The module and its own tests (`tests/lib/plan/presets.test.ts`)
+  still work, they're just unreachable now. Either give it a new home (e.g. a link from `/plan`) or
+  remove the flag/module/tests — removing working code is a separate call from this redesign.
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds

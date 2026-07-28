@@ -1,0 +1,68 @@
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import WaitlistForm from '@/components/landing/WaitlistForm'
+
+beforeEach(() => {
+  localStorage.clear()
+})
+
+async function fillAndConsent(user: ReturnType<typeof userEvent.setup>, email: string) {
+  await user.type(screen.getByLabelText(/^email$/i), email)
+  await user.click(screen.getByRole('checkbox'))
+}
+
+describe('WaitlistForm', () => {
+  it('keeps the submit button disabled until an email is entered and consent is given', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    render(<WaitlistForm />)
+
+    const submit = screen.getByRole('button', { name: /join waitlist/i })
+    expect(submit).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/^email$/i), 'traveler@example.com')
+    expect(submit).toBeDisabled() // email alone isn't enough — consent is required too
+
+    await user.click(screen.getByRole('checkbox'))
+    expect(submit).toBeEnabled()
+
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('submits the email and shows the success state', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'traveler@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+    )
+    expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
+      'href',
+      '/plan',
+    )
+
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
+    expect(body.milestone).toBe('waitlist')
+    expect(body.email).toBe('traveler@example.com')
+    expect(body.consent).toBe(true)
+  })
+
+  it('shows an error state when the request fails, rather than a false success', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ ok: false }) }))
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'traveler@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.queryByRole('heading', { name: /you.re on the list/i })).not.toBeInTheDocument()
+  })
+})

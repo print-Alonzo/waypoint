@@ -1,54 +1,15 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
-import { CITY_LABEL, POI_MAP } from '@/lib/poi/data'
-import type { POI } from '@/lib/scheduling/scheduler'
-import { CATEGORIES, modeLabel, START_LOCATION_MAP } from '@/lib/constants'
-import { encodeParams } from '@/lib/plan/params'
-import { PRESETS, presetHref } from '@/lib/plan/presets'
-import { isEnabled } from '@/lib/features'
-
-// A hand-picked, photogenic subset for the landing hero cards (most POIs now have
-// a photo, so we curate the few shown here rather than dumping the whole dataset).
-const FEATURED_IDS = [
-  'fort-santiago',
-  'casa-manila',
-  'national-museum-fine-arts',
-  'paco-park',
-  'manila-cathedral',
-  'san-agustin-church',
-]
-const FEATURED: POI[] = FEATURED_IDS.map((id) => POI_MAP[id]).filter(
-  (p): p is POI => Boolean(p && p.image),
-)
-
-function categoryLabel(key: string): string {
-  return CATEGORIES.find((c) => c.key === key)?.label ?? key
-}
-
-// Tapping a featured place starts a plan with it pre-selected (all five params are
-// required for the selector to pre-fill, so we pass sensible defaults).
-function planHref(poiId: string): string {
-  const qs = encodeParams({
-    poi_ids: [poiId],
-    start_time: '09:00',
-    transport_mode: 'grab',
-    start_location: 'rizal-park',
-    day_of_week: 'Saturday',
-  }).toString()
-  return `/plan?${qs}`
-}
+import type { ReactNode } from 'react'
+import { CITY_LABEL } from '@/lib/poi/data'
+import Reveal from '@/components/landing/Reveal'
+import WaitlistForm from '@/components/landing/WaitlistForm'
 
 export const metadata: Metadata = {
-  title: 'Waypoint — plan a day in Metro Manila you can trust',
+  title: 'Waypoint — join the waitlist for a Metro Manila day planner you can trust',
   description:
-    'You pick the places; Waypoint optimizes the order of your day and shows its work — flagging anything closed or out of reach instead of quietly dropping it.',
+    'Waypoint sequences the order of your day across Metro Manila and shows its work — flagging anything closed or out of reach instead of quietly dropping it. Join the waitlist for early access.',
 }
-
-// A ready-made example so visitors can see the output before committing.
-const SAMPLE_ITINERARY =
-  '/result?poi_ids=fort-santiago,casa-manila,manila-cathedral&start_time=09:00' +
-  '&transport_mode=grab&start_location=rizal-park&day_of_week=Saturday'
 
 const primaryCta =
   'inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-6 py-3.5 ' +
@@ -117,13 +78,98 @@ const FEATURES = [
   },
 ]
 
-export default function Home() {
-  // The validation funnel repurposes the landing's primary CTA to route through
-  // the persona quiz first (/quiz → /plan) instead of straight to /plan. Gated
-  // by a single flag so ending the study reverts this page to today's copy —
-  // see lib/features.ts.
-  const validating = isEnabled('validation')
+// Planned-not-yet-built features. Kept separate from FEATURES above (which are
+// shipping today) so the "Coming soon" framing is never ambiguous.
+const ROADMAP = [
+  {
+    title: 'Google Maps & Calendar',
+    body: 'Open your finished itinerary as turn-by-turn directions in Google Maps, or add every stop straight to Google Calendar with its time and place.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={iconClass} aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <line x1="8" y1="3" x2="8" y2="7" />
+        <line x1="16" y1="3" x2="16" y2="7" />
+        <path d="M8 14l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Verified partner data',
+    body: 'Hours, prices, and closures confirmed directly with venues and local partners — replacing today’s placeholder demo data with the real thing.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={iconClass} aria-hidden="true">
+        <path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Multi-city trips',
+    body: 'Plan a route across more than one city, with Waypoint sequencing each day and the trip in between.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={iconClass} aria-hidden="true">
+        <circle cx="7" cy="8" r="3" />
+        <circle cx="18" cy="16" r="3" />
+        <line x1="9.5" y1="9.5" x2="15.5" y2="14.5" strokeDasharray="3 3" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Group trip voting',
+    body: 'Invite your travel companions to vote 👍 on stops before Waypoint builds the day everyone agreed to.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={iconClass} aria-hidden="true">
+        <circle cx="8" cy="9" r="3" />
+        <path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        <circle cx="17" cy="8" r="2.5" />
+        <path d="M15 14.5c2.8.3 5 2.7 5 5.5" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Real-time transit & traffic',
+    body: 'Live traffic and transit conditions adjust arrival times as your day unfolds, not just at planning time.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={iconClass} aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3.5 2" />
+      </svg>
+    ),
+  },
+]
 
+// Verbatim quotes from the first usability round (docs/venture/Waypoint Usability
+// Test Participant Tracker.xlsx — Task Notes + Debrief sheets, participants P2 and
+// P3; P1's task notes carried no standalone quote suited to a pull-quote). Only
+// three participants have been run so far — the subhead below says so rather than
+// implying a bigger sample.
+const TESTIMONIALS = [
+  {
+    quote:
+      'I think it’s the proximity of the locations from each other, and how you’ll be able to maximize your day.',
+    attribution: 'Usability participant · Meticulous Router',
+  },
+  {
+    quote:
+      'I would trust the whys kung nagamit ko na yung app before, but since it’s my first time I would double check lang just to make sure.',
+    attribution: 'Usability participant · Meticulous Router',
+  },
+  {
+    quote: 'I would use this plan. It’s a nice thing actually.',
+    attribution: 'Usability participant · Meticulous Router',
+  },
+]
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+      {children}
+    </span>
+  )
+}
+
+export default function Home() {
   return (
     <div>
       {/* Hero */}
@@ -135,87 +181,65 @@ export default function Home() {
           Your day, in the right order.
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--color-text-muted)]">
-          {validating
-            ? "We're building Waypoint for real travelers, and we'd love your take. Take a 60-second quiz, try planning a real day, then tell us what you think."
-            : 'You choose the places. Waypoint sequences your day for less time on the road — and shows its work, flagging anything closed or out of reach instead of quietly dropping it.'}
+          You choose the places. Waypoint sequences your day for less time on the road — and shows
+          its work, flagging anything closed or out of reach instead of quietly dropping it.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          {validating ? (
-            <Link href="/quiz" className={primaryCta}>
-              Find your travel style →
-            </Link>
-          ) : (
-            <>
-              <Link href="/plan" className={primaryCta}>
-                Plan my day →
-              </Link>
-              <Link href={SAMPLE_ITINERARY} className={secondaryCta}>
-                See a sample day
-              </Link>
-            </>
-          )}
+          <a href="#waitlist" className={primaryCta}>
+            Join the waitlist →
+          </a>
+          <a href="#how-it-works" className={secondaryCta}>
+            See how it works
+          </a>
         </div>
 
-        {(isEnabled('groupVote') || (isEnabled('comparePlans') && !validating)) && (
-          <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm">
-            {isEnabled('groupVote') && (
-              <Link
-                href="/vote"
-                className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
-              >
-                Vote with friends
-              </Link>
-            )}
-            {isEnabled('comparePlans') && !validating && (
-              <Link
-                href="/saved"
-                className="font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
-              >
-                View saved plans
-              </Link>
-            )}
-          </div>
-        )}
-
         {/* Route motif — echoes the result-page map (pin 3 amber = "check hours"). */}
-        <svg
-          viewBox="0 0 360 60"
-          className="mx-auto mt-14 w-full max-w-sm"
-          role="img"
-          aria-label="A route connecting four numbered stops, with one flagged"
-        >
-          <line
-            x1="24" y1="30" x2="336" y2="30"
-            className="stroke-[var(--color-primary)]"
-            strokeWidth={2.5}
-            strokeDasharray="6 9"
-            opacity={0.5}
-          />
-          {[
-            { cx: 24, n: 1, cls: 'fill-[var(--color-primary)]' },
-            { cx: 128, n: 2, cls: 'fill-[var(--color-primary)]' },
-            { cx: 232, n: 3, cls: 'fill-[var(--color-flag-warning-border)]' },
-            { cx: 336, n: 4, cls: 'fill-[var(--color-primary)]' },
-          ].map((p) => (
-            <g key={p.n}>
-              <circle cx={p.cx} cy={30} r={15} className={`${p.cls} stroke-white`} strokeWidth={2.5} />
-              <text
-                x={p.cx} y={35} textAnchor="middle"
-                className="fill-white" style={{ fontSize: 14, fontWeight: 700 }}
-              >
-                {p.n}
-              </text>
-            </g>
-          ))}
-        </svg>
+        <Reveal className="mx-auto mt-14 w-full max-w-sm">
+          <svg
+            viewBox="0 0 360 60"
+            className="block w-full"
+            role="img"
+            aria-label="A route connecting four numbered stops, with one flagged"
+          >
+            <line
+              x1="24" y1="30" x2="336" y2="30"
+              className="stroke-[var(--color-primary)]"
+              strokeWidth={2.5}
+              strokeDasharray="6 9"
+              opacity={0.5}
+            />
+            {[
+              { cx: 24, n: 1, cls: 'fill-[var(--color-primary)]' },
+              { cx: 128, n: 2, cls: 'fill-[var(--color-primary)]' },
+              { cx: 232, n: 3, cls: 'fill-[var(--color-flag-warning-border)]' },
+              { cx: 336, n: 4, cls: 'fill-[var(--color-primary)]' },
+            ].map((p) => (
+              <g key={p.n}>
+                <circle cx={p.cx} cy={30} r={15} className={`${p.cls} stroke-white`} strokeWidth={2.5} />
+                <text
+                  x={p.cx} y={35} textAnchor="middle"
+                  className="fill-white" style={{ fontSize: 14, fontWeight: 700 }}
+                >
+                  {p.n}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </Reveal>
       </section>
 
       {/* How it works — the numbered-dot + dashed-line motif echoes the hero's route
           graphic, so the page reads as one system rather than a stock feature grid. */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
-        <div className="mx-auto max-w-4xl px-5 py-14">
-          <h2 className="text-center text-2xl font-bold tracking-tight">How it works</h2>
+      <section id="how-it-works" className="scroll-mt-24 border-y border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+        <Reveal as="div" className="mx-auto max-w-4xl px-5 py-14">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+            How it works
+          </h2>
           <div className="relative mt-12">
+            {/* No z-index: the dashed line behind it is `absolute` and comes first in
+                the DOM, so plain paint order already puts the numbered dots on top —
+                an explicit z-index here would escalate into the root stacking context
+                and fight the header's own `z-10` (SiteHeader.tsx) while scrolling. */}
             <span
               aria-hidden="true"
               className="absolute left-[16%] right-[16%] top-[18px] hidden border-t-2 border-dashed border-[var(--color-primary)]/30 sm:block"
@@ -223,11 +247,6 @@ export default function Home() {
             <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-6">
               {STEPS.map((step, i) => (
                 <li key={step.title} className="text-center">
-                  {/* No z-index: the dashed line behind it is `absolute` and comes
-                      first in the DOM, so plain paint order already puts this on top —
-                      an explicit z-index here would escalate it into the root stacking
-                      context and fight the header's own `z-10` (layout.tsx) while
-                      scrolling. */}
                   <span className="relative mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
                     {i + 1}
                   </span>
@@ -237,23 +256,28 @@ export default function Home() {
               ))}
             </ol>
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* Why it's different — a plain two-column list (icon as a small inline glyph,
-          not a colored badge) rather than a bordered feature-card grid. */}
-      <section className="mx-auto max-w-4xl px-5 py-14">
-        <h2 className="text-center text-2xl font-bold tracking-tight">
+      {/* Why it's different — bordered cards with an icon badge, so the trust pitch
+          reads as a distinct, scannable module rather than a plain list. */}
+      <Reveal as="section" id="features" className="mx-auto max-w-4xl scroll-mt-24 px-5 py-14">
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-[1.75rem]">
           Built on trust, not a black box
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-[var(--color-text-muted)]">
           Most planners decide everything for you and hide the rest. Waypoint optimizes only the
           order and shows all its work, so you stay in control.
         </p>
-        <div className="mt-10 grid gap-x-8 gap-y-7 sm:grid-cols-2">
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
-            <div key={f.title} className="flex gap-3">
-              <div className="mt-0.5 shrink-0 text-[var(--color-primary)]">{f.icon}</div>
+            <div
+              key={f.title}
+              className="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-white p-7 shadow-sm"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-primary)]">
+                {f.icon}
+              </div>
               <div>
                 <h3 className="font-bold">{f.title}</h3>
                 <p className="mt-1 text-sm text-[var(--color-text-muted)]">{f.body}</p>
@@ -261,115 +285,92 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </section>
+      </Reveal>
 
-      {/* Featured places (Airbnb-style photo cards) */}
-      <section className="mx-auto max-w-5xl px-5 pb-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Popular places to start with</h2>
-          <p className="mx-auto mt-3 max-w-xl text-[var(--color-text-muted)]">
-            Tap a place to begin a plan with it added — then pick as many more as you like.
+      {/* Roadmap — planned-not-yet-built features, framed honestly as "coming soon"
+          rather than blended in with what ships today. */}
+      <section id="roadmap" className="scroll-mt-24 border-y border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+        <Reveal as="div" className="mx-auto max-w-4xl px-5 py-14">
+          <p className="text-center text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+            What&apos;s next
           </p>
-        </div>
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED.map((poi) => (
-            <li key={poi.id}>
-              <Link
-                href={planHref(poi.id)}
-                className="group block overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-sm transition-shadow hover:shadow-md"
+          <h2 className="mt-2 text-center text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+            Where Waypoint is headed
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-[var(--color-text-muted)]">
+            The core planner works today. Here&apos;s what we&apos;re building next to make it
+            more accurate, more connected, and more useful for a whole group.
+          </p>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {ROADMAP.map((item, i) => (
+              <Reveal
+                key={item.title}
+                delayMs={i * 90}
+                className="flex flex-col gap-2.5 rounded-xl border border-[var(--color-border)] bg-white p-5 shadow-sm"
               >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-bg-subtle)]">
-                  <Image
-                    src={poi.image!}
-                    alt={poi.name}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+                <div className="flex items-center justify-between">
+                  {item.icon}
+                  <Chip>Coming soon</Chip>
                 </div>
-                <div className="p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-                    {categoryLabel(poi.category)}
-                  </p>
-                  <h3 className="mt-1 font-bold">{poi.name}</h3>
-                  <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
-                    Open {poi.open_time}–{poi.close_time}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <h3 className="font-bold">{item.title}</h3>
+                <p className="text-sm text-[var(--color-text-muted)]">{item.body}</p>
+              </Reveal>
+            ))}
+            <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center">
+              <p className="text-sm font-bold">Have an idea?</p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Join the waitlist and tell us what would make your day easier to plan.
+              </p>
+            </div>
+          </div>
+        </Reveal>
       </section>
 
-      {/* Ready-made days (presets) — one tap to a full, editable itinerary. */}
-      {isEnabled('presets') && (
-        <section className="mx-auto max-w-5xl px-5 py-12">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold tracking-tight">Or start from a ready-made day</h2>
-            <p className="mx-auto mt-3 max-w-xl text-[var(--color-text-muted)]">
-              Tap a themed day to see it laid out instantly — then tweak the order, pins, and
-              details to make it yours.
-            </p>
-          </div>
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PRESETS.map((preset) => {
-              const start = START_LOCATION_MAP[preset.params.start_location]
-              return (
-                <li key={preset.id}>
-                  <Link
-                    href={presetHref(preset)}
-                    className="group flex h-full flex-col rounded-xl border border-[var(--color-border)] bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <span aria-hidden className="text-2xl">
-                      {preset.emoji}
-                    </span>
-                    <h3 className="mt-3 font-bold group-hover:text-[var(--color-primary)]">
-                      {preset.title}
-                    </h3>
-                    <p className="mt-1 flex-1 text-sm text-[var(--color-text-muted)]">
-                      {preset.blurb}
-                    </p>
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                      {preset.params.poi_ids.length} stops · {preset.params.day_of_week} ·{' '}
-                      {modeLabel(preset.params.transport_mode)}
-                      {start ? ` from ${start.name}` : ''}
-                    </p>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      )}
-
-      {/* Final CTA */}
-      <section className="border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
-        <div className="mx-auto max-w-3xl px-5 py-14 text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Ready to plan your day?</h2>
-          <p className="mx-auto mt-2 max-w-md text-[var(--color-text-muted)]">
-            Pick your places and get an ordered, fully-explained itinerary in seconds.
-          </p>
-          <div className="mt-6">
-            <Link href="/plan" className={primaryCta}>
-              Plan my day →
-            </Link>
-          </div>
+      {/* Early feedback — real usability-round quotes, not marketing copy. */}
+      <Reveal as="section" id="feedback" className="mx-auto max-w-4xl scroll-mt-24 px-5 py-14">
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+          What early testers are saying
+        </h2>
+        <p className="mx-auto mt-2.5 max-w-md text-center text-sm text-[var(--color-text-muted)]">
+          Verbatim notes from our first usability round — three participants, July 2026.
+        </p>
+        <div className="mt-9 grid gap-5 sm:grid-cols-3">
+          {TESTIMONIALS.map((t, i) => (
+            <Reveal
+              key={t.quote}
+              delayMs={i * 90}
+              className="rounded-xl border border-[var(--color-border)] bg-white p-5 shadow-sm"
+            >
+              <p className="text-sm leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+              <p className="mt-3.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                {t.attribution}
+              </p>
+            </Reveal>
+          ))}
         </div>
+      </Reveal>
+
+      {/* Waitlist */}
+      <section id="waitlist" className="scroll-mt-24 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+        <Reveal as="div" className="mx-auto max-w-xl px-5 py-14 text-center">
+          <WaitlistForm />
+        </Reveal>
       </section>
 
       {/* Footer */}
-      <footer className="mx-auto max-w-4xl px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
-        <p>
+      <Reveal as="footer" className="mx-auto max-w-4xl px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
+        <p className="text-base font-bold text-[var(--color-primary)]">Waypoint</p>
+        <p className="mt-2.5">
           Transit times are estimates — verify opening hours before you go. {CITY_LABEL} · a
-          student project exploring trust through transparency.
+          student project exploring trust through transparency. Metro Manila POI data shown today
+          is placeholder/demo data.
         </p>
         <p className="mt-2">
           <Link href="/credits" className="underline underline-offset-2 hover:text-[var(--color-text)]">
             Photo credits
           </Link>
         </p>
-      </footer>
+      </Reveal>
     </div>
   )
 }
