@@ -113,7 +113,7 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
   heights are neither equal nor uniform between pairs, and a FLIP measured on them jerks any card
   whose neighboring row's contents differ. `useReorderFlip` measures the card's own layout position
   rather than assuming a fixed row height for this reason. The legs re-render in place and crossfade
-  instead (`.wp-leg` + `[data-reordering]` on the `<ol>`), which also masks their minutes recomputing.
+  instead (`.wp-leg[data-settle]`), which also masks their minutes recomputing.
 - **`prefers-reduced-motion: reduce`** collapses the duration to 1ms and drops the leg crossfade and
   the landed ring. Reordering still *happens*, it just happens at once — and drag still works, since
   dragging tracks the finger rather than playing an animation. Any new motion must honour this.
