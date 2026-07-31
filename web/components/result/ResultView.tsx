@@ -121,10 +121,14 @@ const SILENT_ANNOUNCEMENTS: Announcements = {
   onDragCancel: () => undefined,
 }
 
-// How long the "the day is re-timing" affordances hold after an order change:
-// the transit legs' crossfade and the moved card's ring. Comfortably longer than
-// the card glide (REORDER_MS) so the legs settle AFTER the cards land.
+// How long the "the day is re-timing" affordances hold after an order change.
+// Comfortably longer than the card glide (REORDER_MS) so they settle AFTER the
+// cards land. Two separate durations because the two animations run different
+// lengths: the leg crossfade is quick, the landed ring holds longer so the eye
+// has time to find it. LANDED_MS mirrors --wp-motion-landed in app/globals.css
+// (the ring's actual animation-duration) — change both or neither.
 const SETTLE_MS = 400
+const LANDED_MS = 900
 
 function GripIcon() {
   return (
@@ -164,27 +168,46 @@ function LockIcon({ locked }: { locked: boolean }) {
   )
 }
 
+// Shared shape for every 44px icon control on this page — ctrlBtn and its pinned
+// variant below each append their own (non-conflicting) colors on top, rather
+// than one overriding the other's classes in the same string, which Tailwind
+// doesn't guarantee resolves in JSX order.
+const ctrlBtnShape = 'flex h-11 w-11 items-center justify-center rounded-lg transition'
 const ctrlBtn =
-  'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-border)] ' +
-  'bg-white text-[var(--color-text)] transition hover:bg-[var(--color-bg-subtle)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40'
+  `${ctrlBtnShape} border border-[var(--color-border)] bg-white text-[var(--color-text)] ` +
+  'hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-40'
+
+// The pinned (locked) variant: same shape and sizing, coral fill instead of the
+// neutral border/background.
+const ctrlBtnPinned = `${ctrlBtnShape} border border-[var(--color-primary)] bg-[var(--color-primary)] text-white`
 
 // Trip-details fields inside "Adjust your day" (day / start time / starting point /
 // transport). Mirrors the Selector's input styling so editing on the result page
 // feels like the same control, just relocated.
 const tripFieldClass =
-  'w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm ' +
+  'w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm ' +
   'focus:outline-none focus:border-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-text)]'
 
 // Compact at-a-glance summary pill. `warning` tone reuses the flag tokens so a
 // "N flagged" chip carries the same caution signal as the cards it summarizes.
-function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'warning' }) {
+// `sm` is for pills embedded inline in running text/headings (e.g. the per-stop
+// "Beyond your Nh" flag) rather than standing alone in the summary row.
+function Chip({
+  children,
+  tone = 'neutral',
+  size = 'md',
+}: {
+  children: ReactNode
+  tone?: 'neutral' | 'warning'
+  size?: 'sm' | 'md'
+}) {
   const toneClass =
     tone === 'warning'
       ? 'border-[var(--color-flag-warning-border)] bg-[var(--color-flag-warning-bg)] text-[var(--color-flag-warning-text)]'
       : 'border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]'
+  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm ${toneClass}`}>
+    <span className={`inline-flex items-center rounded-full border ${sizeClass} ${toneClass}`}>
       {children}
     </span>
   )
@@ -304,7 +327,7 @@ function ExportMenu({
       document.removeEventListener('keydown', onKey)
     }
   }, [])
-  const item = 'rounded-md px-3 py-2 text-left hover:bg-[var(--color-bg-subtle)]'
+  const item = 'rounded-lg px-3 py-2 text-left hover:bg-[var(--color-bg-subtle)]'
   return (
     <details ref={ref} className="relative">
       <summary className="flex cursor-pointer list-none items-center gap-1 font-semibold underline-offset-2 hover:underline [&::-webkit-details-marker]:hidden">
@@ -553,9 +576,17 @@ export default function ResultView() {
   // The settle window after an order change: `settling` crossfades the transit legs
   // (whose minutes just recomputed) and `landedId` rings the card that moved, so the
   // eye can follow it. Both are decoration — the reorder itself is already committed.
+  // Separate timers because the two run different lengths: the leg crossfade is
+  // SETTLE_MS, the ring is LANDED_MS (matching its 900ms CSS animation, globals.css)
+  // — conflating them under one timer cut the ring's fade-out off mid-hold.
   const [settling, setSettling] = useState(false)
+  // First index whose stop differs from the pre-change order — legs above it are
+  // numerically identical (nothing upstream of the change moved), so only legs at
+  // or below this index crossfade. See applyOrder.
+  const [settleFromIndex, setSettleFromIndex] = useState<number | null>(null)
   const [landedId, setLandedId] = useState<string | null>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const landedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     // Set true in the BODY (not just at ref init): React StrictMode in dev mounts →
@@ -568,6 +599,7 @@ export default function ResultView() {
       mounted.current = false
       if (copyTimer.current) clearTimeout(copyTimer.current)
       if (settleTimer.current) clearTimeout(settleTimer.current)
+      if (landedTimer.current) clearTimeout(landedTimer.current)
     }
   }, [])
 
@@ -741,21 +773,44 @@ export default function ResultView() {
     router.replace('/result?' + sp.toString(), { scroll: false })
   }
 
+  // Opens the crossfade window for `.wp-leg[data-settle]` starting at `fromIndex` —
+  // shared by every action that re-times the schedule from a given stop onward.
+  // applyOrder (order changes) layers its own landed-ring timer on top of this.
+  function openSettleWindow(fromIndex: number) {
+    if (reduceMotion) return
+    setSettling(true)
+    setSettleFromIndex(fromIndex)
+    if (settleTimer.current) clearTimeout(settleTimer.current)
+    settleTimer.current = setTimeout(() => {
+      if (!mounted.current) return
+      setSettling(false)
+      setSettleFromIndex(null)
+    }, SETTLE_MS)
+  }
+
   // The single entry point for every order change — ↑/↓, drag, Re-optimize, Reset.
   // Applies the new order optimistically (so the list and dnd-kit's `items` reorder
   // in this commit, not after the router round-trips), opens the settle window that
   // drives the leg crossfade + landed ring, then writes the URL as the real store.
   function applyOrder(nextOrder: string[], nextLocked: string[], movedId?: string) {
+    const oldOrder = model!.order
     setPending({ order: nextOrder, forSearch: searchKey })
     if (!reduceMotion) {
-      setSettling(true)
+      let firstChanged = Math.min(oldOrder.length, nextOrder.length)
+      for (let i = 0; i < firstChanged; i++) {
+        if (oldOrder[i] !== nextOrder[i]) {
+          firstChanged = i
+          break
+        }
+      }
+      openSettleWindow(firstChanged)
+
       setLandedId(movedId ?? null)
-      if (settleTimer.current) clearTimeout(settleTimer.current)
-      settleTimer.current = setTimeout(() => {
+      if (landedTimer.current) clearTimeout(landedTimer.current)
+      landedTimer.current = setTimeout(() => {
         if (!mounted.current) return
-        setSettling(false)
         setLandedId(null)
-      }, SETTLE_MS)
+      }, LANDED_MS)
     }
     writeArrangement(nextOrder, nextLocked)
   }
@@ -763,21 +818,27 @@ export default function ResultView() {
   function toggleLunch() {
     const next = !model!.lunchOn
     setLiveMsg(next ? 'Added a lunch break from 12:00 to 13:30.' : 'Removed the lunch break.')
+    // A lunch toggle can shift where the break threads into the schedule from the
+    // very first stop, so the whole column is in play — not just one stop down.
+    openSettleWindow(0)
     writeUrl({ lunch: next })
   }
 
   function enableBudget() {
     const def = Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, approxHours))
     setLiveMsg(`Limiting the day to about ${def} hours.`)
+    openSettleWindow(0)
     writeUrl({ budget: def })
   }
 
   function disableBudget() {
     setLiveMsg('Removed the time limit.')
+    openSettleWindow(0)
     writeUrl({ budget: null })
   }
 
   function setBudget(hours: number) {
+    openSettleWindow(0)
     writeUrl({ budget: hours })
   }
 
@@ -851,6 +912,7 @@ export default function ResultView() {
   // stop left (see the disabled prop at the call site).
   function removeStop(id: string) {
     const poi = POI_MAP[id]
+    const removedIndex = model!.order.indexOf(id)
     const nextIds = safeParams.poi_ids.filter((pid) => pid !== id)
     if (nextIds.length === 0) return
     const selectedIds = new Set(nextIds)
@@ -864,6 +926,8 @@ export default function ResultView() {
       nextIds.map((pid) => POI_MAP[pid]),
     )
     setLiveMsg(`Removed ${poi?.name ?? 'stop'} from your day.`)
+    // Everything from the removed stop's old position down shifts up one place.
+    if (removedIndex >= 0) openSettleWindow(removedIndex)
     const sp = encodeParams({
       poi_ids: nextIds,
       start_time: safeParams.start_time,
@@ -941,6 +1005,9 @@ export default function ResultView() {
     if (val === poi.recommended_duration_minutes) delete next[id]
     else next[id] = val
     setLiveMsg(`${poi.name}: ${val} minutes.`)
+    // Every later stop's timing ripples from this one's dwell change.
+    const idx = model!.order.indexOf(id)
+    if (idx >= 0) openSettleWindow(idx)
     writeUrl({ durations: next })
   }
 
@@ -949,6 +1016,8 @@ export default function ResultView() {
     const next = { ...model!.durations }
     delete next[id]
     setLiveMsg(`Reset ${poi.name} to the suggested ${poi.recommended_duration_minutes} minutes.`)
+    const idx = model!.order.indexOf(id)
+    if (idx >= 0) openSettleWindow(idx)
     writeUrl({ durations: next })
   }
 
@@ -1469,17 +1538,25 @@ export default function ResultView() {
                 <SortableStop
                   key={stop.poi.id}
                   id={stop.poi.id}
+                  index={i}
                   cardClassName={`${cardClass(stop)}${outOfBudget ? ' opacity-60' : ''}`}
                   reduceMotion={reduceMotion}
                   landed={landedId === stop.poi.id}
                   // The lunch pill and transit leg sit ABOVE the card, inside the <li>
                   // but outside the sortable node — they belong to the gap between two
                   // stops, not to the card that glides. `wp-leg` crossfades them while
-                  // their minutes recompute (app/globals.css).
+                  // their minutes recompute (app/globals.css) — but only the ones at or
+                  // below the first stop the order change actually touched; a leg whose
+                  // predecessor and successor are both unchanged didn't recompute.
                   lead={
                     <>
                       {stop.lunchBefore && (
-                        <div className="wp-leg py-2 text-center">
+                        <div
+                          className="wp-leg py-2 text-center"
+                          data-settle={
+                            settleFromIndex !== null && i >= settleFromIndex ? '' : undefined
+                          }
+                        >
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1 text-sm font-semibold">
                             <span aria-hidden>🍴</span> Lunch {wallClock(stop.lunchBefore.start)}–
                             {wallClock(stop.lunchBefore.end)}
@@ -1487,7 +1564,12 @@ export default function ResultView() {
                         </div>
                       )}
                       {i > 0 && (
-                        <div className="wp-leg py-2 text-center text-sm text-[var(--color-text-muted)]">
+                        <div
+                          className="wp-leg py-2 text-center text-sm text-[var(--color-text-muted)]"
+                          data-settle={
+                            settleFromIndex !== null && i >= settleFromIndex ? '' : undefined
+                          }
+                        >
                           <div>
                             ↓ {stop.transitFromPrev} min{leg ? ` · ~${formatFare(leg)}` : ''} by{' '}
                             {modeLabel(params.transport_mode)}
@@ -1513,7 +1595,7 @@ export default function ResultView() {
                           {...listeners}
                           aria-hidden="true"
                           tabIndex={-1}
-                          className={`no-print -ml-1 flex h-11 w-11 shrink-0 touch-none items-center justify-center rounded-md text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg-subtle)] ${
+                          className={`no-print -ml-1 flex h-11 w-11 shrink-0 touch-none items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg-subtle)] ${
                             isDragging ? 'cursor-grabbing' : 'cursor-grab'
                           }`}
                         >
@@ -1528,9 +1610,9 @@ export default function ResultView() {
                           </span>
                           <h2 className="font-semibold">{stop.poi.name}</h2>
                           {outOfBudget && (
-                            <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]">
-                              Beyond your {model.budget}h
-                            </span>
+                            <Chip size="sm">
+                              <span className="font-semibold">Beyond your {model.budget}h</span>
+                            </Chip>
                           )}
                         </div>
                         {/* Per-stop reorder/pin controls (screen-only). */}
@@ -1564,11 +1646,7 @@ export default function ResultView() {
                             onClick={() => toggleLock(stop.poi.id)}
                             aria-pressed={locked}
                             aria-label={locked ? `Unpin ${stop.poi.name}` : `Pin ${stop.poi.name} in place`}
-                            className={
-                              locked
-                                ? 'flex h-11 w-11 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] text-white transition'
-                                : ctrlBtn
-                            }
+                            className={locked ? ctrlBtnPinned : ctrlBtn}
                           >
                             <LockIcon locked={locked} />
                           </button>

@@ -73,18 +73,47 @@ eye can follow a thing that moved. The only place it carries real weight there i
 itinerary. The **landing page** is the one deliberate exception — see "Landing page" below.
 
 - **Tokens** (`app/globals.css`): `--wp-motion-reorder` (220ms) and `--wp-ease-reorder`
-  (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). dnd-kit builds its transition
-  string in JS, so `REORDER_MS` / `REORDER_EASING` in [`components/result/SortableStop.tsx`](components/result/SortableStop.tsx)
-  mirror these as raw values. **Change both or neither.**
+  (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). Both dnd-kit and
+  `useReorderFlip` build their transition strings in JS, so `REORDER_MS` / `REORDER_EASING` in
+  [`components/result/SortableStop.tsx`](components/result/SortableStop.tsx) mirror these as raw
+  values. **Change both or neither.**
 - **Every order change animates, by any route** — `↑ ↓`, drag, Re-optimize, Reset order, browser
-  back. `useSortable` is given `animateLayoutChanges: () => defaultAnimateLayoutChanges({...args,
-  wasDragging: true })`, which makes dnd-kit FLIP on any index change rather than only after a drag.
-  There is no hand-rolled FLIP anywhere in the app, and there shouldn't be a second one.
+  back. All of it goes through one mechanism: the hand-rolled
+  [`useReorderFlip`](lib/hooks/use-reorder-flip.ts), which measures the card's own `offsetTop`
+  before and after every index change. dnd-kit's own layout-change FLIP is explicitly turned off
+  (`animateLayoutChanges: () => false`) rather than left at its default — its default compares a
+  card's index against `previous.current.newIndex`, a value dnd-kit only updates while a drag is
+  actively in progress, so for a card that's never been dragged it's frozen at that card's index
+  **at mount**. A card reordering back to its mount position — an ordinary thing after two moves —
+  then reads as "unchanged" to dnd-kit, which returns a defined-but-inert transition instead of
+  `undefined`; gating `useReorderFlip` on that value (an earlier version of this fix) inherited the
+  bug and silently dropped the animation on exactly that case. `useReorderFlip` instead disables
+  itself only on dnd-kit's `isSorting` — true for every card in the list for the duration of an
+  actual pointer drag, and nothing else — leaving dnd-kit responsible for just the live drag gesture
+  (tracking the pointer, previewing displaced cards). There should not be a second FLIP mechanism
+  anywhere in the app.
+- **A real drag doesn't get FLIPped a second time on drop.** During a live drag dnd-kit visually
+  carries the card to its target purely via `transform` — the actual DOM order, and so the real
+  layout position `useReorderFlip` measures, doesn't change until the drop commits. If the hook
+  simply resumed once `isSorting` clears, it would see that stale pre-drag layout position, jump the
+  card back to it, and glide it forward again — replaying the same motion the drag gesture just
+  played. `useReorderFlip` tracks the disabled→enabled edge and treats that one run as a silent
+  sync (accept the new position, don't animate it) instead; ordinary FLIPs resume on the next
+  genuine change. `↑ ↓` and friends never see this window, since they're never gated by `isSorting`
+  in the first place.
+- **An interrupted glide resumes, it doesn't drop.** A single user action can produce more than one
+  React commit with the same final index — `ResultView`'s optimistic order commit followed by the
+  router-confirmed one — re-running `useReorderFlip`'s effect before the first glide ever reaches
+  `transitionend`. The hook only advances its own "last known position" bookkeeping when a glide
+  actually completes (or when a run finds nothing to animate), never merely because the effect ran.
+  A redundant re-run before completion sees the same not-yet-confirmed baseline and restarts the
+  identical glide instead of concluding "nothing changed."
 - **The card is the animated unit, not the `<li>`.** The `<li>` also carries the transit leg, which
-  stop 1 doesn't have — so `<li>` heights are structurally uneven and a FLIP measured on them jerks
-  any card entering or leaving position 1 by the leg's height. Card-to-card spacing *is* uniform
-  (exactly one leg row between every pair). The legs re-render in place and crossfade instead
-  (`.wp-leg` + `[data-reordering]` on the `<ol>`), which also masks their minutes recomputing.
+  stop 1 doesn't have, and a lunch pill on top of the leg for one particular `<li>` — so `<li>`
+  heights are neither equal nor uniform between pairs, and a FLIP measured on them jerks any card
+  whose neighboring row's contents differ. `useReorderFlip` measures the card's own layout position
+  rather than assuming a fixed row height for this reason. The legs re-render in place and crossfade
+  instead (`.wp-leg` + `[data-reordering]` on the `<ol>`), which also masks their minutes recomputing.
 - **`prefers-reduced-motion: reduce`** collapses the duration to 1ms and drops the leg crossfade and
   the landed ring. Reordering still *happens*, it just happens at once — and drag still works, since
   dragging tracks the finger rather than playing an animation. Any new motion must honour this.

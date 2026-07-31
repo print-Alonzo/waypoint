@@ -12,6 +12,7 @@ function renderStop(props: Partial<React.ComponentProps<typeof SortableStop>> = 
         <ul>
           <SortableStop
             id="a"
+            index={0}
             cardClassName="wp-flag-yellow"
             reduceMotion={false}
             lead={<span>Lead content</span>}

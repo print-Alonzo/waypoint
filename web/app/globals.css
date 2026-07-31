@@ -23,6 +23,9 @@
      which must hand dnd-kit the same numbers as JS values. */
   --wp-motion-reorder: 220ms;
   --wp-ease-reorder: cubic-bezier(0.2, 0, 0, 1); /* quick departure, gentle settle */
+  /* The moved card's landed ring (below). Kept in sync with LANDED_MS in
+     components/result/ResultView.tsx, which clears data-landed on this timer. */
+  --wp-motion-landed: 900ms;
 
   /* Motion — landing-page scroll reveals (components/landing/Reveal.tsx). Scoped
      to marketing content; see DESIGN.md's "Motion" section for why the in-app
@@ -82,10 +85,12 @@ body {
   line-height: 44px !important;
 }
 
-/* Reordering the itinerary re-times it: every transit leg below the moved stop
-   recomputes. Rather than let a new number pop in under a card that's still
+/* Reordering the itinerary re-times it: every transit leg at or below the changed
+   stop recomputes. Rather than let a new number pop in under a card that's still
    gliding over it, hold the leg blank for the first half of the move and fade it
-   back in with its settled value. Driven by [data-reordering] on the <ol>. */
+   back in with its settled value. Driven by `data-settle` on the individual leg
+   (ResultView.tsx) — legs above the change are numerically identical and don't
+   carry the attribute, so they don't blink. */
 @keyframes wp-leg-settle {
   0%,
   55% {
@@ -96,7 +101,7 @@ body {
   }
 }
 
-ol[data-reordering] .wp-leg {
+.wp-leg[data-settle] {
   animation: wp-leg-settle var(--wp-motion-reorder) var(--wp-ease-reorder);
 }
 
@@ -113,7 +118,7 @@ ol[data-reordering] .wp-leg {
 }
 
 .wp-stop[data-landed] {
-  animation: wp-stop-landed 900ms ease-out;
+  animation: wp-stop-landed var(--wp-motion-landed) ease-out;
 }
 
 /* Motion is decoration here — the reorder still happens, it just happens at once.
@@ -125,7 +130,7 @@ ol[data-reordering] .wp-leg {
     --motion-fast: 1ms;
     --motion-base: 1ms;
   }
-  ol[data-reordering] .wp-leg,
+  .wp-leg[data-settle],
   .wp-stop[data-landed] {
     animation: none !important;
   }
