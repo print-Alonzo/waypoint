@@ -174,7 +174,7 @@ describe('prefers-reduced-motion', () => {
     expect(cards).toHaveLength(3)
     expect(cards.every((c) => !c.style.transition.includes(`${REORDER_MS}ms`))).toBe(true)
     expect(container.querySelectorAll('.wp-stop[data-landed]')).toHaveLength(0)
-    expect(container.querySelector('ol')!.hasAttribute('data-reordering')).toBe(false)
+    expect(container.querySelectorAll('.wp-leg[data-settle]')).toHaveLength(0)
   })
 
   it('animates when motion is welcome (the control for the test above)', () => {
@@ -184,7 +184,7 @@ describe('prefers-reduced-motion', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Move ${before[0]} later` }))
 
-    expect(container.querySelector('ol')!.hasAttribute('data-reordering')).toBe(true)
+    expect(container.querySelectorAll('.wp-leg[data-settle]').length).toBeGreaterThan(0)
     expect(container.querySelectorAll('.wp-stop[data-landed]')).toHaveLength(1)
   })
 })

@@ -573,13 +573,12 @@ export default function ResultView() {
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(true)
 
-  // The settle window after an order change: `settling` crossfades the transit legs
-  // (whose minutes just recomputed) and `landedId` rings the card that moved, so the
-  // eye can follow it. Both are decoration — the reorder itself is already committed.
-  // Separate timers because the two run different lengths: the leg crossfade is
-  // SETTLE_MS, the ring is LANDED_MS (matching its 900ms CSS animation, globals.css)
-  // — conflating them under one timer cut the ring's fade-out off mid-hold.
-  const [settling, setSettling] = useState(false)
+  // The settle window after an order change: `settleFromIndex` crossfades the transit
+  // legs at/below it (whose minutes just recomputed) and `landedId` rings the card
+  // that moved, so the eye can follow it. Both are decoration — the reorder itself is
+  // already committed. Separate timers because the two run different lengths: the leg
+  // crossfade is SETTLE_MS, the ring is LANDED_MS (matching its 900ms CSS animation,
+  // globals.css) — conflating them under one timer cut the ring's fade-out off mid-hold.
   // First index whose stop differs from the pre-change order — legs above it are
   // numerically identical (nothing upstream of the change moved), so only legs at
   // or below this index crossfade. See applyOrder.
@@ -778,12 +777,10 @@ export default function ResultView() {
   // applyOrder (order changes) layers its own landed-ring timer on top of this.
   function openSettleWindow(fromIndex: number) {
     if (reduceMotion) return
-    setSettling(true)
     setSettleFromIndex(fromIndex)
     if (settleTimer.current) clearTimeout(settleTimer.current)
     settleTimer.current = setTimeout(() => {
       if (!mounted.current) return
-      setSettling(false)
       setSettleFromIndex(null)
     }, SETTLE_MS)
   }
@@ -1520,7 +1517,7 @@ export default function ResultView() {
         accessibility={{ announcements: SILENT_ANNOUNCEMENTS }}
       >
         <SortableContext items={model.order} strategy={verticalListSortingStrategy}>
-          <ol className="mt-5" data-reordering={settling || undefined}>
+          <ol className="mt-5">
             {stops.map((stop, i) => {
               const locked = stop.placement === 'locked'
               const outOfBudget = fit ? !fit.fits[i] : false
