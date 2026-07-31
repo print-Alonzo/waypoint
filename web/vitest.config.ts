@@ -21,5 +21,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Default 5000ms is too tight under CPU contention (IDE language servers, dev
+    // server, other workers) — synchronous tests have been observed timing out
+    // before their body even runs, not from slow test logic.
+    testTimeout: 15000,
   },
 })
