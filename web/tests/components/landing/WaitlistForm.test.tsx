@@ -52,6 +52,8 @@ describe('WaitlistForm', () => {
       expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
     )
     expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
+    expect(screen.getByText(/take our 2-minute traveler quiz/i)).toBeInTheDocument()
+    expect(screen.queryByText(/feel free to try it/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /take the 2-minute quiz/i })).toHaveAttribute(
       'href',
       '/quiz',
@@ -81,6 +83,8 @@ describe('WaitlistForm', () => {
       '/plan',
     )
     expect(screen.queryByRole('link', { name: /take the 2-minute quiz/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/feel free to try it/i)).toBeInTheDocument()
+    expect(screen.queryByText(/take our 2-minute traveler quiz/i)).not.toBeInTheDocument()
   })
 
   it('shows an error state when the request fails, rather than a false success', async () => {
