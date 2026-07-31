@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WaitlistForm from '@/components/landing/WaitlistForm'
 
+const flag = vi.hoisted(() => ({ validation: true }))
+vi.mock('@/lib/features', () => ({
+  isEnabled: (f: string) => flag[f as keyof typeof flag],
+}))
+
 beforeEach(() => {
   localStorage.clear()
+})
+
+afterEach(() => {
+  flag.validation = true
 })
 
 async function fillAndConsent(user: ReturnType<typeof userEvent.setup>, email: string) {
@@ -43,15 +52,39 @@ describe('WaitlistForm', () => {
       expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
     )
     expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
+    expect(screen.getByText(/take our 2-minute traveler quiz/i)).toBeInTheDocument()
+    expect(screen.queryByText(/feel free to try it/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /take the 2-minute quiz/i })).toHaveAttribute(
       'href',
-      '/plan',
+      '/quiz',
     )
+    expect(screen.queryByRole('link', { name: /try the live planner/i })).not.toBeInTheDocument()
 
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
     expect(body.milestone).toBe('waitlist')
     expect(body.email).toBe('traveler@example.com')
     expect(body.consent).toBe(true)
+  })
+
+  it('falls back to the live planner link when the validation flag is off', async () => {
+    flag.validation = false
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'traveler@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
+      'href',
+      '/plan',
+    )
+    expect(screen.queryByRole('link', { name: /take the 2-minute quiz/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/feel free to try it/i)).toBeInTheDocument()
+    expect(screen.queryByText(/take our 2-minute traveler quiz/i)).not.toBeInTheDocument()
   })
 
   it('shows an error state when the request fails, rather than a false success', async () => {
