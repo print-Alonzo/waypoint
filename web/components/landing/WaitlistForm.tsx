@@ -34,19 +34,18 @@ export default function WaitlistForm() {
           You&apos;re on the list 🎉
         </h2>
         <p className="mx-auto mt-2 max-w-md text-[var(--color-text-muted)]">
-          We&apos;ll email {email.trim()} when it&apos;s your turn. In the meantime, the core flow
-          works today — feel free to try it.
+          We&apos;ll email {email.trim()} when it&apos;s your turn. Help shape the Waypoint
+          you&apos;ll actually use — take our 2-minute traveler quiz, and your answers help us
+          build the experience, starting with yours.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Link href="/plan" className={primaryCta}>
-            Try the live planner →
-          </Link>
-          {isEnabled('validation') && (
-            <Link
-              href="/quiz"
-              className="text-sm font-semibold text-[var(--color-primary)] underline-offset-2 hover:underline"
-            >
-              Find your travel style →
+          {isEnabled('validation') ? (
+            <Link href="/quiz" className={primaryCta}>
+              Take the 2-minute quiz →
+            </Link>
+          ) : (
+            <Link href="/plan" className={primaryCta}>
+              Try the live planner →
             </Link>
           )}
         </div>

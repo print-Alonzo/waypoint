@@ -43,9 +43,9 @@ describe('WaitlistForm', () => {
       expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
     )
     expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /take the 2-minute quiz/i })).toHaveAttribute(
       'href',
-      '/plan',
+      '/quiz',
     )
 
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
