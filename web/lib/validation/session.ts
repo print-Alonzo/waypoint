@@ -16,6 +16,7 @@ export type ValidationSession = {
   triedAppAt: number | null
   feedbackOpenedAt: number | null
   submittedAt: number | null
+  waitlistAt: number | null
   surveyPromptCount: number
   surveyPromptLastAt: number | null
 }
@@ -33,6 +34,7 @@ function freshSession(now: number): ValidationSession {
     triedAppAt: null,
     feedbackOpenedAt: null,
     submittedAt: null,
+    waitlistAt: null,
     surveyPromptCount: 0,
     surveyPromptLastAt: null,
   }

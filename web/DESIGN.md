@@ -68,8 +68,9 @@ Airbnb's proprietary **Cereal** typeface.
 
 ## Motion
 
-Motion in Waypoint is for **continuity, not decoration**: it exists so the eye can follow a thing that
-moved. The only place it carries real weight today is reordering the itinerary.
+Motion in the **app** (selector, result, live) is for **continuity, not decoration**: it exists so the
+eye can follow a thing that moved. The only place it carries real weight there is reordering the
+itinerary. The **landing page** is the one deliberate exception — see "Landing page" below.
 
 - **Tokens** (`app/globals.css`): `--wp-motion-reorder` (220ms) and `--wp-ease-reorder`
   (`cubic-bezier(0.2, 0, 0, 1)` — quick departure, gentle settle). dnd-kit builds its transition
@@ -89,27 +90,46 @@ moved. The only place it carries real weight today is reordering the itinerary.
   dragging tracks the finger rather than playing an animation. Any new motion must honour this.
 - **Print** (`@media print`): `.wp-stop` force-resets `transform` / `transition` / `animation` /
   `box-shadow`. A reorder interrupted by Cmd-P must never commit a half-applied transform to paper.
+- **Landing-page scroll reveals** ([`components/landing/Reveal.tsx`](components/landing/Reveal.tsx))
+  are the exception to "continuity, not decoration": each section fades + rises 28px on scroll,
+  `calc(var(--motion-base) * 3)` (660ms) with `var(--ease-standard)`, with the roadmap and testimonial
+  cards staggered 90ms apart. It fails open rather than honoring reduced motion after the fact: a
+  section renders fully visible until an effect confirms motion is allowed, `IntersectionObserver`
+  exists, *and* the section starts below the fold — so a slow/disabled-JS visitor, a
+  `prefers-reduced-motion: reduce` visitor, and anything already on screen at load all just see the
+  content, no animation, no flash.
 
 ## Component patterns
 
-- **Header** ([`app/layout.tsx`](app/layout.tsx)): sticky, white, thin bottom border; coral
-  "Waypoint" wordmark (a `<Link>` home) on the left, a muted "Metro Manila" pill on the right.
-- **Landing page** ([`app/page.tsx`](app/page.tsx)): the `/` route — a static server component that
-  sells the trust/order-only thesis. Centered hero (eyebrow + bold headline + thesis subhead + a
-  coral "Plan my day →" primary CTA and an outline "See a sample day" secondary CTA that deep-links a
-  prefilled `/result`), a route motif echoing the map (numbered pins, one amber to hint flags), a
-  3-step "How it works" band on `--color-bg-subtle`, a 2×2 trust/feature grid (inline line-icons in
-  a coral-tinted square), a final CTA band, and a footer carrying the estimates caveat. The selector
-  lives at `/plan`; the result page's "Edit this list" returns there.
-- **Featured place cards** (landing "Popular places to start with"): Airbnb-style photo cards in a
-  responsive grid (`sm:grid-cols-2 lg:grid-cols-3`) — a `4/3` `next/image` (`fill` + `object-cover`,
-  subtle hover zoom) over a category eyebrow, name, and hours. Each card links to `/plan` with that
-  POI pre-selected. Photos are **CC-licensed** (sourced from Wikimedia Commons), stored in
-  `public/images/poi/` and carried on the POI as optional `image` + `image_credit`
+- **Header** ([`components/shared/SiteHeader.tsx`](components/shared/SiteHeader.tsx)): sticky, white
+  (never translucent — no backdrop blur, see Visual foundations), thin bottom border, `z-10`. A client
+  component that branches on `usePathname()`: the landing (`/`) gets an anchor nav (How it works /
+  Features / Roadmap / Early feedback) plus a coral "Join waitlist" CTA; every other route keeps the
+  plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
+  layout shift navigating between the two.
+- **Landing page** ([`app/page.tsx`](app/page.tsx)): the `/` route — a pre-launch marketing page, not
+  a straight-to-app one. Centered hero (eyebrow + bold headline + thesis subhead + a coral "Join the
+  waitlist →" primary CTA and an outline "See how it works" secondary CTA) with a route motif echoing
+  the map (numbered pins, one amber to hint flags); a 3-step "How it works" band on
+  `--color-bg-subtle`; a 4-up "Built on trust, not a black box" card grid (icon badge + title + body,
+  `rounded-xl border shadow-sm`); a "Where Waypoint is headed" roadmap band — cards for planned,
+  not-yet-built features, each marked with a neutral "Coming soon" `Chip` so they're never mistaken
+  for something that ships today; an "Early feedback" section quoting real usability-round
+  participants verbatim (see `docs/venture/`, not invented copy); a waitlist band
+  ([`components/landing/WaitlistForm.tsx`](components/landing/WaitlistForm.tsx), email + consent,
+  posting a `waitlist` milestone to `/api/validation`); and a footer carrying the estimates caveat
+  plus the required "Photo credits" link (see below). Every section below the hero is wrapped in
+  [`components/landing/Reveal.tsx`](components/landing/Reveal.tsx) — see Motion. The selector lives
+  at `/plan`, reached from the waitlist success state's "Try the live planner" link (and, while the
+  `validation` flag is on, a "Find your travel style" link into `/quiz`) rather than from the hero.
+- **Photography & attribution**: photos are **CC-licensed** (sourced from Wikimedia Commons), stored
+  in `public/images/poi/` and carried on the POI as optional `image` + `image_credit`
   (`author`/`license`/`license_url`/`source_url`). Attribution (required for CC BY / BY-SA) lives on
-  a dedicated **`/credits`** page rendered by [`components/credits/PhotoCredits.tsx`](components/credits/PhotoCredits.tsx);
-  the landing and selector each carry only a small muted "Photo credits" footer link to it, so the
-  attribution stays compliant without cluttering the page. Only curated landmarks have a photo.
+  a dedicated **`/credits`** page rendered by [`components/credits/PhotoCredits.tsx`](components/credits/PhotoCredits.tsx).
+  The selector's own image-forward picker cards (below) are today's only place these photos appear in
+  the product; the landing and selector each carry only a small muted "Photo credits" footer link to
+  the credits page, so the attribution stays compliant without cluttering the page. Only curated
+  landmarks have a photo.
 - **POI picker — responsive two-mode** ([`components/plan/Selector.tsx`](components/plan/Selector.tsx)): the
   selector renders **both** views and lets **CSS** pick (no `matchMedia`/JS gate — that read stale
   under device emulation and risked a hydration mismatch; CSS `@media` is reliable and flash-free).
@@ -123,7 +143,8 @@ moved. The only place it carries real weight today is reordering the itinerary.
     sm:grid-cols-3`, grouped by category `<fieldset>`/`<legend>`) — each card is a `4/3` `next/image`
     (category line-icon placeholder for the ~5 POIs without a photo) above the name + muted hours. The
     whole card is the tap target wrapping a visually-hidden (but focusable) checkbox; selected = coral
-    border + ring and a coral check badge top-right. Mirrors the landing's featured cards.
+    border + ring and a coral check badge top-right — the same Airbnb-style photo-card language used
+    for the design system's `Card` component.
   - **Phone (< sm): swipe deck** ([`components/plan/PoiSwipeDeck.tsx`](components/plan/PoiSwipeDeck.tsx),
     `sm:hidden`) — a Tinder-style stack of one place at a time (two cards peeking behind for depth)
     so the traveler *looks before deciding*. A big `next/image` fills the card; category eyebrow,

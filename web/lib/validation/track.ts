@@ -8,13 +8,14 @@ import type { ValidationSession } from '@/lib/validation/session'
 // whether that matters (e.g. the feedback form's final submit does; a lightweight
 // "tried the app" beacon does not).
 
-export type Milestone = 'quiz_completed' | 'tried_app' | 'feedback_opened' | 'submitted'
+export type Milestone = 'quiz_completed' | 'tried_app' | 'feedback_opened' | 'submitted' | 'waitlist'
 
 const MILESTONE_FIELD: Record<Milestone, keyof ValidationSession> = {
   quiz_completed: 'quizCompletedAt',
   tried_app: 'triedAppAt',
   feedback_opened: 'feedbackOpenedAt',
   submitted: 'submittedAt',
+  waitlist: 'waitlistAt',
 }
 
 export async function track(

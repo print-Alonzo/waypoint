@@ -17,6 +17,7 @@ const MILESTONE_FIELD: Record<Milestone, string> = {
   tried_app: 'triedAppAt',
   feedback_opened: 'feedbackOpenedAt',
   submitted: 'submittedAt',
+  waitlist: 'waitlistAt',
 }
 
 export async function POST(request: Request) {

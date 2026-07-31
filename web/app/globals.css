@@ -23,6 +23,13 @@
      which must hand dnd-kit the same numbers as JS values. */
   --wp-motion-reorder: 220ms;
   --wp-ease-reorder: cubic-bezier(0.2, 0, 0, 1); /* quick departure, gentle settle */
+
+  /* Motion — landing-page scroll reveals (components/landing/Reveal.tsx). Scoped
+     to marketing content; see DESIGN.md's "Motion" section for why the in-app
+     reorder motion above and these reveals follow different rules. */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body {
@@ -115,6 +122,8 @@ ol[data-reordering] .wp-leg {
 @media (prefers-reduced-motion: reduce) {
   :root {
     --wp-motion-reorder: 1ms;
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
   }
   ol[data-reordering] .wp-leg,
   .wp-stop[data-landed] {
