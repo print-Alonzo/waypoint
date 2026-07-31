@@ -88,7 +88,7 @@ export default function WhatIfDrawer({
                     <button
                       type="button"
                       onClick={() => onChoose(v.mode)}
-                      className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold transition hover:bg-[var(--color-bg-subtle)]"
+                      className="min-h-[44px] rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold transition hover:bg-[var(--color-bg-subtle)]"
                     >
                       Use {modeLabel(v.mode)}
                     </button>

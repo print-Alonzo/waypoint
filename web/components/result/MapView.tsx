@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { ScheduledStop } from '@/lib/scheduling/scheduler'
@@ -41,15 +41,53 @@ function popupHtml(n: number, stop: ScheduledStop): string {
 
 export default function MapView({ stops, start, legGeometry }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const layerGroupRef = useRef<L.LayerGroup | null>(null)
+  // The geographic signature fitBounds last ran for — starts null on every fresh
+  // map instance (reset in the init effect below), so a content-only change
+  // (duration edit, flag change) can skip re-fitting without also skipping the
+  // one fitBounds call a freshly created map actually needs.
+  const lastGeoSignatureRef = useRef<string | null>(null)
 
+  // Reordering, editing a duration or toggling a flag all produce a NEW `stops` /
+  // `legGeometry` array reference even when the underlying values are unchanged,
+  // which would otherwise re-run the content effect below on every unrelated
+  // model recompute. Derive stable primitive signatures instead, so the effect is
+  // keyed on what's actually different, not on array identity.
+  const contentSignature = useMemo(
+    () =>
+      JSON.stringify({
+        start,
+        stops: stops.map((s) => ({
+          id: s.poi.id,
+          lat: s.poi.lat,
+          lng: s.poi.lng,
+          flag: pinState(s),
+          arrival: s.arrivalTime,
+          status: stopStatusLine(s),
+        })),
+        legGeometry,
+      }),
+    [start, stops, legGeometry],
+  )
+  // Only the parts of the above that affect WHERE the map should fit — a duration
+  // edit changes arrival times (content) but not a single coordinate (geography).
+  const geoSignature = useMemo(
+    () =>
+      JSON.stringify({
+        start: [start.lat, start.lng],
+        coords: stops.map((s) => [s.poi.id, s.poi.lat, s.poi.lng]),
+        legGeometry,
+      }),
+    [start, stops, legGeometry],
+  )
+
+  // Init/teardown only — creates the map + tile layer once, so ordinary edits
+  // don't tear down and refetch tiles. Declared before the content effect so its
+  // refs are populated in the same commit the content effect first runs in.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-
-    const lineColor =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-primary')
-        .trim() || '#ff385c'
 
     const map = L.map(el, {
       scrollWheelZoom: false, // don't hijack page scroll; zoom via +/- or pinch
@@ -60,6 +98,35 @@ export default function MapView({ stops, start, legGeometry }: MapViewProps) {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map)
+
+    const layerGroup = L.layerGroup().addTo(map)
+
+    mapRef.current = map
+    layerGroupRef.current = layerGroup
+    lastGeoSignatureRef.current = null
+
+    return () => {
+      mapRef.current = null
+      layerGroupRef.current = null
+      map.remove()
+    }
+  }, [])
+
+  // Content — repopulates the Start dot, numbered pins and per-leg polylines on a
+  // persistent layer group (cheap: no tile refetch, no re-init). fitBounds only
+  // runs when the geography actually moved, so a duration edit's fresh popup text
+  // doesn't also re-zoom the map out from under the traveler.
+  useEffect(() => {
+    const map = mapRef.current
+    const layerGroup = layerGroupRef.current
+    if (!map || !layerGroup) return
+
+    layerGroup.clearLayers()
+
+    const lineColor =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-primary')
+        .trim() || '#ff385c'
 
     const points: L.LatLngExpression[] = [[start.lat, start.lng]]
     // Points to fit the view to: markers + any resolved road geometry, so a route
@@ -75,7 +142,7 @@ export default function MapView({ stops, start, legGeometry }: MapViewProps) {
         iconAnchor: [8, 8],
       }),
     })
-      .addTo(map)
+      .addTo(layerGroup)
       .bindPopup(`<strong>Start</strong><br/>${start.name}`)
 
     stops.forEach((stop, i) => {
@@ -92,7 +159,7 @@ export default function MapView({ stops, start, legGeometry }: MapViewProps) {
         }),
         zIndexOffset: i, // later stops draw above earlier ones on overlap
       })
-        .addTo(map)
+        .addTo(layerGroup)
         .bindPopup(popupHtml(i + 1, stop))
     })
 
@@ -103,7 +170,7 @@ export default function MapView({ stops, start, legGeometry }: MapViewProps) {
       const from = points[i]
       const geometry = legGeometry?.[i]
       if (geometry && geometry.length > 1) {
-        L.polyline(geometry, { color: lineColor, weight: 3, opacity: 0.75 }).addTo(map)
+        L.polyline(geometry, { color: lineColor, weight: 3, opacity: 0.75 }).addTo(layerGroup)
         boundsPoints.push(...geometry)
       } else {
         L.polyline([from, point], {
@@ -111,21 +178,21 @@ export default function MapView({ stops, start, legGeometry }: MapViewProps) {
           weight: 3,
           opacity: 0.75,
           dashArray: '6 8',
-        }).addTo(map)
+        }).addTo(layerGroup)
       }
     })
 
-    map.fitBounds(L.latLngBounds(boundsPoints), { padding: [32, 32], maxZoom: 16 })
+    if (geoSignature !== lastGeoSignatureRef.current) {
+      lastGeoSignatureRef.current = geoSignature
+      map.fitBounds(L.latLngBounds(boundsPoints), { padding: [32, 32], maxZoom: 16 })
+    }
+
     // Container is laid out with a fixed height, but recalc once after paint to
     // be safe (avoids occasional grey-tile / wrong-center on first render).
     const raf = requestAnimationFrame(() => map.invalidateSize())
-
-    return () => {
-      cancelAnimationFrame(raf)
-      map.remove()
-    }
-    // Primitive/memoized deps: re-init only when the actual route changes.
-  }, [stops, start.lat, start.lng, start.name, legGeometry])
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- signatures ARE the deps
+  }, [contentSignature, geoSignature])
 
   return (
     <div
