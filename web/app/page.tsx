@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { CITY_LABEL } from '@/lib/poi/data'
 import Reveal from '@/components/landing/Reveal'
+import SmoothAnchorNav from '@/components/landing/SmoothAnchorNav'
 import WaitlistForm from '@/components/landing/WaitlistForm'
 
 export const metadata: Metadata = {
@@ -172,6 +173,8 @@ function Chip({ children }: { children: ReactNode }) {
 export default function Home() {
   return (
     <div>
+      <SmoothAnchorNav />
+
       {/* Hero */}
       <section className="mx-auto max-w-3xl px-5 py-16 text-center sm:py-20">
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">

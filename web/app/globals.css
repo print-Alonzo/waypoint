@@ -37,16 +37,6 @@ body {
   color: var(--color-text);
 }
 
-/* Smooth in-page jumps for the landing's anchor nav (header links, hero "See how
-   it works", footer CTAs). Scoped to no-preference rather than added to the
-   reduced-motion block below: unlike the other tokens, there's no reduced state
-   to fall back to — this just opts out of the browser's default instant jump. */
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
-}
-
 /* Leaflet map — numbered itinerary pins (components/MapView.tsx).
    Colours are token-driven so the map echoes the itinerary list's flag states. */
 .leaflet-container {
