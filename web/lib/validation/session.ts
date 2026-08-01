@@ -112,3 +112,14 @@ export function resetParticipant(): void {
   resetSession()
   clearSavedPlans()
 }
+
+// Call before track()'ing an email-bearing milestone (waitlist, feedback
+// submit). Rotates to a fresh sid when `email` differs from the one already
+// bound to this device — a new participant is typing — and is a no-op
+// otherwise (first submission, or the same person resubmitting).
+export function rotateSessionIfNewEmail(email: string): void {
+  const session = getSession()
+  if (session.boundEmail && session.boundEmail !== email) {
+    resetSession()
+  }
+}

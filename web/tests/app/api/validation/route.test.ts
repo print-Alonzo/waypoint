@@ -77,6 +77,14 @@ describe('POST /api/validation', () => {
     expect(res.status).toBe(200)
   })
 
+  it('rejects a POST with a malformed Origin header', async () => {
+    const res = await POST(
+      postWith({ sid: 'abc-123', milestone: 'tried_app' }, { Origin: 'not-a-valid-url' }),
+    )
+    expect(res.status).toBe(403)
+    expect(mongoMock.updateOne).not.toHaveBeenCalled()
+  })
+
   it('upserts by sid on a valid lightweight-milestone submission, using $min/$max (not $set) for timestamps/rank', async () => {
     const res = await POST(postWith({ sid: 'abc-123', milestone: 'tried_app' }))
     expect(res.status).toBe(200)
@@ -168,6 +176,43 @@ describe('POST /api/validation', () => {
       const json = await res.json()
       expect(json.returning).toBe(true)
     })
+
+    // Pins current behavior (case-sensitive) so a future change to normalize
+    // email casing is a deliberate decision, not an accidental regression.
+    it('matches the email lookup case-sensitively', async () => {
+      mongoMock.findOne.mockResolvedValueOnce(null)
+      await POST(
+        postWith({
+          sid: 'abc-123',
+          milestone: 'waitlist',
+          email: 'Traveler@Example.com',
+          consent: true,
+        }),
+      )
+      expect(mongoMock.findOne).toHaveBeenCalledWith(
+        { email: 'Traveler@Example.com' },
+        { projection: { _id: 1 } },
+      )
+    })
+
+    it('returns 500 when the returning-email lookup fails', async () => {
+      mongoMock.findOne.mockRejectedValueOnce(new Error('read failed'))
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const res = await POST(
+        postWith({ sid: 'abc-123', milestone: 'waitlist', email: 'a@example.com', consent: true }),
+      )
+      expect(res.status).toBe(500)
+      consoleError.mockRestore()
+    })
+  })
+
+  it('returns 500 when the events insert fails, even though the submission upsert already succeeded', async () => {
+    eventsMock.insertOne.mockRejectedValueOnce(new Error('insert failed'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await POST(postWith({ sid: 'abc-123', milestone: 'tried_app' }))
+    expect(res.status).toBe(500)
+    expect(mongoMock.updateOne).toHaveBeenCalledTimes(1)
+    consoleError.mockRestore()
   })
 
   it('returns a generic 500 (no driver detail) when the database write fails', async () => {

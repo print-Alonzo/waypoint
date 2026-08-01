@@ -13,7 +13,7 @@ import type {
 } from '@/lib/validation/validate'
 import { PRICE_UNIT_BY_MODEL } from '@/lib/validation/validate'
 import { track } from '@/lib/validation/track'
-import { getSession, resetSession, bindEmail } from '@/lib/validation/session'
+import { rotateSessionIfNewEmail, bindEmail } from '@/lib/validation/session'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -207,10 +207,7 @@ export default function FeedbackView() {
     // A different email than this device last submitted means a new
     // participant is at the keyboard — rotate the sid before tracking so
     // their answers don't overwrite the previous person's row.
-    const session = getSession()
-    if (session.boundEmail && session.boundEmail !== trimmedEmail) {
-      resetSession()
-    }
+    rotateSessionIfNewEmail(trimmedEmail)
 
     const { ok } = await track('submitted', {
       currentPlanning,

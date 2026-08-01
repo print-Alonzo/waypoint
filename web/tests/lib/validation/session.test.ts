@@ -7,6 +7,7 @@ import {
   resetSession,
   bindEmail,
   resetParticipant,
+  rotateSessionIfNewEmail,
 } from '@/lib/validation/session'
 import { savePlan, listSavedPlans } from '@/lib/storage/saved-plans'
 
@@ -99,6 +100,34 @@ describe('validation session', () => {
 
       expect(getSession().sid).not.toBe(original.sid)
       expect(listSavedPlans()).toHaveLength(0)
+    })
+  })
+
+  describe('rotateSessionIfNewEmail', () => {
+    it('rotates the sid when a bound email differs from the new one', () => {
+      const original = getSession()
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().sid).not.toBe(original.sid)
+    })
+
+    it('does not rotate when the email matches the bound one', () => {
+      const original = getSession()
+      bindEmail('same@example.com')
+
+      rotateSessionIfNewEmail('same@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
+    })
+
+    it('does not rotate when no email is bound yet', () => {
+      const original = getSession()
+
+      rotateSessionIfNewEmail('first-ever@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
     })
   })
 })

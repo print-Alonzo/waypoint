@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { track } from '@/lib/validation/track'
-import { getSession, resetSession, bindEmail } from '@/lib/validation/session'
+import { rotateSessionIfNewEmail, bindEmail } from '@/lib/validation/session'
 import { isEnabled } from '@/lib/features'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -30,10 +30,7 @@ export default function WaitlistForm() {
     // A different email than this device last submitted means a new
     // participant is at the keyboard — rotate the sid before tracking so
     // their answers don't overwrite the previous person's row.
-    const session = getSession()
-    if (session.boundEmail && session.boundEmail !== trimmed) {
-      resetSession()
-    }
+    rotateSessionIfNewEmail(trimmed)
 
     const { ok, returning: isReturning } = await track('waitlist', { email: trimmed, consent: true })
     if (ok) {
