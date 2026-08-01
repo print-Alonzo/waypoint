@@ -129,5 +129,24 @@ describe('validation session', () => {
 
       expect(getSession().sid).toBe(original.sid)
     })
+
+    it('does not rotate when the email matches case-insensitively', () => {
+      const original = getSession()
+      bindEmail('Same@Example.com')
+
+      rotateSessionIfNewEmail('same@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
+    })
+
+    it('clears saved plans too, same as resetParticipant', () => {
+      savePlan('My trip', 'a=1', Date.now())
+      bindEmail('first@example.com')
+      expect(listSavedPlans()).toHaveLength(1)
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(listSavedPlans()).toHaveLength(0)
+    })
   })
 })

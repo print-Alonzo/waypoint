@@ -15,12 +15,15 @@ export const MILESTONE_FIELD: Record<Milestone, keyof ValidationSession> = {
   waitlist: 'waitlistAt',
 }
 
-// Declaration order of the Milestone union, used with $max so a later beacon
-// (e.g. a stray tried_app after submitted) can never move a row backwards.
+// Chronological funnel order (landing waitlist -> quiz -> app trial -> survey
+// open -> survey submit — see every track() call site), used with $max so a
+// later beacon (e.g. a stray tried_app after submitted) can never move a row
+// backwards. Must NOT be the Milestone union's declaration order — waitlist
+// is the visitor's first action, not their last.
 export const MILESTONE_RANK: Record<Milestone, number> = {
-  quiz_completed: 1,
-  tried_app: 2,
-  feedback_opened: 3,
-  submitted: 4,
-  waitlist: 5,
+  waitlist: 1,
+  quiz_completed: 2,
+  tried_app: 3,
+  feedback_opened: 4,
+  submitted: 5,
 }

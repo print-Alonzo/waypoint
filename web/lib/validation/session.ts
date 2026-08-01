@@ -92,8 +92,10 @@ export function patchSession(partial: Partial<ValidationSession>): ValidationSes
 
 // Records which email this sid last submitted, so a later submission can tell
 // whether it's the same person (keep the sid) or someone new (rotate it).
+// Lowercased so "Same@Example.com" then "same@example.com" from the same
+// person doesn't look like two different participants.
 export function bindEmail(email: string): ValidationSession {
-  return patchSession({ boundEmail: email })
+  return patchSession({ boundEmail: email.toLowerCase() })
 }
 
 // Mints and stores a brand-new session — deliberately does NOT merge the old
@@ -114,12 +116,15 @@ export function resetParticipant(): void {
 }
 
 // Call before track()'ing an email-bearing milestone (waitlist, feedback
-// submit). Rotates to a fresh sid when `email` differs from the one already
-// bound to this device — a new participant is typing — and is a no-op
-// otherwise (first submission, or the same person resubmitting).
+// submit). Rotates to a fresh sid — via resetParticipant(), so saved plans
+// are cleared too, same as the ?new=1 path — when `email` differs from the
+// one already bound to this device (a new participant is typing). No-op
+// otherwise (first submission, or the same person resubmitting). Compares
+// case-insensitively so differently-cased retypes of the same address don't
+// look like a new person.
 export function rotateSessionIfNewEmail(email: string): void {
   const session = getSession()
-  if (session.boundEmail && session.boundEmail !== email) {
-    resetSession()
+  if (session.boundEmail && session.boundEmail !== email.toLowerCase()) {
+    resetParticipant()
   }
 }

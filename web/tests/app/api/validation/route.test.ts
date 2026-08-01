@@ -98,11 +98,33 @@ describe('POST /api/validation', () => {
     expect(update.$setOnInsert.sid).toBe('abc-123')
     expect(typeof update.$setOnInsert.startedAt).toBe('number')
     expect(typeof update.$min.triedAppAt).toBe('number')
-    expect(update.$max.furthestMilestoneRank).toBe(2)
+    expect(update.$max.furthestMilestoneRank).toBe(3) // waitlist(1) < quiz_completed(2) < tried_app(3)
     expect(update.$set.lastMilestone).toBe('tried_app')
     expect(update.$set.milestone).toBeUndefined()
     expect(typeof update.$set.lastSeenAt).toBe('number')
     expect(options).toEqual({ upsert: true })
+  })
+
+  // Regression test: MILESTONE_RANK was originally keyed to the Milestone
+  // union's declaration order, which put `waitlist` (the visitor's FIRST
+  // action, from the landing page) at the highest rank. Since $max never
+  // decreases, that silently pinned furthestMilestoneRank at its max value
+  // on every real participant's very first action, defeating the funnel
+  // drop-off signal entirely. Locks in the corrected chronological order.
+  it('ranks milestones in true funnel order (waitlist first) so furthestMilestoneRank climbs, not maxes out immediately', async () => {
+    const order: Array<{ milestone: string; email?: string; consent?: boolean }> = [
+      { milestone: 'waitlist', email: 'a@example.com', consent: true },
+      { milestone: 'quiz_completed' },
+      { milestone: 'tried_app' },
+      { milestone: 'feedback_opened' },
+    ]
+    const ranks: number[] = []
+    for (const { milestone, ...extra } of order) {
+      await POST(postWith({ sid: 'funnel-sid', milestone, ...extra }))
+      const lastCall = mongoMock.updateOne.mock.calls.at(-1)!
+      ranks.push(lastCall[1].$max.furthestMilestoneRank)
+    }
+    expect(ranks).toEqual([1, 2, 3, 4])
   })
 
   it('inserts one validation_events document per POST', async () => {
@@ -177,11 +199,13 @@ describe('POST /api/validation', () => {
       expect(json.returning).toBe(true)
     })
 
-    // Pins current behavior (case-sensitive) so a future change to normalize
-    // email casing is a deliberate decision, not an accidental regression.
-    it('matches the email lookup case-sensitively', async () => {
-      mongoMock.findOne.mockResolvedValueOnce(null)
-      await POST(
+    // Adversarial review caught this: without normalizing, "Traveler@x.com"
+    // and "traveler@x.com" from the same person would look like two
+    // different visitors — validateSubmission lowercases doc.email, so the
+    // lookup always matches regardless of how the visitor capitalized it.
+    it('matches the email lookup case-insensitively', async () => {
+      mongoMock.findOne.mockResolvedValueOnce({ _id: 'existing' })
+      const res = await POST(
         postWith({
           sid: 'abc-123',
           milestone: 'waitlist',
@@ -189,8 +213,10 @@ describe('POST /api/validation', () => {
           consent: true,
         }),
       )
+      const json = await res.json()
+      expect(json.returning).toBe(true)
       expect(mongoMock.findOne).toHaveBeenCalledWith(
-        { email: 'Traveler@Example.com' },
+        { email: 'traveler@example.com' },
         { projection: { _id: 1 } },
       )
     })

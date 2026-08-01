@@ -42,11 +42,11 @@ const APPLY = process.argv.includes('--apply')
 // standalone via plain `node`, outside Next's module resolution, so the map
 // is duplicated here rather than imported.
 const MILESTONE_RANK = {
-  quiz_completed: 1,
-  tried_app: 2,
-  feedback_opened: 3,
-  submitted: 4,
-  waitlist: 5,
+  waitlist: 1,
+  quiz_completed: 2,
+  tried_app: 3,
+  feedback_opened: 4,
+  submitted: 5,
 }
 
 async function main() {
