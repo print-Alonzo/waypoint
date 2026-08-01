@@ -199,8 +199,8 @@ describe('POST /api/validation', () => {
       expect(json.returning).toBe(true)
     })
 
-    // Adversarial review caught this: without normalizing, "Traveler@x.com"
-    // and "traveler@x.com" from the same person would look like two
+    // Adversarial review caught this: without normalizing, "Traveler@example.com"
+    // and "traveler@example.com" from the same person would look like two
     // different visitors — validateSubmission lowercases doc.email, so the
     // lookup always matches regardless of how the visitor capitalized it.
     it('matches the email lookup case-insensitively', async () => {
