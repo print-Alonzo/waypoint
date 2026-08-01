@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FeedbackView from '@/components/feedback/FeedbackView'
+import { getSession, bindEmail } from '@/lib/validation/session'
 
 const push = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -46,6 +48,19 @@ describe('FeedbackView', () => {
     )
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
     expect(body.milestone).toBe('feedback_opened')
+  })
+
+  it('fires feedback_opened only once, even under a StrictMode double-mount', async () => {
+    render(
+      <StrictMode>
+        <FeedbackView />
+      </StrictMode>,
+    )
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const opens = (fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => JSON.parse(c[1].body).milestone === 'feedback_opened',
+    )
+    expect(opens).toHaveLength(1)
   })
 
   it('disables submit until every required field is filled', async () => {
@@ -147,6 +162,40 @@ describe('FeedbackView', () => {
     await fillValidForm(user)
     await user.clear(screen.getByLabelText(/worth paying for/i))
     expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled()
+  })
+
+  it('rotates the session when the submitted email differs from the one already bound', async () => {
+    bindEmail('first@example.com')
+    const originalSid = getSession().sid
+
+    const user = userEvent.setup()
+    render(<FeedbackView />)
+    await fillValidForm(user)
+    await user.clear(screen.getByLabelText('Email'))
+    await user.type(screen.getByLabelText('Email'), 'second@example.com')
+
+    await user.click(screen.getByRole('button', { name: /^submit$/i }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/thanks'))
+    expect(getSession().sid).not.toBe(originalSid)
+
+    const calls = (fetch as ReturnType<typeof vi.fn>).mock.calls
+    const submitCall = calls.find((c) => JSON.parse(c[1].body).milestone === 'submitted')
+    expect(JSON.parse(submitCall![1].body).sid).toBe(getSession().sid)
+  })
+
+  it('does not rotate the session when the same email is submitted', async () => {
+    bindEmail('traveler@example.com')
+    const originalSid = getSession().sid
+
+    const user = userEvent.setup()
+    render(<FeedbackView />)
+    await fillValidForm(user)
+
+    await user.click(screen.getByRole('button', { name: /^submit$/i }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/thanks'))
+    expect(getSession().sid).toBe(originalSid)
   })
 
   it('shows an inline error and keeps entered data when the submit fails', async () => {

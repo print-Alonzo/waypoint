@@ -15,6 +15,7 @@ describe('isEnabled', () => {
     expect(isEnabled('liveMode')).toBe(true)
     expect(isEnabled('comparePlans')).toBe(true)
     expect(isEnabled('groupVote')).toBe(false)
+    expect(isEnabled('validation')).toBe(true)
   })
 
   it('groupVote is off by default (single-device tally, not enabled by default)', () => {
