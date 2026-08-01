@@ -151,7 +151,9 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
   [`components/landing/Reveal.tsx`](components/landing/Reveal.tsx) — see Motion. The selector lives
   at `/plan`, reached from the waitlist success state's single primary CTA rather than from the hero
   — "Take the 2-minute quiz →" into `/quiz` while the `validation` flag is on, falling back to "Try
-  the live planner →" into `/plan` when it's off.
+  the live planner →" into `/plan` when it's off, or when the email just submitted already has a
+  waitlist row (a returning visitor is told they're already on the list and sent straight to the
+  planner instead of back through the quiz).
 - **Photography & attribution**: photos are **CC-licensed** (sourced from Wikimedia Commons), stored
   in `public/images/poi/` and carried on the POI as optional `image` + `image_credit`
   (`author`/`license`/`license_url`/`source_url`). Attribution (required for CC BY / BY-SA) lives on

@@ -180,6 +180,7 @@ public/
   images/poi/         Featured landmark photos (CC-licensed; credited on the landing)
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
+  validation-migrate.mjs  One-time Mongo migration for the validation funnel's schema (see "Validation funnel" above)
 ```
 
 > Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin

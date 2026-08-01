@@ -196,6 +196,21 @@ testimonial copy. Full detail in `web/DESIGN.md`'s "Landing page" component-patt
 
 ---
 
+## Deferred from fix/validation-funnel-data-loss (2026-08-01)
+
+Fixed the funnel overwriting one participant's answers with the next's (session rotation on a new
+email, `?new=1` moderated-session reset, rank-guarded milestone writes — see `web/README.md`
+"Validation funnel"). One hardening gap was flagged rather than fixed in the same pass:
+
+- **`/api/validation` has no auth or rate limiting; `sid` is still client-chosen.** This fix added a
+  same-origin check (`app/api/validation/route.ts`), which blocks the obvious cross-site-POST case,
+  but a script running on an allowed origin can still spoof arbitrary `sid`/`milestone` values, and
+  nothing throttles request volume. Low risk while the study is small (the endpoint is
+  unauthenticated by design — no login), but worth hardening — e.g. a per-IP/per-sid rate limit —
+  before pointing a larger audience at the funnel. See the route's "Flagged, not solved here" comment.
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds
