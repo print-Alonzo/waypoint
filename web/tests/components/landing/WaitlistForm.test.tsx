@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WaitlistForm from '@/components/landing/WaitlistForm'
+import { getSession, bindEmail } from '@/lib/validation/session'
 
 const flag = vi.hoisted(() => ({ validation: true }))
 vi.mock('@/lib/features', () => ({
@@ -25,7 +26,10 @@ async function fillAndConsent(user: ReturnType<typeof userEvent.setup>, email: s
 describe('WaitlistForm', () => {
   it('keeps the submit button disabled until an email is entered and consent is given', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: false }) }),
+    )
     render(<WaitlistForm />)
 
     const submit = screen.getByRole('button', { name: /join waitlist/i })
@@ -40,9 +44,12 @@ describe('WaitlistForm', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('submits the email and shows the success state', async () => {
+  it('submits the email and shows the success state for a new email', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: false }) }),
+    )
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
@@ -53,7 +60,6 @@ describe('WaitlistForm', () => {
     )
     expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
     expect(screen.getByText(/take our 2-minute traveler quiz/i)).toBeInTheDocument()
-    expect(screen.queryByText(/feel free to try it/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /take the 2-minute quiz/i })).toHaveAttribute(
       'href',
       '/quiz',
@@ -66,25 +72,83 @@ describe('WaitlistForm', () => {
     expect(body.consent).toBe(true)
   })
 
-  it('falls back to the live planner link when the validation flag is off', async () => {
-    flag.validation = false
+  it('shows the already-on-the-waitlist state when the server reports a returning email', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: true }) }),
+    )
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
     await user.click(screen.getByRole('button', { name: /join waitlist/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /already on the waitlist/i })).toBeInTheDocument(),
     )
     expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
       'href',
       '/plan',
     )
     expect(screen.queryByRole('link', { name: /take the 2-minute quiz/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/feel free to try it/i)).toBeInTheDocument()
-    expect(screen.queryByText(/take our 2-minute traveler quiz/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /you.re on the list/i })).not.toBeInTheDocument()
+  })
+
+  it('rotates the session when a different email is submitted than the one already bound', async () => {
+    bindEmail('first@example.com')
+    const originalSid = getSession().sid
+
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: false }) }),
+    )
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'second@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+    )
+
+    expect(getSession().sid).not.toBe(originalSid)
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
+    expect(body.sid).toBe(getSession().sid)
+  })
+
+  it('does not rotate the session when the same email is submitted again', async () => {
+    bindEmail('same@example.com')
+    const originalSid = getSession().sid
+
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: true }) }),
+    )
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'same@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /already on the waitlist/i })).toBeInTheDocument(),
+    )
+
+    expect(getSession().sid).toBe(originalSid)
+  })
+
+  it('shows only the explore-the-app CTA when the validation flag is off — no email field', () => {
+    flag.validation = false
+    render(<WaitlistForm />)
+
+    expect(screen.getByRole('heading', { name: /try waypoint/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
+      'href',
+      '/plan',
+    )
+    expect(screen.queryByLabelText(/^email$/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /join waitlist/i })).not.toBeInTheDocument()
   })
 
   it('shows an error state when the request fails, rather than a false success', async () => {

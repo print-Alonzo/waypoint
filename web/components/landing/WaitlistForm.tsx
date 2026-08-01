@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { track } from '@/lib/validation/track'
+import { rotateSessionIfNewEmail, bindEmail } from '@/lib/validation/session'
 import { isEnabled } from '@/lib/features'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -15,6 +16,7 @@ export default function WaitlistForm() {
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error' | 'success'>('idle')
+  const [returning, setReturning] = useState(false)
 
   const emailValid = EMAIL_RE.test(email.trim())
   const canSubmit = emailValid && consent && status !== 'submitting'
@@ -23,8 +25,59 @@ export default function WaitlistForm() {
     e.preventDefault()
     if (!canSubmit) return
     setStatus('submitting')
-    const { ok } = await track('waitlist', { email: email.trim(), consent: true })
-    setStatus(ok ? 'success' : 'error')
+
+    const trimmed = email.trim()
+    // A different email than this device last submitted means a new
+    // participant is at the keyboard — rotate the sid before tracking so
+    // their answers don't overwrite the previous person's row.
+    rotateSessionIfNewEmail(trimmed)
+
+    const { ok, returning: isReturning } = await track('waitlist', { email: trimmed, consent: true })
+    if (ok) {
+      bindEmail(trimmed)
+      setReturning(Boolean(isReturning))
+      setStatus('success')
+    } else {
+      setStatus('error')
+    }
+  }
+
+  // With the study ended (flag off), track() no-ops — showing the email form
+  // would collect addresses that are never recorded. Send everyone straight
+  // to the live planner instead.
+  if (!isEnabled('validation')) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">Try Waypoint</h2>
+        <p className="mx-auto mt-2 max-w-md text-[var(--color-text-muted)]">
+          The core flow works today — feel free to try it.
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link href="/plan" className={primaryCta}>
+            Try the live planner →
+          </Link>
+        </div>
+      </>
+    )
+  }
+
+  if (status === 'success' && returning) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+          You&apos;re already on the waitlist
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-[var(--color-text-muted)]">
+          We&apos;ll email {email.trim()} when it&apos;s your turn. Want to explore Waypoint in the
+          meantime?
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link href="/plan" className={primaryCta}>
+            Try the live planner →
+          </Link>
+        </div>
+      </>
+    )
   }
 
   if (status === 'success') {
@@ -34,29 +87,14 @@ export default function WaitlistForm() {
           You&apos;re on the list 🎉
         </h2>
         <p className="mx-auto mt-2 max-w-md text-[var(--color-text-muted)]">
-          {isEnabled('validation') ? (
-            <>
-              We&apos;ll email {email.trim()} when it&apos;s your turn. Help shape the Waypoint
-              you&apos;ll actually use — take our 2-minute traveler quiz, and your answers help us
-              build the experience, starting with yours.
-            </>
-          ) : (
-            <>
-              We&apos;ll email {email.trim()} when it&apos;s your turn. In the meantime, the core
-              flow works today — feel free to try it.
-            </>
-          )}
+          We&apos;ll email {email.trim()} when it&apos;s your turn. Help shape the Waypoint
+          you&apos;ll actually use — take our 2-minute traveler quiz, and your answers help us
+          build the experience, starting with yours.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          {isEnabled('validation') ? (
-            <Link href="/quiz" className={primaryCta}>
-              Take the 2-minute quiz →
-            </Link>
-          ) : (
-            <Link href="/plan" className={primaryCta}>
-              Try the live planner →
-            </Link>
-          )}
+          <Link href="/quiz" className={primaryCta}>
+            Take the 2-minute quiz →
+          </Link>
         </div>
       </>
     )

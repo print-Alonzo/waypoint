@@ -69,6 +69,37 @@ Budget, lunch, and per-stop duration overrides are part of the result URL (`&bud
 `&dur=fort-santiago:120`), so a budgeted / lunch-inclusive / time-tuned plan stays shareable and
 refresh-safe like everything else.
 
+## Validation funnel
+
+`validation` (`lib/features.ts`) gates a willingness-to-pay study: landing waitlist → persona quiz →
+app trial → survey, capturing milestones to MongoDB Atlas (`app/api/validation/route.ts`) in two
+collections — `validation_submissions` (one upserted rollup row per visitor: persona + furthest
+milestone reached) and `validation_events` (append-only; every milestone POST, never updated, so no
+individual answer is lost even if a rollup row is ever overwritten). Identity is a per-browser `sid`
+in `localStorage` — there's no login — so running this as a moderated usability test, where several
+participants share one browser/tab, needs an explicit reset between people or the next participant's
+answers land on the previous one's row. Two ways that happens:
+
+- **Automatic**: submitting a different email than the one already bound to this browser's session
+  (waitlist form or the feedback survey) rotates to a fresh session first.
+- **Manual — `?new=1`**: append `?new=1` to any URL (e.g. `https://.../?new=1`) to force a fresh
+  session and clear this device's saved plans before the next participant starts. There's no visible
+  button for this — it's meant for the facilitator between sessions, not a website visitor. Gated
+  behind the `validation` flag like every other funnel entry point, so it stops working once the flag
+  is off — don't rely on it for a moderated session run after the study ends.
+
+A returning email (already in the database) short-circuits the funnel: the waitlist success state
+tells them they're already on the list and offers only the live planner, rather than sending them
+through the quiz again.
+
+After changing the Mongo schema, run the one-time migration (dry-run by default; see
+`scripts/validation-migrate.mjs` and `.env.example`):
+
+```bash
+node scripts/validation-migrate.mjs           # report only
+node scripts/validation-migrate.mjs --apply   # backfill + create indexes
+```
+
 ## Scripts
 
 | Script | What it does |
@@ -79,6 +110,7 @@ refresh-safe like everything else.
 | `npm run test:watch` | Tests in watch mode |
 | `npm run gen:matrix` | Regenerate `transit-matrix.json` from `pois.json` (Haversine × per-mode speed) |
 | `npm run lint` | ESLint |
+| `node scripts/validation-migrate.mjs` | One-time migration for the validation funnel's Mongo schema (see above) |
 
 ## Project layout
 
@@ -153,6 +185,7 @@ public/
   images/poi/         Featured landmark photos (CC-licensed; credited on the landing)
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
+  validation-migrate.mjs  One-time Mongo migration for the validation funnel's schema (see "Validation funnel" above)
 ```
 
 > Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin

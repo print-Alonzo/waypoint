@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type {
   Interest,
@@ -13,6 +13,7 @@ import type {
 } from '@/lib/validation/validate'
 import { PRICE_UNIT_BY_MODEL } from '@/lib/validation/validate'
 import { track } from '@/lib/validation/track'
+import { rotateSessionIfNewEmail, bindEmail } from '@/lib/validation/session'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -154,7 +155,10 @@ function isValidPrice(v: string): boolean {
 export default function FeedbackView() {
   const router = useRouter()
 
+  const feedbackOpenedTracked = useRef(false)
   useEffect(() => {
+    if (feedbackOpenedTracked.current) return
+    feedbackOpenedTracked.current = true
     void track('feedback_opened')
   }, [])
 
@@ -198,6 +202,13 @@ export default function FeedbackView() {
     e.preventDefault()
     if (!canSubmit) return
     setStatus('submitting')
+
+    const trimmedEmail = email.trim()
+    // A different email than this device last submitted means a new
+    // participant is at the keyboard — rotate the sid before tracking so
+    // their answers don't overwrite the previous person's row.
+    rotateSessionIfNewEmail(trimmedEmail)
+
     const { ok } = await track('submitted', {
       currentPlanning,
       pastSpending,
@@ -214,10 +225,11 @@ export default function FeedbackView() {
       priceUnit: PRICE_UNIT_BY_MODEL[pricingModel as PricingModel],
       worthPaying: worthPaying.trim(),
       budgetSource,
-      email: email.trim(),
+      email: trimmedEmail,
       consent,
     })
     if (ok) {
+      bindEmail(trimmedEmail)
       router.push('/thanks')
     } else {
       setStatus('error')

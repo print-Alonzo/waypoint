@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { getSession, patchSession, hasSession } from '@/lib/validation/session'
+import {
+  getSession,
+  patchSession,
+  hasSession,
+  resetSession,
+  bindEmail,
+  resetParticipant,
+  rotateSessionIfNewEmail,
+} from '@/lib/validation/session'
+import { savePlan, listSavedPlans } from '@/lib/storage/saved-plans'
 
 beforeEach(() => {
   localStorage.clear()
@@ -49,5 +58,95 @@ describe('validation session', () => {
     expect(() => getSession()).not.toThrow()
     expect(() => patchSession({ persona: 'meticulous' })).not.toThrow()
     spy.mockRestore()
+  })
+
+  it('starts with a null boundEmail', () => {
+    expect(getSession().boundEmail).toBeNull()
+  })
+
+  it('bindEmail records the email without changing the sid', () => {
+    const original = getSession()
+    const bound = bindEmail('traveler@example.com')
+    expect(bound.sid).toBe(original.sid)
+    expect(bound.boundEmail).toBe('traveler@example.com')
+  })
+
+  describe('resetSession', () => {
+    it('mints a different sid and does not carry over prior state', () => {
+      const original = patchSession({ persona: 'time-poor', quizCompletedAt: 1234 })
+      bindEmail('a@example.com')
+
+      const next = resetSession()
+
+      expect(next.sid).not.toBe(original.sid)
+      expect(next.persona).toBeNull()
+      expect(next.quizCompletedAt).toBeNull()
+      expect(next.boundEmail).toBeNull()
+    })
+
+    it('persists the new session so a later getSession() reuses it', () => {
+      const next = resetSession()
+      expect(getSession().sid).toBe(next.sid)
+    })
+  })
+
+  describe('resetParticipant', () => {
+    it('resets the validation session and clears saved plans', () => {
+      const original = getSession()
+      savePlan('My trip', 'a=1', Date.now())
+      expect(listSavedPlans()).toHaveLength(1)
+
+      resetParticipant()
+
+      expect(getSession().sid).not.toBe(original.sid)
+      expect(listSavedPlans()).toHaveLength(0)
+    })
+  })
+
+  describe('rotateSessionIfNewEmail', () => {
+    it('rotates the sid when a bound email differs from the new one', () => {
+      const original = getSession()
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().sid).not.toBe(original.sid)
+    })
+
+    it('does not rotate when the email matches the bound one', () => {
+      const original = getSession()
+      bindEmail('same@example.com')
+
+      rotateSessionIfNewEmail('same@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
+    })
+
+    it('does not rotate when no email is bound yet', () => {
+      const original = getSession()
+
+      rotateSessionIfNewEmail('first-ever@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
+    })
+
+    it('does not rotate when the email matches case-insensitively', () => {
+      const original = getSession()
+      bindEmail('Same@Example.com')
+
+      rotateSessionIfNewEmail('same@example.com')
+
+      expect(getSession().sid).toBe(original.sid)
+    })
+
+    it('clears saved plans too, same as resetParticipant', () => {
+      savePlan('My trip', 'a=1', Date.now())
+      bindEmail('first@example.com')
+      expect(listSavedPlans()).toHaveLength(1)
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(listSavedPlans()).toHaveLength(0)
+    })
   })
 })

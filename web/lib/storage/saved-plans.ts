@@ -81,3 +81,10 @@ export function savePlan(name: string, query: string, now: number): SavedPlan {
 export function removePlan(id: string): void {
   write(read().filter((p) => p.id !== id))
 }
+
+// Clears every saved plan for this device — used when handing the browser to a
+// new session/participant. Goes through write() (not a direct localStorage
+// call) so snapshotCache and subscribers stay in sync.
+export function clearAll(): void {
+  write([])
+}

@@ -223,7 +223,9 @@ export function validateSubmission(
     if (!email || email.length > MAX_EMAIL_LEN || !EMAIL_RE.test(email)) {
       errors.email = 'Enter a valid email address.'
     } else {
-      doc.email = email
+      // Lowercased so the returning-visitor lookup (route.ts's findOne by
+      // email) matches regardless of how the address was capitalized.
+      doc.email = email.toLowerCase()
     }
 
     if (body.consent !== true) errors.consent = 'Consent is required to join the waitlist.'
@@ -235,7 +237,9 @@ export function validateSubmission(
     if (!email || email.length > MAX_EMAIL_LEN || !EMAIL_RE.test(email)) {
       errors.email = 'Enter a valid email address.'
     } else {
-      doc.email = email
+      // Lowercased so the returning-visitor lookup (route.ts's findOne by
+      // email) matches regardless of how the address was capitalized.
+      doc.email = email.toLowerCase()
     }
 
     if (body.consent !== true) errors.consent = 'Consent is required to join the waitlist.'

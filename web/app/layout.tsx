@@ -4,6 +4,7 @@ import './globals.css'
 import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister'
 import SiteHeader from '@/components/shared/SiteHeader'
 import SurveyPromptController from '@/components/validation/SurveyPromptController'
+import SessionResetOnParam from '@/components/validation/SessionResetOnParam'
 
 // Plus Jakarta Sans stands in for Airbnb's proprietary "Cereal" typeface.
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <ServiceWorkerRegister />
+        <SessionResetOnParam />
         <SurveyPromptController />
       </body>
     </html>
