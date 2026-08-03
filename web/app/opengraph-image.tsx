@@ -8,16 +8,18 @@ import { ImageResponse } from 'next/og'
 // uncontrolled variable across the very channels the study compares.
 //
 // Design tokens are inlined rather than read from globals.css — Satori has no
-// CSS-variable support and resolves no stylesheets.
+// CSS-variable support and resolves no stylesheets. These MUST stay in sync
+// with app/globals.css by hand; each one names the token it mirrors.
 
 export const alt = 'Waypoint — your day, in the right order.'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-const PRIMARY = '#ff385c'
-const TEXT = '#222222'
-const MUTED = '#717171'
-const AMBER = '#ffb400'
+const PRIMARY = '#ff385c' // --color-primary
+const TEXT = '#222222' // --color-text
+const MUTED = '#717171' // --color-text-muted
+const AMBER = '#e7a33e' // --color-flag-warning-border (the map's flag amber)
+const RULE = '#dddddd' // --color-border
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -59,7 +61,7 @@ export default function OpengraphImage() {
         <div style={{ display: 'flex', alignItems: 'center', marginTop: 54 }}>
           {[PRIMARY, PRIMARY, AMBER, PRIMARY].map((fill, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-              {i > 0 && <div style={{ width: 104, height: 3, backgroundColor: '#e5e5e5' }} />}
+              {i > 0 && <div style={{ width: 104, height: 3, backgroundColor: RULE }} />}
               <div
                 style={{
                   display: 'flex',
