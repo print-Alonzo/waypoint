@@ -20,7 +20,11 @@ source separated; all spec paths are relative to `web/`.
 - **dnd-kit** for drag-to-reorder on the result page (it also drives the reorder animation for the
   `↑ ↓` buttons — see DESIGN.md § Motion)
 - **Vitest** for unit + component tests
-- No backend — scheduling runs client-side over static JSON data; deploys to Vercel.
+- No backend **for the planner** — scheduling runs client-side over static JSON data; deploys to
+  Vercel. The only server-side code that ships is the validation funnel's
+  `app/api/validation/route.ts` (MongoDB Atlas), which the planner itself never calls — see
+  "Validation funnel" below. (`app/admin/create/route.ts` is server-side too, but refuses to run
+  anywhere but your machine — see "Adding places locally".)
 
 ## Getting started
 
@@ -107,6 +111,14 @@ results with:
 node scripts/validation-channels.mjs
 ```
 
+Because these links get pasted into Reddit, Facebook, Instagram and TikTok, every route ships a
+social preview card (`app/opengraph-image.tsx`, re-exported by `app/[channel]/opengraph-image.tsx`
+because a dynamic segment does not inherit the root one). Resolving `og:image` to an absolute URL
+needs an origin: set **`NEXT_PUBLIC_SITE_URL`** (see `.env.example`) once a real domain is attached —
+it falls back to `VERCEL_PROJECT_PRODUCTION_URL` on Vercel and `http://localhost:3000` locally. A
+mistyped short link (`/redit`) lands on `app/not-found.tsx`, an on-brand 404 with a waitlist CTA
+rather than a dead end.
+
 After changing the Mongo schema, run the one-time migration (dry-run by default; see
 `scripts/validation-migrate.mjs` and `.env.example`):
 
@@ -135,8 +147,9 @@ exceptions. `lib/` is grouped by domain. Tests mirror the source tree under `tes
 
 ```
 app/                  App Router routes
-  page.tsx            Landing page (product pitch; CTAs → /plan + sample /result; presets section)
+  page.tsx            Landing page — a thin shim over components/landing/LandingPage
   [channel]/page.tsx  Channel-attribution short links (/reddit, /facebook, ...) — same landing page
+  [channel]/opengraph-image.tsx  Re-exports the root OG card (dynamic segments don't inherit it)
   plan/page.tsx       Selector (Suspense → components/plan/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/result/ResultView)
@@ -146,12 +159,18 @@ app/                  App Router routes
   vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
   admin/page.tsx      Local-only content tool (→ components/admin/AdminDashboard); hidden on Vercel
   admin/create/route.ts  POST handler that writes a validated place into data/<city>/ (local only)
-  layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
+  api/validation/route.ts  Milestone upsert for the validation funnel (MongoDB Atlas; same-origin)
+  layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest + metadataBase
+  not-found.tsx       On-brand 404 (mistyped channel links land here) with a waitlist CTA
+  opengraph-image.tsx Social preview card (og:image), inherited by every static route
   globals.css         Design tokens + print rules
 components/            Client components, grouped by owning route
   landing/            → / and /[channel]
     LandingPage.tsx   Shared landing markup for both routes (takes an optional channel prop)
     ChannelCapture.tsx  Stamps first-touch channel attribution + fires the `landed` beacon
+    WaitlistForm.tsx  Email + consent → a `waitlist` milestone (flag: validation)
+    Reveal.tsx        Scroll-in reveal wrapper for below-the-fold sections (see DESIGN.md § Motion)
+    SmoothAnchorNav.tsx  Smooth scroll for same-page anchor jumps (leaves Back/Forward alone)
   plan/               → /plan
     Selector.tsx      Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
     PoiSwipeDeck.tsx  Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
@@ -193,6 +212,14 @@ lib/
     data.ts           Loads POIs + transit matrix by NEXT_PUBLIC_CITY
     format.ts         Shared hoursLabel() used by the grid card + swipe deck
     validate.ts       validatePoi: shared by AdminDashboard's form and admin/create/route.ts
+  validation/         The willingness-to-pay study (see "Validation funnel" above)
+    channels.ts       Marketing-channel allowlist + isChannel/isChannelPath — add a channel here
+    milestones.ts     Milestone union + MILESTONE_FIELD/MILESTONE_RANK (shared client + API)
+    track.ts          The one choke point every milestone POST passes through (adds `channel`)
+    session.ts        Per-browser `sid` session in localStorage (+ rotation, reset, memory fallback)
+    validate.ts       Isomorphic validation for an /api/validation submission
+    persona.ts        Quiz scoring → persona
+    mongo.ts          Cached MongoDB Atlas client (server-only)
   storage/saved-plans.ts  localStorage CRUD for saved plans (guarded; this-device only)
   hooks/use-reduced-motion.ts  usePrefersReducedMotion
 tests/                Mirrors the source tree; no tests live beside source

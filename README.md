@@ -94,7 +94,9 @@ to `false` and that feature disappears and its code tree-shakes out.
 - **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4**
 - **Leaflet + OpenStreetMap** for the route map (no API key)
 - **Vitest** for unit + component tests
-- **No backend** — scheduling runs client-side over static JSON; deploys to Vercel.
+- **No backend for the planner** — scheduling runs client-side over static JSON; deploys to Vercel.
+  (The pre-launch validation funnel is the only server-side code that ships: an `/api/validation`
+  route backed by MongoDB Atlas. The planner never calls it.)
 
 ## Getting started
 
@@ -117,7 +119,9 @@ npm run build    # production build (also type-checks)
 ```
 web/                 The Next.js app (see web/README.md for full detail)
   app/               Routes: / · /plan · /result · /live · /compare · /vote · /credits
-                     (+ /admin — a local-only dev tool for adding places, not deployed)
+                     (+ /reddit, /facebook, … — marketing short links that render the landing
+                     page and attribute the visit; + /admin, a local-only dev tool for adding
+                     places, not deployed)
   components/        Selector, ResultView, MapView, WhatIfDrawer, LiveView, CompareView, …
   lib/               scheduler, reason, fit, fare, presets, plan-model, params, features, …
   data/<city>/       pois.json + transit-matrix.json (placeholder Metro Manila data)
