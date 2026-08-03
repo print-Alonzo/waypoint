@@ -61,7 +61,8 @@ async function main() {
   const submissions = db.collection('validation_submissions')
 
   console.log(`Connected to database "${dbName}"\n`)
-  console.log('visits = unique first-touch browsers (sids), not page views.\n')
+  console.log('visits = unique sessions (sids), not page views or people.')
+  console.log('A shared device that rotates to a new participant yields two sids.\n')
 
   const rows = await submissions
     .aggregate([

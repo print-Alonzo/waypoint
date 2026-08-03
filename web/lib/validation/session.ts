@@ -58,22 +58,44 @@ function freshSession(now: number): ValidationSession {
   }
 }
 
+// Last-resort copy for browsers where localStorage is unreachable entirely
+// (Safari private mode, site data disabled, sandboxed iframes). Without it
+// getSession() mints a brand-new sid on EVERY call, so a single page load
+// POSTs under several different sids AND the channel ChannelCapture just
+// stamped never reaches track() — silently filing social and paid traffic
+// under (direct), which is the one bucket that makes every other channel look
+// worse than it is. Lives for one page load, which is exactly the lifetime of
+// one visit's attribution.
+let memorySession: ValidationSession | null = null
+
 function read(): ValidationSession | null {
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return null
+    // Storage is readable, so it is the source of truth: an absent or corrupt
+    // value genuinely means "no session", and any in-memory copy is stale.
+    // Clearing here is also what keeps the fallback from leaking between
+    // tests in a file.
+    if (!raw) {
+      memorySession = null
+      return null
+    }
     const parsed = JSON.parse(raw)
-    return parsed && typeof parsed.sid === 'string' ? (parsed as ValidationSession) : null
-  } catch {
+    if (parsed && typeof parsed.sid === 'string') return parsed as ValidationSession
+    memorySession = null
     return null
+  } catch {
+    // Storage unreadable — the in-memory copy is all we have.
+    return memorySession
   }
 }
 
 function write(session: ValidationSession): void {
+  memorySession = session
   try {
     localStorage.setItem(KEY, JSON.stringify(session))
   } catch {
-    // Ignore: storage unavailable/full — the funnel degrades, the page survives.
+    // Ignore: storage unavailable/full — the funnel degrades, the page
+    // survives, and memorySession above keeps this page load coherent.
   }
 }
 

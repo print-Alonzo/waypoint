@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import SiteHeader from '@/components/shared/SiteHeader'
 
@@ -7,6 +7,12 @@ const pathname = vi.hoisted(() => ({ current: '/' }))
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname.current,
 }))
+
+// Reset so a test added later can't silently inherit the previous one's route
+// and pass for the wrong reason.
+beforeEach(() => {
+  pathname.current = '/'
+})
 
 describe('SiteHeader', () => {
   it('shows the landing nav and waitlist CTA on /', () => {

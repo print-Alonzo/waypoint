@@ -132,11 +132,16 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
 
 - **Header** ([`components/shared/SiteHeader.tsx`](components/shared/SiteHeader.tsx)): sticky, white
   (never translucent — no backdrop blur, see Visual foundations), thin bottom border, `z-10`. A client
-  component that branches on `usePathname()`: the landing (`/`) gets an anchor nav (How it works /
+  component that branches on `usePathname()`: the landing gets an anchor nav (How it works /
   Features / Roadmap / Early feedback) plus a coral "Join waitlist" CTA; every other route keeps the
   plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
-  layout shift navigating between the two.
-- **Landing page** ([`app/page.tsx`](app/page.tsx)): the `/` route — a pre-launch marketing page, not
+  layout shift navigating between the two. "The landing" means `/` **and** any channel-attribution
+  slug (`isChannelPath`, [`lib/validation/channels.ts`](lib/validation/channels.ts)) — those routes
+  render the same page, and keeping the CTA on them is load-bearing for the channel test. Narrowing
+  this back to `pathname === '/'` silently strips the primary CTA from every channel link.
+- **Landing page** ([`components/landing/LandingPage.tsx`](components/landing/LandingPage.tsx)):
+  serves both `/` and the `/[channel]` attribution routes from one component (`app/page.tsx` is now
+  a thin shim) — a pre-launch marketing page, not
   a straight-to-app one. Centered hero (eyebrow + bold headline + thesis subhead + a coral "Join the
   waitlist →" primary CTA and an outline "See how it works" secondary CTA) with a route motif echoing
   the map (numbered pins, one amber to hint flags); a 3-step "How it works" band on

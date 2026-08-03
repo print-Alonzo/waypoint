@@ -11,6 +11,12 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+// The landing page now mounts ChannelCapture, whose effect writes a real
+// localStorage session and POSTs a `landed` beacon. track() swallows the
+// failure, so an unstubbed network call would go unnoticed in what is meant
+// to be a pure markup test. Covered properly in LandingPage.test.tsx.
+vi.mock('@/components/landing/ChannelCapture', () => ({ default: () => null }))
+
 import Home from '@/app/page'
 
 describe('landing page', () => {

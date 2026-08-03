@@ -12,7 +12,20 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ['400', '600', '700'],
 })
 
+// Absolute origin for og:image and other URL-based metadata fields. Set here
+// on the root layout so EVERY route inherits it — app/opengraph-image.tsx
+// applies site-wide, so scoping this to the landing page alone leaves the
+// other routes resolving against localhost at build time.
+// NEXT_PUBLIC_SITE_URL wins; on Vercel fall back to the stable production
+// domain (not VERCEL_URL, which is per-deployment); locally, the dev server.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'http://localhost:3000')
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'Waypoint',
   description: 'Plan your day in Metro Manila',
   manifest: '/manifest.webmanifest',

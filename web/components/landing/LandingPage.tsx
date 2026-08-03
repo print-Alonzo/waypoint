@@ -8,10 +8,32 @@ import WaitlistForm from '@/components/landing/WaitlistForm'
 import ChannelCapture from '@/components/landing/ChannelCapture'
 import type { Channel } from '@/lib/validation/channels'
 
+const TITLE = 'Waypoint — join the waitlist for a Metro Manila day planner you can trust'
+const DESCRIPTION =
+  'Waypoint sequences the order of your day across Metro Manila and shows its work — flagging anything closed or out of reach instead of quietly dropping it. Join the waitlist for early access.'
+
+// Shared by '/' and every /[channel] link. The openGraph block matters most
+// for the channel routes: they exist to be pasted into Reddit, Facebook,
+// Instagram and TikTok, and a link with no card previews differently on each
+// one — which would confound the comparison between channels.
+// app/opengraph-image.tsx supplies the image; `metadataBase` (which makes its
+// URL absolute) is set once on the root layout so every route inherits it.
 export const landingMetadata: Metadata = {
-  title: 'Waypoint — join the waitlist for a Metro Manila day planner you can trust',
-  description:
-    'Waypoint sequences the order of your day across Metro Manila and shows its work — flagging anything closed or out of reach instead of quietly dropping it. Join the waitlist for early access.',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/',
+    siteName: 'Waypoint',
+    type: 'website',
+    locale: 'en_PH',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 }
 
 const primaryCta =

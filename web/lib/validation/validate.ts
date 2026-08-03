@@ -1,5 +1,6 @@
 import type { Persona, PersonaScores } from '@/lib/validation/persona'
 import type { Milestone } from '@/lib/validation/track'
+import { MILESTONE_RANK } from '@/lib/validation/milestones'
 import { isChannel, type Channel } from '@/lib/validation/channels'
 
 // Isomorphic validation for a /api/validation submission — hand-rolled, mirroring
@@ -58,14 +59,10 @@ export type ValidationDoc = {
 
 export type ValidationErrors = Record<string, string>
 
-const MILESTONES: ReadonlySet<Milestone> = new Set([
-  'landed',
-  'quiz_completed',
-  'tried_app',
-  'feedback_opened',
-  'submitted',
-  'waitlist',
-])
+// Derived, not re-listed: a hand-maintained copy silently 422s any milestone
+// added to milestones.ts but forgotten here — and a Set literal typed
+// ReadonlySet<Milestone> gets no exhaustiveness check, so nothing would catch it.
+const MILESTONES: ReadonlySet<Milestone> = new Set(Object.keys(MILESTONE_RANK) as Milestone[])
 const PERSONAS: ReadonlySet<Persona> = new Set(['time-poor', 'meticulous', 'explorer'])
 const INTERESTS: ReadonlySet<Interest> = new Set(['definitely', 'maybe', 'no'])
 const WTP: ReadonlySet<WillingToPay> = new Set(['yes', 'maybe', 'no'])

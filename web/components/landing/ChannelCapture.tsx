@@ -19,9 +19,16 @@ import type { Channel } from '@/lib/validation/channels'
 // window.location directly rather than useSearchParams(), which forces a
 // Suspense boundary and would de-opt static rendering app-wide.
 //
-// fired guards against React Strict Mode's double-invoked effect in dev —
-// without it, a fresh session sees landedAt === null on both passes and
-// POSTs twice.
+// One-shot per page load. Two jobs: it stops React Strict Mode's
+// double-invoked effect from POSTing twice in dev (a fresh session sees
+// landedAt === null on both passes), and it makes the channel stamp
+// once-per-document rather than once-per-mount.
+//
+// It resets only on a full page load, never on a soft navigation. That's fine
+// while channel URLs are only ever entered from outside (a Reddit post, an IG
+// bio, a QR code) — always a hard load. If an in-app <Link> to a channel slug
+// is ever added, a visitor who hits '/' first would soft-navigate to it with
+// `fired` already true and silently record no channel. Don't add one.
 let fired = false
 
 export default function ChannelCapture({ channel }: { channel: Channel | null }) {
@@ -33,8 +40,13 @@ export default function ChannelCapture({ channel }: { channel: Channel | null })
     // about to wipe the session (SessionResetOnParam, mounted after <main>
     // so its effect runs later in tree order). Stamping the channel here
     // first would attribute a phantom visit to the outgoing participant's
-    // sid and then lose it — bail and let the fresh session pick up the
-    // channel on the next real navigation instead.
+    // sid and then lose it.
+    //
+    // Attribution is deliberately forfeited for this one page view: the
+    // param is stripped with history.replaceState, which is not a navigation
+    // and does not re-run this effect, so recovery needs a reload. That's
+    // the right trade — ?new=1 is a facilitator URL for moderated sessions,
+    // not a link any real channel visitor follows.
     if (new URL(window.location.href).searchParams.has('new')) return
 
     fired = true

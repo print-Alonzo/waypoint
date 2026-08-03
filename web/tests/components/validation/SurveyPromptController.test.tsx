@@ -60,7 +60,7 @@ describe('SurveyPromptController', () => {
     expect(screen.queryByText('SurveyPrompt placeholder')).not.toBeInTheDocument()
   })
 
-  it('does not open on an unlisted single-segment path either, once excluded', () => {
+  it('never opens on /promo either — it is a channel link, not an app page', () => {
     pathname.current = '/promo'
     render(<SurveyPromptController />)
     act(() => {
@@ -69,4 +69,32 @@ describe('SurveyPromptController', () => {
 
     expect(screen.queryByText('SurveyPrompt placeholder')).not.toBeInTheDocument()
   })
+
+  // The documented way to end the study. Without this the flag mock in this
+  // file is set up and reset but never actually exercised.
+  it('never opens once the validation flag is off', () => {
+    flag.validation = false
+    render(<SurveyPromptController />)
+    act(() => {
+      vi.advanceTimersByTime(SURVEY_PROMPT_DWELL_MS * 2)
+    })
+
+    expect(screen.queryByText('SurveyPrompt placeholder')).not.toBeInTheDocument()
+  })
+
+  // The left operand of the `||` added for channel paths — without this, a
+  // regression that dropped EXCLUDED_PATHS entirely would still pass the
+  // channel tests above.
+  it.each(['/', '/quiz', '/feedback', '/thanks'])(
+    'still honours the pre-existing EXCLUDED_PATHS entry %s',
+    (path) => {
+      pathname.current = path
+      render(<SurveyPromptController />)
+      act(() => {
+        vi.advanceTimersByTime(SURVEY_PROMPT_DWELL_MS)
+      })
+
+      expect(screen.queryByText('SurveyPrompt placeholder')).not.toBeInTheDocument()
+    },
+  )
 })
