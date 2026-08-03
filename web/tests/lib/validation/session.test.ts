@@ -60,8 +60,65 @@ describe('validation session', () => {
     spy.mockRestore()
   })
 
+  // When localStorage is unreachable entirely (Safari private mode, site data
+  // disabled), getSession() used to mint a brand-new sid on every call. One
+  // page load then POSTed under several sids, and the channel stamped by
+  // ChannelCapture never reached track() — filing that visit under (direct)
+  // and making every real channel look worse than it is.
+  describe('when localStorage is completely unreachable', () => {
+    function breakStorage() {
+      const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('storage disabled')
+      })
+      const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('storage disabled')
+      })
+      return () => {
+        get.mockRestore()
+        set.mockRestore()
+      }
+    }
+
+    it('keeps one stable sid across repeated getSession() calls', () => {
+      const restore = breakStorage()
+      try {
+        expect(getSession().sid).toBe(getSession().sid)
+      } finally {
+        restore()
+      }
+    })
+
+    it('keeps a patched channel readable by the next getSession()', () => {
+      const restore = breakStorage()
+      try {
+        const original = getSession()
+        patchSession({ channel: 'reddit' })
+
+        const next = getSession()
+        expect(next.sid).toBe(original.sid)
+        expect(next.channel).toBe('reddit')
+      } finally {
+        restore()
+      }
+    })
+
+    it('does not leak the in-memory session once storage works again', () => {
+      const restore = breakStorage()
+      getSession()
+      restore()
+
+      expect(hasSession()).toBe(false)
+    })
+  })
+
   it('starts with a null boundEmail', () => {
     expect(getSession().boundEmail).toBeNull()
+  })
+
+  it('starts with a null channel and landedAt', () => {
+    const session = getSession()
+    expect(session.channel).toBeNull()
+    expect(session.landedAt).toBeNull()
   })
 
   it('bindEmail records the email without changing the sid', () => {
@@ -147,6 +204,35 @@ describe('validation session', () => {
       rotateSessionIfNewEmail('second@example.com')
 
       expect(listSavedPlans()).toHaveLength(0)
+    })
+
+    // A second person typing a different email on a shared device would
+    // otherwise wipe attribution right before the waitlist POST fires — a
+    // real /reddit signup would silently land in the (direct) bucket.
+    it('carries the channel forward across a rotation', () => {
+      patchSession({ channel: 'reddit' })
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().channel).toBe('reddit')
+    })
+
+    it('does not carry landedAt forward across a rotation', () => {
+      patchSession({ channel: 'reddit', landedAt: Date.now() })
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().landedAt).toBeNull()
+    })
+
+    it('leaves channel null across a rotation when none was set', () => {
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().channel).toBeNull()
     })
   })
 })

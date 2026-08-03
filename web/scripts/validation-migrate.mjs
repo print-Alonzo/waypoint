@@ -40,8 +40,10 @@ const APPLY = process.argv.includes('--apply')
 
 // Mirrors lib/validation/milestones.ts's MILESTONE_RANK — this script runs
 // standalone via plain `node`, outside Next's module resolution, so the map
-// is duplicated here rather than imported.
+// is duplicated here rather than imported. `landed` is rank 0 (falsy) — see
+// the `rank === undefined` check below, not `!rank`.
 const MILESTONE_RANK = {
+  landed: 0,
   waitlist: 1,
   quiz_completed: 2,
   tried_app: 3,
@@ -98,7 +100,7 @@ async function main() {
     let backfilled = 0
     for (const doc of legacy) {
       const rank = MILESTONE_RANK[doc.milestone]
-      if (!rank) {
+      if (rank === undefined) {
         console.warn(`  skipping _id=${doc._id}: unrecognized milestone "${doc.milestone}"`)
         continue
       }

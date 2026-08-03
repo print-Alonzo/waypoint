@@ -6,7 +6,7 @@ import { isEnabled } from '@/lib/features'
 
 export type { Milestone }
 
-// Records one funnel milestone: POSTs { sid, milestone, ...extra } to
+// Records one funnel milestone: POSTs { sid, milestone, channel?, ...extra } to
 // /api/validation, which upserts by sid into MongoDB Atlas, then stamps the
 // local session's first-touch timestamp — only once the write is confirmed, so
 // a failed POST leaves the milestone unstamped and eligible for a later retry
@@ -18,6 +18,10 @@ export type { Milestone }
 // No-ops when the `validation` feature flag is off — this is the one choke
 // point every milestone call passes through, so flipping the flag actually
 // stops all writes rather than just hiding the UI that triggers them.
+//
+// `channel` is read from the session rather than passed by call sites, so
+// every milestone inherits first-touch attribution for free (see
+// components/landing/ChannelCapture.tsx). Omitted entirely when null.
 
 export async function track(
   milestone: Milestone,
@@ -25,12 +29,22 @@ export async function track(
 ): Promise<{ ok: boolean; returning?: boolean }> {
   if (!isEnabled('validation')) return { ok: false }
 
-  const { sid } = getSession()
+  const session = getSession()
   try {
     const res = await fetch('/api/validation', {
       method: 'POST',
+      // The `landed` beacon fires at hydration — exactly when a bouncing
+      // visitor closes the tab. Without keepalive the browser cancels the
+      // in-flight request, so the visit is lost from the report AND re-fires
+      // on their next landing (the session stamp below never runs).
+      keepalive: true,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sid, milestone, ...extra }),
+      body: JSON.stringify({
+        sid: session.sid,
+        milestone,
+        ...extra,
+        ...(session.channel ? { channel: session.channel } : {}),
+      }),
     })
     if (!res.ok) return { ok: false }
 

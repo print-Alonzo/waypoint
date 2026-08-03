@@ -132,11 +132,16 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
 
 - **Header** ([`components/shared/SiteHeader.tsx`](components/shared/SiteHeader.tsx)): sticky, white
   (never translucent — no backdrop blur, see Visual foundations), thin bottom border, `z-10`. A client
-  component that branches on `usePathname()`: the landing (`/`) gets an anchor nav (How it works /
+  component that branches on `usePathname()`: the landing gets an anchor nav (How it works /
   Features / Roadmap / Early feedback) plus a coral "Join waitlist" CTA; every other route keeps the
   plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
-  layout shift navigating between the two.
-- **Landing page** ([`app/page.tsx`](app/page.tsx)): the `/` route — a pre-launch marketing page, not
+  layout shift navigating between the two. "The landing" means `/` **and** any channel-attribution
+  slug (`isChannelPath`, [`lib/validation/channels.ts`](lib/validation/channels.ts)) — those routes
+  render the same page, and keeping the CTA on them is load-bearing for the channel test. Narrowing
+  this back to `pathname === '/'` silently strips the primary CTA from every channel link.
+- **Landing page** ([`components/landing/LandingPage.tsx`](components/landing/LandingPage.tsx)):
+  serves both `/` and the `/[channel]` attribution routes from one component (`app/page.tsx` is now
+  a thin shim) — a pre-launch marketing page, not
   a straight-to-app one. Centered hero (eyebrow + bold headline + thesis subhead + a coral "Join the
   waitlist →" primary CTA and an outline "See how it works" secondary CTA) with a route motif echoing
   the map (numbered pins, one amber to hint flags); a 3-step "How it works" band on
@@ -156,6 +161,26 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
   through the quiz). While the flag is off, the form itself never renders — `WaitlistForm` short-
   circuits to a standalone "Try Waypoint" CTA straight into `/plan`, bypassing the success state
   entirely (collecting emails nobody will read once the study's over would be worse than not asking).
+- **404 / not found** ([`app/not-found.tsx`](app/not-found.tsx)): a centered column (coral `404`
+  eyebrow, bold headline, muted one-liner) with the landing's own two CTAs — coral "Join the
+  waitlist →" and an outline "Try the planner". It exists because the channel short links get typed
+  by hand off a QR code, a poster, or an IG bio, so near-misses like `/redit` are expected traffic,
+  not an edge case; Next's built-in 404 renders in its own font stack under Waypoint's header with no
+  route back. Button classes are inlined here rather than tokenised — the two CTA recipes are
+  duplicated from the landing hero, so a change to the primary/secondary button language needs
+  applying in both places.
+- **Social preview card** ([`app/opengraph-image.tsx`](app/opengraph-image.tsx)): the 1200×630
+  `og:image` inherited by every **static** route — wordmark, "Your day, in the right order.", the
+  thesis subhead, and the hero's route motif (four numbered pins, the third amber to hint flags).
+  Dynamic segments do **not** inherit it, so `app/[channel]/opengraph-image.tsx` re-exports it rather
+  than redefining it — one definition of what a Waypoint link looks like. This is design surface that
+  lives outside the product: for the channel test it is the *only* thing a Reddit or Facebook reader
+  sees before deciding to click, so how a link *looks* stays a controlled variable.
+  Colors are **inlined hex, not `var(--color-*)`** — Satori resolves no stylesheets and has no
+  CSS-variable support — which means the tokens are copied by hand and drift silently. Three match
+  today (`#ff385c` primary, `#222222` text, `#717171` muted); the amber pin is `#ffb400`, which is
+  **not** a token — the map's amber is `--color-flag-warning-border` `#e7a33e`. Reconcile the two if
+  the flag amber ever moves.
 - **Photography & attribution**: photos are **CC-licensed** (sourced from Wikimedia Commons), stored
   in `public/images/poi/` and carried on the POI as optional `image` + `image_credit`
   (`author`/`license`/`license_url`/`source_url`). Attribution (required for CC BY / BY-SA) lives on

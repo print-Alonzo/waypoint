@@ -111,8 +111,9 @@ describe('POST /api/validation', () => {
   // decreases, that silently pinned furthestMilestoneRank at its max value
   // on every real participant's very first action, defeating the funnel
   // drop-off signal entirely. Locks in the corrected chronological order.
-  it('ranks milestones in true funnel order (waitlist first) so furthestMilestoneRank climbs, not maxes out immediately', async () => {
+  it('ranks milestones in true funnel order (landed first) so furthestMilestoneRank climbs, not maxes out immediately', async () => {
     const order: Array<{ milestone: string; email?: string; consent?: boolean }> = [
+      { milestone: 'landed' },
       { milestone: 'waitlist', email: 'a@example.com', consent: true },
       { milestone: 'quiz_completed' },
       { milestone: 'tried_app' },
@@ -124,7 +125,50 @@ describe('POST /api/validation', () => {
       const lastCall = mongoMock.updateOne.mock.calls.at(-1)!
       ranks.push(lastCall[1].$max.furthestMilestoneRank)
     }
-    expect(ranks).toEqual([1, 2, 3, 4])
+    expect(ranks).toEqual([0, 1, 2, 3, 4])
+  })
+
+  // Guards the design decision that attribution needs no route.ts changes:
+  // `channel` flows into $set purely via validateSubmission's ...answers
+  // spread. If a future refactor moved it to $setOnInsert instead, it would
+  // conflict with this same $set path and 500 every POST.
+  it('puts channel in $set (not $setOnInsert) so it flows through with the rest of the doc', async () => {
+    await POST(postWith({ sid: 'abc-123', milestone: 'landed', channel: 'reddit' }))
+
+    const [, update] = mongoMock.updateOne.mock.calls[0]
+    expect(update.$set.channel).toBe('reddit')
+    expect(update.$setOnInsert.channel).toBeUndefined()
+  })
+
+  // The landed beacon is the denominator of every per-channel conversion rate,
+  // and its rank is 0 — the one value a truthiness check silently drops.
+  it('writes a landed beacon with rank 0, not a dropped/undefined rank', async () => {
+    const res = await POST(postWith({ sid: 'abc-123', milestone: 'landed', channel: 'reddit' }))
+    expect(res.status).toBe(200)
+
+    const [, update] = mongoMock.updateOne.mock.calls[0]
+    expect(update.$max.furthestMilestoneRank).toBe(0)
+    expect(update.$max.furthestMilestoneRank).not.toBeUndefined()
+    expect(typeof update.$min.landedAt).toBe('number')
+    expect(update.$set.lastMilestone).toBe('landed')
+  })
+
+  // updateOne is a vi.fn(), so $max semantics never actually run here — this
+  // locks the operator choice, which is what protects the funnel. Mongo, not
+  // call order, decides which rank survives.
+  it('sends a stray landed beacon through $max rather than $set, so Mongo keeps the higher rank', async () => {
+    await POST(postWith({ sid: 'funnel-sid', milestone: 'tried_app' }))
+    await POST(postWith({ sid: 'funnel-sid', milestone: 'landed' }))
+
+    expect(mongoMock.updateOne.mock.calls.every((c) => '$max' in c[1])).toBe(true)
+    expect(
+      mongoMock.updateOne.mock.calls.every((c) => !('furthestMilestoneRank' in (c[1].$set ?? {}))),
+    ).toBe(true)
+  })
+
+  it('does not look up email for a landed beacon', async () => {
+    await POST(postWith({ sid: 'abc-123', milestone: 'landed', channel: 'reddit' }))
+    expect(mongoMock.findOne).not.toHaveBeenCalled()
   })
 
   it('inserts one validation_events document per POST', async () => {

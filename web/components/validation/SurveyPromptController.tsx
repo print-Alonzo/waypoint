@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { isEnabled } from '@/lib/features'
 import { hasSession, getSession, patchSession } from '@/lib/validation/session'
+import { isChannelPath } from '@/lib/validation/channels'
 import SurveyPrompt from '@/components/validation/SurveyPrompt'
 
 // How long a funnel visitor must actively dwell — foreground tab, summed across
@@ -33,7 +34,7 @@ export default function SurveyPromptController() {
   useEffect(() => {
     if (!isEnabled('validation') || open) return
     const interval = setInterval(() => {
-      if (EXCLUDED_PATHS.has(pathname)) return
+      if (EXCLUDED_PATHS.has(pathname) || isChannelPath(pathname)) return
       if (document.hidden) return
       if (!hasSession()) return
       dwelledMs.current += SURVEY_PROMPT_TICK_MS

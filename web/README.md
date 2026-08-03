@@ -20,7 +20,11 @@ source separated; all spec paths are relative to `web/`.
 - **dnd-kit** for drag-to-reorder on the result page (it also drives the reorder animation for the
   `↑ ↓` buttons — see DESIGN.md § Motion)
 - **Vitest** for unit + component tests
-- No backend — scheduling runs client-side over static JSON data; deploys to Vercel.
+- No backend **for the planner** — scheduling runs client-side over static JSON data; deploys to
+  Vercel. The only server-side code that ships is the validation funnel's
+  `app/api/validation/route.ts` (MongoDB Atlas), which the planner itself never calls — see
+  "Validation funnel" below. (`app/admin/create/route.ts` is server-side too, but refuses to run
+  anywhere but your machine — see "Adding places locally".)
 
 ## Getting started
 
@@ -92,6 +96,36 @@ A returning email (already in the database) short-circuits the funnel: the waitl
 tells them they're already on the list and offers only the live planner, rather than sending them
 through the quiz again.
 
+### Channel attribution
+
+Marketing-channel links (`/reddit`, `/facebook`, `/promo`, ...; see `lib/validation/channels.ts` for
+the allowlist) render the same landing page as `/` via `app/[channel]/page.tsx`, and stamp a
+first-touch `channel` onto the visitor's session (`components/landing/ChannelCapture.tsx`). Every
+milestone POST after that — including a `landed` beacon fired on arrival, so direct traffic (`/`) has
+a visit count to compute a conversion rate against — carries the channel through `track()`'s one
+choke point. Attribution is first-touch only: visiting a second channel link never overwrites the
+first, and `?new=1` (see above) intentionally drops it, since that means a new participant. Aggregate
+results with:
+
+```bash
+node scripts/validation-channels.mjs
+```
+
+Because these links get pasted into Reddit, Facebook, Instagram and TikTok, every route ships a
+social preview card (`app/opengraph-image.tsx`, re-exported by `app/[channel]/opengraph-image.tsx`
+because a dynamic segment does not inherit the root one). Resolving `og:image` to an absolute URL
+needs an origin: set **`NEXT_PUBLIC_SITE_URL`** (see `.env.example`) once a real domain is attached —
+it falls back to `VERCEL_PROJECT_PRODUCTION_URL` on Vercel and `http://localhost:3000` locally. A
+mistyped short link (`/redit`) lands on `app/not-found.tsx`, an on-brand 404 with a waitlist CTA
+rather than a dead end.
+
+The card renders through Satori, which embeds **only** the fonts handed to it — it has no system
+fallback and cannot read `next/font`'s woff2 output. So Plus Jakarta Sans is committed as TTF under
+[`assets/fonts/`](assets/fonts/) (OFL-1.1, license alongside) and read at build time. Delete those
+files and the card silently falls back to Noto Sans — it still renders, just off-brand. Same reason
+the color tokens are inlined as hex there: Satori resolves no stylesheets and no CSS variables, so
+those values are hand-synced with `app/globals.css` and each names the token it mirrors.
+
 After changing the Mongo schema, run the one-time migration (dry-run by default; see
 `scripts/validation-migrate.mjs` and `.env.example`):
 
@@ -111,6 +145,7 @@ node scripts/validation-migrate.mjs --apply   # backfill + create indexes
 | `npm run gen:matrix` | Regenerate `transit-matrix.json` from `pois.json` (Haversine × per-mode speed) |
 | `npm run lint` | ESLint |
 | `node scripts/validation-migrate.mjs` | One-time migration for the validation funnel's Mongo schema (see above) |
+| `node scripts/validation-channels.mjs` | Per-channel visits/signups/conversion report (see "Channel attribution" above) |
 
 ## Project layout
 
@@ -119,7 +154,9 @@ exceptions. `lib/` is grouped by domain. Tests mirror the source tree under `tes
 
 ```
 app/                  App Router routes
-  page.tsx            Landing page (product pitch; CTAs → /plan + sample /result; presets section)
+  page.tsx            Landing page — a thin shim over components/landing/LandingPage
+  [channel]/page.tsx  Channel-attribution short links (/reddit, /facebook, ...) — same landing page
+  [channel]/opengraph-image.tsx  Re-exports the root OG card (dynamic segments don't inherit it)
   plan/page.tsx       Selector (Suspense → components/plan/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/result/ResultView)
@@ -129,9 +166,18 @@ app/                  App Router routes
   vote/page.tsx       Single-device group vote (flag: groupVote; redirects home if off)
   admin/page.tsx      Local-only content tool (→ components/admin/AdminDashboard); hidden on Vercel
   admin/create/route.ts  POST handler that writes a validated place into data/<city>/ (local only)
-  layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
+  api/validation/route.ts  Milestone upsert for the validation funnel (MongoDB Atlas; same-origin)
+  layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest + metadataBase
+  not-found.tsx       On-brand 404 (mistyped channel links land here) with a waitlist CTA
+  opengraph-image.tsx Social preview card (og:image), inherited by every static route
   globals.css         Design tokens + print rules
 components/            Client components, grouped by owning route
+  landing/            → / and /[channel]
+    LandingPage.tsx   Shared landing markup for both routes (takes an optional channel prop)
+    ChannelCapture.tsx  Stamps first-touch channel attribution + fires the `landed` beacon
+    WaitlistForm.tsx  Email + consent → a `waitlist` milestone (flag: validation)
+    Reveal.tsx        Scroll-in reveal wrapper for below-the-fold sections (see DESIGN.md § Motion)
+    SmoothAnchorNav.tsx  Smooth scroll for same-page anchor jumps (leaves Back/Forward alone)
   plan/               → /plan
     Selector.tsx      Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
     PoiSwipeDeck.tsx  Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
@@ -173,12 +219,22 @@ lib/
     data.ts           Loads POIs + transit matrix by NEXT_PUBLIC_CITY
     format.ts         Shared hoursLabel() used by the grid card + swipe deck
     validate.ts       validatePoi: shared by AdminDashboard's form and admin/create/route.ts
+  validation/         The willingness-to-pay study (see "Validation funnel" above)
+    channels.ts       Marketing-channel allowlist + isChannel/isChannelPath — add a channel here
+    milestones.ts     Milestone union + MILESTONE_FIELD/MILESTONE_RANK (shared client + API)
+    track.ts          The one choke point every milestone POST passes through (adds `channel`)
+    session.ts        Per-browser `sid` session in localStorage (+ rotation, reset, memory fallback)
+    validate.ts       Isomorphic validation for an /api/validation submission
+    persona.ts        Quiz scoring → persona
+    mongo.ts          Cached MongoDB Atlas client (server-only)
   storage/saved-plans.ts  localStorage CRUD for saved plans (guarded; this-device only)
   hooks/use-reduced-motion.ts  usePrefersReducedMotion
 tests/                Mirrors the source tree; no tests live beside source
   app/  components/  lib/
   flows/              Cross-component tests (e.g. the /plan → URL → /result round-trip)
 data/<city>/          pois.json + transit-matrix.json
+assets/fonts/         Plus Jakarta Sans TTF (OFL-1.1) — build-time only, for the Satori OG card.
+                      NOT served to browsers; the site itself loads the font via next/font.
 public/
   sw.js               Service worker (network-first pages, stale-while-revalidate assets)
   manifest.webmanifest  PWA manifest
@@ -186,6 +242,7 @@ public/
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
   validation-migrate.mjs  One-time Mongo migration for the validation funnel's schema (see "Validation funnel" above)
+  validation-channels.mjs  Per-channel visits/signups/conversion report (see "Channel attribution" above)
 ```
 
 > Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin
