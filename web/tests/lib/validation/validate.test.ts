@@ -144,6 +144,45 @@ describe('validateSubmission', () => {
     expect(errors.worthPaying).toBeTruthy()
   })
 
+  describe('landed milestone', () => {
+    it('accepts a lightweight landed submission with no extra fields', () => {
+      const { errors, doc } = validateSubmission({ sid: 'abc-123', milestone: 'landed' })
+      expect(errors).toEqual({})
+      expect(doc).toEqual({ milestone: 'landed' })
+    })
+  })
+
+  describe('channel attribution', () => {
+    it('accepts an allowlisted channel', () => {
+      const { errors, doc } = validateSubmission({
+        sid: 'abc-123',
+        milestone: 'landed',
+        channel: 'reddit',
+      })
+      expect(errors).toEqual({})
+      expect(doc?.channel).toBe('reddit')
+    })
+
+    // Attribution metadata must never 422 a real signup — a spoofed or
+    // stale channel value is silently dropped, not rejected.
+    it('silently drops an unknown channel rather than erroring', () => {
+      const { errors, doc } = validateSubmission({
+        sid: 'abc-123',
+        milestone: 'waitlist',
+        email: 'traveler@example.com',
+        consent: true,
+        channel: 'bogus',
+      })
+      expect(errors).toEqual({})
+      expect(doc).not.toHaveProperty('channel')
+    })
+
+    it('omits channel from the doc when not sent at all', () => {
+      const { doc } = validateSubmission({ sid: 'abc-123', milestone: 'tried_app' })
+      expect(doc).not.toHaveProperty('channel')
+    })
+  })
+
   describe('waitlist milestone', () => {
     const VALID_WAITLIST = {
       sid: 'abc-123',

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { track } from '@/lib/validation/track'
-import { getSession } from '@/lib/validation/session'
+import { getSession, patchSession } from '@/lib/validation/session'
 
 const flag = vi.hoisted(() => ({ validation: true }))
 vi.mock('@/lib/features', () => ({
@@ -94,5 +94,32 @@ describe('track', () => {
     expect(body.sid).toBe(getSession().sid)
     expect(body.milestone).toBe('quiz_completed')
     expect(body.persona).toBe('time-poor')
+  })
+
+  it('includes the session channel in the POST body when set', async () => {
+    patchSession({ channel: 'reddit' })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }),
+    )
+
+    await track('waitlist', { email: 'a@example.com', consent: true })
+
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(init.body)
+    expect(body.channel).toBe('reddit')
+  })
+
+  it('omits channel from the POST body when unset', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }),
+    )
+
+    await track('tried_app')
+
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(init.body)
+    expect(body).not.toHaveProperty('channel')
   })
 })

@@ -127,6 +127,18 @@ describe('POST /api/validation', () => {
     expect(ranks).toEqual([1, 2, 3, 4])
   })
 
+  // Guards the design decision that attribution needs no route.ts changes:
+  // `channel` flows into $set purely via validateSubmission's ...answers
+  // spread. If a future refactor moved it to $setOnInsert instead, it would
+  // conflict with this same $set path and 500 every POST.
+  it('puts channel in $set (not $setOnInsert) so it flows through with the rest of the doc', async () => {
+    await POST(postWith({ sid: 'abc-123', milestone: 'landed', channel: 'reddit' }))
+
+    const [, update] = mongoMock.updateOne.mock.calls[0]
+    expect(update.$set.channel).toBe('reddit')
+    expect(update.$setOnInsert.channel).toBeUndefined()
+  })
+
   it('inserts one validation_events document per POST', async () => {
     await POST(postWith({ sid: 'abc-123', milestone: 'tried_app' }))
     expect(eventsMock.insertOne).toHaveBeenCalledTimes(1)

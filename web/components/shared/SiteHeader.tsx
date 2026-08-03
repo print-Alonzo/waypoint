@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { isChannel } from '@/lib/validation/channels'
 
 // The landing page carries its own anchor nav + waitlist CTA; every other route
 // keeps the app's plain wordmark + city pill header. Both live in one component
@@ -16,7 +17,9 @@ const LANDING_NAV = [
 
 export default function SiteHeader() {
   const pathname = usePathname()
-  const isLanding = pathname === '/'
+  // Channel attribution links (/reddit, /facebook, ...) render the same
+  // landing page as '/' and need the same nav + waitlist CTA.
+  const isLanding = pathname === '/' || isChannel(pathname.slice(1))
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-5 bg-[var(--color-bg)] border-b border-[var(--color-border)] px-5 py-4">

@@ -25,12 +25,17 @@ export async function track(
 ): Promise<{ ok: boolean; returning?: boolean }> {
   if (!isEnabled('validation')) return { ok: false }
 
-  const { sid } = getSession()
+  const session = getSession()
   try {
     const res = await fetch('/api/validation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sid, milestone, ...extra }),
+      body: JSON.stringify({
+        sid: session.sid,
+        milestone,
+        ...extra,
+        ...(session.channel ? { channel: session.channel } : {}),
+      }),
     })
     if (!res.ok) return { ok: false }
 

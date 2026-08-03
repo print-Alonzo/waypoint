@@ -64,6 +64,12 @@ describe('validation session', () => {
     expect(getSession().boundEmail).toBeNull()
   })
 
+  it('starts with a null channel and landedAt', () => {
+    const session = getSession()
+    expect(session.channel).toBeNull()
+    expect(session.landedAt).toBeNull()
+  })
+
   it('bindEmail records the email without changing the sid', () => {
     const original = getSession()
     const bound = bindEmail('traveler@example.com')
@@ -147,6 +153,35 @@ describe('validation session', () => {
       rotateSessionIfNewEmail('second@example.com')
 
       expect(listSavedPlans()).toHaveLength(0)
+    })
+
+    // A second person typing a different email on a shared device would
+    // otherwise wipe attribution right before the waitlist POST fires — a
+    // real /reddit signup would silently land in the (direct) bucket.
+    it('carries the channel forward across a rotation', () => {
+      patchSession({ channel: 'reddit' })
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().channel).toBe('reddit')
+    })
+
+    it('does not carry landedAt forward across a rotation', () => {
+      patchSession({ channel: 'reddit', landedAt: Date.now() })
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().landedAt).toBeNull()
+    })
+
+    it('leaves channel null across a rotation when none was set', () => {
+      bindEmail('first@example.com')
+
+      rotateSessionIfNewEmail('second@example.com')
+
+      expect(getSession().channel).toBeNull()
     })
   })
 })

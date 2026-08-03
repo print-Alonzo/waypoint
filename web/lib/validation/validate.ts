@@ -1,5 +1,6 @@
 import type { Persona, PersonaScores } from '@/lib/validation/persona'
 import type { Milestone } from '@/lib/validation/track'
+import { isChannel, type Channel } from '@/lib/validation/channels'
 
 // Isomorphic validation for a /api/validation submission — hand-rolled, mirroring
 // lib/poi/validate.ts (no validation dependency in this project). Shared shape so
@@ -52,11 +53,13 @@ export type ValidationDoc = {
   budgetSource?: BudgetSource
   email?: string
   consent?: boolean
+  channel?: Channel
 }
 
 export type ValidationErrors = Record<string, string>
 
 const MILESTONES: ReadonlySet<Milestone> = new Set([
+  'landed',
   'quiz_completed',
   'tried_app',
   'feedback_opened',
@@ -122,6 +125,15 @@ export function validateSubmission(
   if (Object.keys(errors).length > 0) return { errors, sid: null, doc: null }
 
   const doc: ValidationDoc = { milestone }
+
+  // Attribution metadata, not user input — an unrecognized/missing channel is
+  // silently dropped rather than erroring, so a spoofed or stale value never
+  // 422s a real signup. First-touch enforcement lives client-side in
+  // ChannelCapture, not here.
+  if (body.channel !== undefined) {
+    const channel = asString(body.channel)
+    if (isChannel(channel)) doc.channel = channel
+  }
 
   if (body.persona !== undefined) {
     const persona = asString(body.persona) as Persona

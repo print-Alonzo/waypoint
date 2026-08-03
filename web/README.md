@@ -92,6 +92,21 @@ A returning email (already in the database) short-circuits the funnel: the waitl
 tells them they're already on the list and offers only the live planner, rather than sending them
 through the quiz again.
 
+### Channel attribution
+
+Marketing-channel links (`/reddit`, `/facebook`, `/promo`, ...; see `lib/validation/channels.ts` for
+the allowlist) render the same landing page as `/` via `app/[channel]/page.tsx`, and stamp a
+first-touch `channel` onto the visitor's session (`components/landing/ChannelCapture.tsx`). Every
+milestone POST after that — including a `landed` beacon fired on arrival, so direct traffic (`/`) has
+a visit count to compute a conversion rate against — carries the channel through `track()`'s one
+choke point. Attribution is first-touch only: visiting a second channel link never overwrites the
+first, and `?new=1` (see above) intentionally drops it, since that means a new participant. Aggregate
+results with:
+
+```bash
+node scripts/validation-channels.mjs
+```
+
 After changing the Mongo schema, run the one-time migration (dry-run by default; see
 `scripts/validation-migrate.mjs` and `.env.example`):
 
@@ -111,6 +126,7 @@ node scripts/validation-migrate.mjs --apply   # backfill + create indexes
 | `npm run gen:matrix` | Regenerate `transit-matrix.json` from `pois.json` (Haversine × per-mode speed) |
 | `npm run lint` | ESLint |
 | `node scripts/validation-migrate.mjs` | One-time migration for the validation funnel's Mongo schema (see above) |
+| `node scripts/validation-channels.mjs` | Per-channel visits/signups/conversion report (see "Channel attribution" above) |
 
 ## Project layout
 
@@ -120,6 +136,7 @@ exceptions. `lib/` is grouped by domain. Tests mirror the source tree under `tes
 ```
 app/                  App Router routes
   page.tsx            Landing page (product pitch; CTAs → /plan + sample /result; presets section)
+  [channel]/page.tsx  Channel-attribution short links (/reddit, /facebook, ...) — same landing page
   plan/page.tsx       Selector (Suspense → components/plan/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
   result/page.tsx     Result view (ErrorBoundary → Suspense → components/result/ResultView)
@@ -132,6 +149,9 @@ app/                  App Router routes
   layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest
   globals.css         Design tokens + print rules
 components/            Client components, grouped by owning route
+  landing/            → / and /[channel]
+    LandingPage.tsx   Shared landing markup for both routes (takes an optional channel prop)
+    ChannelCapture.tsx  Stamps first-touch channel attribution + fires the `landed` beacon
   plan/               → /plan
     Selector.tsx      Picker: card grid (≥sm) + PoiSwipeDeck (<sm), chosen by CSS; shared state
     PoiSwipeDeck.tsx  Phone-only Tinder-style swipe stack (swipe/tap to add or skip; category filter chips; undo)
@@ -186,6 +206,7 @@ public/
 scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
   validation-migrate.mjs  One-time Mongo migration for the validation funnel's schema (see "Validation funnel" above)
+  validation-channels.mjs  Per-channel visits/signups/conversion report (see "Channel attribution" above)
 ```
 
 > Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin

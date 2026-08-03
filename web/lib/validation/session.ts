@@ -1,4 +1,5 @@
 import type { Persona, PersonaScores } from '@/lib/validation/persona'
+import type { Channel } from '@/lib/validation/channels'
 import { clearAll as clearSavedPlans } from '@/lib/storage/saved-plans'
 
 // Local (this-device) session for the willingness-to-pay validation funnel. No
@@ -28,6 +29,11 @@ export type ValidationSession = {
   // detect "a different person is now typing" and rotate the sid instead of
   // overwriting the first person's row.
   boundEmail: string | null
+  // First-touch marketing channel (from a /reddit, /facebook, ... short
+  // link). Set once by ChannelCapture and never overwritten by a later visit
+  // — see rotateSessionIfNewEmail() for the one case it's carried forward.
+  channel: Channel | null
+  landedAt: number | null
 }
 
 const KEY = 'waypoint:validation'
@@ -47,6 +53,8 @@ function freshSession(now: number): ValidationSession {
     surveyPromptCount: 0,
     surveyPromptLastAt: null,
     boundEmail: null,
+    channel: null,
+    landedAt: null,
   }
 }
 
@@ -126,5 +134,11 @@ export function rotateSessionIfNewEmail(email: string): void {
   const session = getSession()
   if (session.boundEmail && session.boundEmail !== email.toLowerCase()) {
     resetParticipant()
+    // Carry the channel forward — otherwise a second person typing a
+    // different email on this device wipes attribution right before the
+    // waitlist POST fires, and a real /reddit signup lands in (direct).
+    // landedAt is deliberately NOT carried: this new participant's own visit
+    // to this channel hasn't been counted yet.
+    if (session.channel) patchSession({ channel: session.channel })
   }
 }

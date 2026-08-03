@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WaitlistForm from '@/components/landing/WaitlistForm'
-import { getSession, bindEmail } from '@/lib/validation/session'
+import { getSession, bindEmail, patchSession } from '@/lib/validation/session'
 
 const flag = vi.hoisted(() => ({ validation: true }))
 vi.mock('@/lib/features', () => ({
@@ -70,6 +70,25 @@ describe('WaitlistForm', () => {
     expect(body.milestone).toBe('waitlist')
     expect(body.email).toBe('traveler@example.com')
     expect(body.consent).toBe(true)
+  })
+
+  it('includes the session channel in the waitlist POST body', async () => {
+    patchSession({ channel: 'reddit' })
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, returning: false }) }),
+    )
+    render(<WaitlistForm />)
+
+    await fillAndConsent(user, 'traveler@example.com')
+    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+    )
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
+    expect(body.channel).toBe('reddit')
   })
 
   it('shows the already-on-the-waitlist state when the server reports a returning email', async () => {
