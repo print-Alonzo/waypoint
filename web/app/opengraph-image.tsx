@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 // Social preview card. Lives at the app root so every route inherits it —
 // including the /[channel] attribution links, which is the point: those get
@@ -21,7 +23,27 @@ const MUTED = '#717171' // --color-text-muted
 const AMBER = '#e7a33e' // --color-flag-warning-border (the map's flag amber)
 const RULE = '#dddddd' // --color-border
 
-export default function OpengraphImage() {
+// Satori embeds only the fonts handed to it — it has no system-font fallback
+// and no access to next/font's output (which is woff2, a format Satori can't
+// read). So the same typeface the site loads via next/font is committed as
+// TTF under assets/fonts/ and read here at build time. Without this the card
+// silently renders in Satori's default Noto Sans, which is legible but is not
+// the brand.
+async function loadFonts() {
+  const dir = join(process.cwd(), 'assets', 'fonts')
+  const [regular, bold] = await Promise.all([
+    readFile(join(dir, 'PlusJakartaSans-Regular.ttf')),
+    readFile(join(dir, 'PlusJakartaSans-Bold.ttf')),
+  ])
+  return [
+    { name: 'Plus Jakarta Sans', data: regular, style: 'normal' as const, weight: 400 as const },
+    { name: 'Plus Jakarta Sans', data: bold, style: 'normal' as const, weight: 700 as const },
+  ]
+}
+
+export default async function OpengraphImage() {
+  const fonts = await loadFonts()
+
   return new ImageResponse(
     (
       <div
@@ -33,6 +55,7 @@ export default function OpengraphImage() {
           justifyContent: 'center',
           backgroundColor: '#ffffff',
           padding: '80px 88px',
+          fontFamily: 'Plus Jakarta Sans',
         }}
       >
         <div style={{ display: 'flex', fontSize: 36, fontWeight: 700, color: PRIMARY }}>
@@ -43,7 +66,7 @@ export default function OpengraphImage() {
           style={{
             display: 'flex',
             marginTop: 28,
-            fontSize: 82,
+            fontSize: 78,
             fontWeight: 700,
             letterSpacing: '-0.02em',
             color: TEXT,
@@ -52,7 +75,7 @@ export default function OpengraphImage() {
           Your day, in the right order.
         </div>
 
-        <div style={{ display: 'flex', marginTop: 26, fontSize: 33, color: MUTED, maxWidth: 900 }}>
+        <div style={{ display: 'flex', marginTop: 26, fontSize: 32, color: MUTED, maxWidth: 900 }}>
           You pick the places. Waypoint sequences your day and shows its work — flagging
           anything closed or out of reach instead of quietly dropping it.
         </div>
@@ -83,6 +106,6 @@ export default function OpengraphImage() {
         </div>
       </div>
     ),
-    size,
+    { ...size, fonts },
   )
 }

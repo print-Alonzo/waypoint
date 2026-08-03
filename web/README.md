@@ -119,6 +119,13 @@ it falls back to `VERCEL_PROJECT_PRODUCTION_URL` on Vercel and `http://localhost
 mistyped short link (`/redit`) lands on `app/not-found.tsx`, an on-brand 404 with a waitlist CTA
 rather than a dead end.
 
+The card renders through Satori, which embeds **only** the fonts handed to it — it has no system
+fallback and cannot read `next/font`'s woff2 output. So Plus Jakarta Sans is committed as TTF under
+[`assets/fonts/`](assets/fonts/) (OFL-1.1, license alongside) and read at build time. Delete those
+files and the card silently falls back to Noto Sans — it still renders, just off-brand. Same reason
+the color tokens are inlined as hex there: Satori resolves no stylesheets and no CSS variables, so
+those values are hand-synced with `app/globals.css` and each names the token it mirrors.
+
 After changing the Mongo schema, run the one-time migration (dry-run by default; see
 `scripts/validation-migrate.mjs` and `.env.example`):
 
@@ -226,6 +233,8 @@ tests/                Mirrors the source tree; no tests live beside source
   app/  components/  lib/
   flows/              Cross-component tests (e.g. the /plan → URL → /result round-trip)
 data/<city>/          pois.json + transit-matrix.json
+assets/fonts/         Plus Jakarta Sans TTF (OFL-1.1) — build-time only, for the Satori OG card.
+                      NOT served to browsers; the site itself loads the font via next/font.
 public/
   sw.js               Service worker (network-first pages, stale-while-revalidate assets)
   manifest.webmanifest  PWA manifest
