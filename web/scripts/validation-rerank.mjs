@@ -100,6 +100,7 @@ async function main() {
   let changed = 0
   let unchanged = 0
   let skipped = 0
+  let raced = 0
 
   for (const doc of docs) {
     const rank = trueRank(doc)
@@ -113,11 +114,32 @@ async function main() {
       continue
     }
     console.log(`  sid=${doc.sid}  ${doc.furthestMilestoneRank} -> ${rank}`)
-    if (APPLY) await submissions.updateOne({ _id: doc._id }, { $set: { furthestMilestoneRank: rank } })
+    if (APPLY) {
+      // Compare-and-set on the rank we read. The app writes this field with
+      // $max (route.ts), so it can only ever climb; this script uses $set
+      // because the inversion means some ranks must come DOWN. That makes the
+      // read-then-write racy against a live participant: if they advance a
+      // milestone between the find() above and this write, a bare $set would
+      // stamp the stale lower value back over their newer one and silently
+      // undo the $max guarantee. Matching on the old value instead means a row
+      // that moved under us is left alone. The script is idempotent, so a
+      // re-run picks those up with fresh data.
+      const filter =
+        doc.furthestMilestoneRank === undefined
+          ? { _id: doc._id, furthestMilestoneRank: { $exists: false } }
+          : { _id: doc._id, furthestMilestoneRank: doc.furthestMilestoneRank }
+      const res = await submissions.updateOne(filter, { $set: { furthestMilestoneRank: rank } })
+      if (res.matchedCount === 0) {
+        console.warn(`    ^ skipped: row changed since it was read — re-run to pick it up`)
+        raced += 1
+        continue
+      }
+    }
     changed += 1
   }
 
-  console.log(`\n${changed} to change, ${unchanged} already correct, ${skipped} skipped.`)
+  const racedNote = raced > 0 ? `, ${raced} raced (re-run)` : ''
+  console.log(`\n${changed} to change, ${unchanged} already correct, ${skipped} skipped${racedNote}.`)
   if (!APPLY && changed > 0) console.log('(dry run — pass --apply to write them)')
 
   await client.close()
