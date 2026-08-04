@@ -44,8 +44,8 @@ const APPLY = process.argv.includes('--apply')
 // the `rank === undefined` check below, not `!rank`.
 const MILESTONE_RANK = {
   landed: 0,
-  waitlist: 1,
-  quiz_completed: 2,
+  quiz_completed: 1,
+  waitlist: 2,
   tried_app: 3,
   feedback_opened: 4,
   submitted: 5,

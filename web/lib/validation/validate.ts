@@ -237,7 +237,7 @@ export function validateSubmission(
       doc.email = email.toLowerCase()
     }
 
-    if (body.consent !== true) errors.consent = 'Consent is required to join the waitlist.'
+    if (body.consent !== true) errors.consent = 'Consent is required to sign up.'
     else doc.consent = true
   }
 
@@ -251,7 +251,7 @@ export function validateSubmission(
       doc.email = email.toLowerCase()
     }
 
-    if (body.consent !== true) errors.consent = 'Consent is required to join the waitlist.'
+    if (body.consent !== true) errors.consent = 'Consent is required to sign up.'
     else doc.consent = true
   }
 

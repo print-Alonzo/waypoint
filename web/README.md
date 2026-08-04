@@ -75,37 +75,44 @@ refresh-safe like everything else.
 
 ## Validation funnel
 
-`validation` (`lib/features.ts`) gates a willingness-to-pay study: landing waitlist → persona quiz →
-app trial → survey, capturing milestones to MongoDB Atlas (`app/api/validation/route.ts`) in two
-collections — `validation_submissions` (one upserted rollup row per visitor: persona + furthest
-milestone reached) and `validation_events` (append-only; every milestone POST, never updated, so no
-individual answer is lost even if a rollup row is ever overwritten). Identity is a per-browser `sid`
+`validation` (`lib/features.ts`) gates a willingness-to-pay study: channel link → persona quiz →
+landing → early-access email → app trial → survey, capturing milestones to MongoDB Atlas
+(`app/api/validation/route.ts`) in two collections — `validation_submissions` (one upserted rollup
+row per visitor: persona + furthest milestone reached) and `validation_events` (append-only; every
+milestone POST, never updated, so no individual answer is lost even if a rollup row is ever
+overwritten). Identity is a per-browser `sid`
 in `localStorage` — there's no login — so running this as a moderated usability test, where several
 participants share one browser/tab, needs an explicit reset between people or the next participant's
 answers land on the previous one's row. Two ways that happens:
 
 - **Automatic**: submitting a different email than the one already bound to this browser's session
-  (waitlist form or the feedback survey) rotates to a fresh session first.
+  (signup form or the feedback survey) rotates to a fresh session first.
 - **Manual — `?new=1`**: append `?new=1` to any URL (e.g. `https://.../?new=1`) to force a fresh
   session and clear this device's saved plans before the next participant starts. There's no visible
   button for this — it's meant for the facilitator between sessions, not a website visitor. Gated
   behind the `validation` flag like every other funnel entry point, so it stops working once the flag
   is off — don't rely on it for a moderated session run after the study ends.
 
-A returning email (already in the database) short-circuits the funnel: the waitlist success state
-tells them they're already on the list and offers only the live planner, rather than sending them
-through the quiz again.
+The quiz comes **before** the email ask, not after: recruited visitors were bouncing off a "join the
+waitlist" CTA they had no reason to say yes to yet, and read the word as "get in line and pay
+later". The quiz costs them nothing, and its result screen hands them to the landing page already
+knowing why Waypoint is for them — where the signup card greets them by persona
+(`PERSONA_SIGNUP_LINE` in `lib/validation/persona.ts`, which owns every persona-facing string). No
+user-visible copy anywhere says "waitlist"; the internal milestone, DB field, and component are
+still named that. A returning email (already in the database) is told so and offered the planner.
 
 ### Channel attribution
 
 Marketing-channel links (`/reddit`, `/facebook`, `/promo`, ...; see `lib/validation/channels.ts` for
-the allowlist) render the same landing page as `/` via `app/[channel]/page.tsx`, and stamp a
-first-touch `channel` onto the visitor's session (`components/landing/ChannelCapture.tsx`). Every
-milestone POST after that — including a `landed` beacon fired on arrival, so direct traffic (`/`) has
-a visit count to compute a conversion rate against — carries the channel through `track()`'s one
-choke point. Attribution is first-touch only: visiting a second channel link never overwrites the
-first, and `?new=1` (see above) intentionally drops it, since that means a new participant. Aggregate
-results with:
+the allowlist) render the **persona quiz** via `app/[channel]/page.tsx` — `/` keeps the landing page
+for direct traffic, which reaches the quiz from the hero's secondary CTA. Both mount
+`components/landing/ChannelCapture.tsx`, which stamps a first-touch `channel` onto the visitor's
+session. With the flag off, the channel routes fall back to the landing page (the quiz redirects).
+Every milestone POST after that — including a `landed` beacon fired on arrival, so direct traffic
+(`/`) has a visit count to compute a conversion rate against — carries the channel through
+`track()`'s one choke point. Attribution is first-touch only: visiting a second channel link never
+overwrites the first, and `?new=1` (see above) intentionally drops it, since that means a new
+participant. Aggregate results with:
 
 ```bash
 node scripts/validation-channels.mjs
@@ -116,8 +123,8 @@ social preview card (`app/opengraph-image.tsx`, re-exported by `app/[channel]/op
 because a dynamic segment does not inherit the root one). Resolving `og:image` to an absolute URL
 needs an origin: set **`NEXT_PUBLIC_SITE_URL`** (see `.env.example`) once a real domain is attached —
 it falls back to `VERCEL_PROJECT_PRODUCTION_URL` on Vercel and `http://localhost:3000` locally. A
-mistyped short link (`/redit`) lands on `app/not-found.tsx`, an on-brand 404 with a waitlist CTA
-rather than a dead end.
+mistyped short link (`/redit`) lands on `app/not-found.tsx`, an on-brand 404 with an early-access
+CTA rather than a dead end.
 
 The card renders through Satori, which embeds **only** the fonts handed to it — it has no system
 fallback and cannot read `next/font`'s woff2 output. So Plus Jakarta Sans is committed as TTF under
@@ -134,6 +141,15 @@ node scripts/validation-migrate.mjs           # report only
 node scripts/validation-migrate.mjs --apply   # backfill + create indexes
 ```
 
+The funnel inversion swapped the ranks of `quiz_completed` (now 1) and `waitlist` (now 2), so rows
+written before it carry the old numbers. Recompute them from each row's milestone timestamps —
+lossless and idempotent, and only needed once:
+
+```bash
+node scripts/validation-rerank.mjs            # report only
+node scripts/validation-rerank.mjs --apply
+```
+
 ## Scripts
 
 | Script | What it does |
@@ -146,6 +162,7 @@ node scripts/validation-migrate.mjs --apply   # backfill + create indexes
 | `npm run lint` | ESLint |
 | `node scripts/validation-migrate.mjs` | One-time migration for the validation funnel's Mongo schema (see above) |
 | `node scripts/validation-channels.mjs` | Per-channel visits/signups/conversion report (see "Channel attribution" above) |
+| `node scripts/validation-rerank.mjs` | One-time recompute of `furthestMilestoneRank` after the funnel inversion (see above) |
 
 ## Project layout
 
@@ -155,7 +172,7 @@ exceptions. `lib/` is grouped by domain. Tests mirror the source tree under `tes
 ```
 app/                  App Router routes
   page.tsx            Landing page — a thin shim over components/landing/LandingPage
-  [channel]/page.tsx  Channel-attribution short links (/reddit, /facebook, ...) — same landing page
+  [channel]/page.tsx  Channel-attribution short links (/reddit, /facebook, ...) — render the quiz
   [channel]/opengraph-image.tsx  Re-exports the root OG card (dynamic segments don't inherit it)
   plan/page.tsx       Selector (Suspense → components/plan/Selector)
   credits/page.tsx    Photo attribution (CC) — linked from page footers
@@ -168,14 +185,14 @@ app/                  App Router routes
   admin/create/route.ts  POST handler that writes a validated place into data/<city>/ (local only)
   api/validation/route.ts  Milestone upsert for the validation funnel (MongoDB Atlas; same-origin)
   layout.tsx          Root layout: font + header + ServiceWorkerRegister + manifest + metadataBase
-  not-found.tsx       On-brand 404 (mistyped channel links land here) with a waitlist CTA
+  not-found.tsx       On-brand 404 (mistyped channel links land here) with an early-access CTA
   opengraph-image.tsx Social preview card (og:image), inherited by every static route
   globals.css         Design tokens + print rules
 components/            Client components, grouped by owning route
-  landing/            → / and /[channel]
+  landing/            → / (and /[channel] with the validation flag off)
     LandingPage.tsx   Shared landing markup for both routes (takes an optional channel prop)
     ChannelCapture.tsx  Stamps first-touch channel attribution + fires the `landed` beacon
-    WaitlistForm.tsx  Email + consent → a `waitlist` milestone (flag: validation)
+    WaitlistForm.tsx  Early-access email + consent → a `waitlist` milestone (flag: validation)
     Reveal.tsx        Scroll-in reveal wrapper for below-the-fold sections (see DESIGN.md § Motion)
     SmoothAnchorNav.tsx  Smooth scroll for same-page anchor jumps (leaves Back/Forward alone)
   plan/               → /plan
@@ -225,7 +242,7 @@ lib/
     track.ts          The one choke point every milestone POST passes through (adds `channel`)
     session.ts        Per-browser `sid` session in localStorage (+ rotation, reset, memory fallback)
     validate.ts       Isomorphic validation for an /api/validation submission
-    persona.ts        Quiz scoring → persona
+    persona.ts        Quiz scoring → persona, plus every persona-facing string
     mongo.ts          Cached MongoDB Atlas client (server-only)
   storage/saved-plans.ts  localStorage CRUD for saved plans (guarded; this-device only)
   hooks/use-reduced-motion.ts  usePrefersReducedMotion
@@ -243,6 +260,7 @@ scripts/
   generate-matrix.mjs Transit-matrix generator (keep math in sync with scheduling/scheduler.ts)
   validation-migrate.mjs  One-time Mongo migration for the validation funnel's schema (see "Validation funnel" above)
   validation-channels.mjs  Per-channel visits/signups/conversion report (see "Channel attribution" above)
+  validation-rerank.mjs  Recomputes furthestMilestoneRank after the funnel inversion (see "Validation funnel" above)
 ```
 
 > Untested today (the mirrored `tests/` tree makes the gaps easy to see): `app/layout.tsx` — thin

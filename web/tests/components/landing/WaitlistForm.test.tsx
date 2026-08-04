@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WaitlistForm from '@/components/landing/WaitlistForm'
 import { getSession, bindEmail, patchSession } from '@/lib/validation/session'
+import { PERSONA_SIGNUP_LINE } from '@/lib/validation/persona'
 
 const flag = vi.hoisted(() => ({ validation: true }))
 vi.mock('@/lib/features', () => ({
@@ -32,7 +33,7 @@ describe('WaitlistForm', () => {
     )
     render(<WaitlistForm />)
 
-    const submit = screen.getByRole('button', { name: /join waitlist/i })
+    const submit = screen.getByRole('button', { name: /sign me up/i })
     expect(submit).toBeDisabled()
 
     await user.type(screen.getByLabelText(/^email$/i), 'traveler@example.com')
@@ -53,18 +54,21 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /you.re in/i })).toBeInTheDocument(),
     )
-    expect(screen.getByText(/traveler@example.com/)).toBeInTheDocument()
-    expect(screen.getByText(/take our 2-minute traveler quiz/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /take the 2-minute quiz/i })).toHaveAttribute(
-      'href',
-      '/quiz',
-    )
-    expect(screen.queryByRole('link', { name: /try the live planner/i })).not.toBeInTheDocument()
+    // Whole sentence rather than just the address, so a rewrite that drops the
+    // email out of the copy fails here. (It does NOT guard the `{' '}` in the
+    // component — esbuild keeps that space even when Next's SWC drops it, so
+    // this assertion passes either way. That one only shows up in a browser.)
+    expect(
+      screen.getByText(/We'll email traveler@example\.com the moment Waypoint goes live/),
+    ).toBeInTheDocument()
+    // The quiz is upstream of this now, so the only way on is the planner.
+    expect(screen.getByRole('link', { name: /try the planner/i })).toHaveAttribute('href', '/plan')
+    expect(screen.queryByRole('link', { name: /quiz/i })).not.toBeInTheDocument()
 
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
     expect(body.milestone).toBe('waitlist')
@@ -82,16 +86,16 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /you.re in/i })).toBeInTheDocument(),
     )
     const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
     expect(body.channel).toBe('reddit')
   })
 
-  it('shows the already-on-the-waitlist state when the server reports a returning email', async () => {
+  it('shows the already-signed-up state when the server reports a returning email', async () => {
     const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
@@ -100,17 +104,19 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /already on the waitlist/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /already in/i })).toBeInTheDocument(),
     )
+    expect(
+      screen.getByText(/We already have traveler@example\.com on the early-access list/),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /try the live planner/i })).toHaveAttribute(
       'href',
       '/plan',
     )
-    expect(screen.queryByRole('link', { name: /take the 2-minute quiz/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: /you.re on the list/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /you.re in/i })).not.toBeInTheDocument()
   })
 
   it('rotates the session when a different email is submitted than the one already bound', async () => {
@@ -125,10 +131,10 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'second@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /you.re on the list/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /you.re in/i })).toBeInTheDocument(),
     )
 
     expect(getSession().sid).not.toBe(originalSid)
@@ -148,10 +154,10 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'same@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /already on the waitlist/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /already in/i })).toBeInTheDocument(),
     )
 
     expect(getSession().sid).toBe(originalSid)
@@ -167,7 +173,24 @@ describe('WaitlistForm', () => {
       '/plan',
     )
     expect(screen.queryByLabelText(/^email$/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /join waitlist/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /sign me up/i })).not.toBeInTheDocument()
+  })
+
+  // The quiz result and this card are the two halves of one handoff — a
+  // visitor who just learned they're a "meticulous router" should be greeted
+  // as one here, not handed a generic email box.
+  it('greets a visitor arriving from the quiz with their persona', async () => {
+    patchSession({ persona: 'meticulous' })
+    render(<WaitlistForm />)
+
+    expect(await screen.findByText(new RegExp(PERSONA_SIGNUP_LINE.meticulous))).toBeInTheDocument()
+  })
+
+  it('falls back to the generic subhead when there is no session to read a persona from', () => {
+    render(<WaitlistForm />)
+
+    expect(screen.getByText(/Leave your email and we.ll send you one note/i)).toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(PERSONA_SIGNUP_LINE.meticulous))).not.toBeInTheDocument()
   })
 
   it('shows an error state when the request fails, rather than a false success', async () => {
@@ -176,9 +199,9 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />)
 
     await fillAndConsent(user, 'traveler@example.com')
-    await user.click(screen.getByRole('button', { name: /join waitlist/i }))
+    await user.click(screen.getByRole('button', { name: /sign me up/i }))
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
-    expect(screen.queryByRole('heading', { name: /you.re on the list/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /you.re in/i })).not.toBeInTheDocument()
   })
 })

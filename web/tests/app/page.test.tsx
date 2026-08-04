@@ -28,15 +28,29 @@ describe('landing page', () => {
     expect(screen.getByRole('heading', { name: /how it works/i })).toBeInTheDocument()
   })
 
-  it('leads with a waitlist CTA rather than a straight-to-app one', () => {
+  // The word "waitlist" is what recruited visitors were bouncing off — it
+  // reads as "get in line and pay later". It must not come back anywhere the
+  // visitor can see it.
+  it('leads with an early-access CTA rather than a waitlist or straight-to-app one', () => {
     render(<Home />)
-    const heroCta = screen.getByRole('link', { name: /join the waitlist/i })
-    expect(heroCta).toHaveAttribute('href', '#waitlist')
+    const heroCta = screen.getByRole('link', { name: /be one of the first/i })
+    expect(heroCta).toHaveAttribute('href', '#early-access')
+    expect(document.body.textContent).not.toMatch(/waitlist/i)
+  })
+
+  // Direct visitors never see a channel link, so this is their only way into
+  // the quiz that everyone else arrives through.
+  it('offers the quiz as the hero secondary CTA', () => {
+    render(<Home />)
+    expect(screen.getByRole('link', { name: /find your travel style/i })).toHaveAttribute(
+      'href',
+      '/quiz',
+    )
   })
 
   it('exposes an anchor target for every section the header nav links to', () => {
     const { container } = render(<Home />)
-    ;['#how-it-works', '#features', '#roadmap', '#feedback', '#waitlist'].forEach((id) => {
+    ;['#how-it-works', '#features', '#roadmap', '#feedback', '#early-access'].forEach((id) => {
       expect(container.querySelector(id)).not.toBeNull()
     })
   })
@@ -76,9 +90,9 @@ describe('landing page', () => {
     expect(screen.getAllByText(/meticulous router/i)).toHaveLength(3)
   })
 
-  it('offers the waitlist form and, in the footer, the required photo credits link', () => {
+  it('offers the signup form and, in the footer, the required photo credits link', () => {
     render(<Home />)
-    expect(screen.getByRole('heading', { name: /get early access/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /be one of the earliest users/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /photo credits/i })).toHaveAttribute(
       'href',

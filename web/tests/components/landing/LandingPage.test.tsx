@@ -50,9 +50,9 @@ describe('LandingPage', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: /your day, in the right order/i }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /join the waitlist/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /be one of the first/i })).toHaveAttribute(
       'href',
-      '#waitlist',
+      '#early-access',
     )
   })
 

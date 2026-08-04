@@ -14,10 +14,10 @@ export default function ThanksPage() {
       <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
         Thank you
       </p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight">You&apos;re on the waitlist.</h1>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight">That&apos;s a real help.</h1>
       <p className="mx-auto mt-4 max-w-md text-[var(--color-text-muted)]">
-        We&apos;ll email you when Waypoint launches. In the meantime, feel free to keep exploring
-        the app.
+        Your answers directly shape what we build next. We&apos;ll email you when Waypoint goes
+        live — in the meantime, feel free to keep exploring the app.
       </p>
       <div className="mt-8">
         <Link

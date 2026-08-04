@@ -211,6 +211,25 @@ email, `?new=1` moderated-session reset, rank-guarded milestone writes — see `
 
 ---
 
+## Deferred from the funnel inversion (2026-08-04)
+
+Flipped the funnel so the persona quiz comes first and the email ask last, and purged "waitlist"
+from every user-visible string — the team's read is that participants hear "waitlist" as "get in
+line and pay later" (see `web/README.md` "Validation funnel"). Two things were left alone:
+
+- **`furthestMilestoneRank` comparisons across the inversion need the rerank migration.**
+  `quiz_completed` and `waitlist` swapped ranks (1 ↔ 2), so rows written before the change carry the
+  old numbers. `web/scripts/validation-rerank.mjs` recomputes them from each row's milestone
+  timestamps — run it once (`--apply`) before comparing pre- and post-inversion drop-off, or the two
+  cohorts aren't measuring the same thing. Nothing in the app reads the rank, so this is a
+  reporting concern only.
+- **No pre/post A/B — this is a sequential change.** The old funnel is gone rather than split-tested,
+  so a lift in signups is confounded with anything else that changed in the same window (recruiting
+  copy, timing, audience). Compare cautiously; the channel report (`validation-channels.mjs`) is
+  still the cleaner signal since attribution is unaffected.
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds

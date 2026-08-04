@@ -10,18 +10,20 @@ describe('MILESTONE_RANK', () => {
   // and destroys the drop-off signal.
   it('ranks milestones in true funnel order, landing first', () => {
     expect(MILESTONE_RANK.landed).toBe(0)
-    expect(MILESTONE_RANK.waitlist).toBe(1)
-    expect(MILESTONE_RANK.quiz_completed).toBe(2)
+    expect(MILESTONE_RANK.quiz_completed).toBe(1)
+    expect(MILESTONE_RANK.waitlist).toBe(2)
     expect(MILESTONE_RANK.tried_app).toBe(3)
     expect(MILESTONE_RANK.feedback_opened).toBe(4)
     expect(MILESTONE_RANK.submitted).toBe(5)
   })
 
   it('is strictly ascending in chronological order', () => {
+    // Quiz before signup: channel links open the quiz, and its result screen
+    // is what sends the visitor to the landing page's email ask.
     const chronological: Milestone[] = [
       'landed',
-      'waitlist',
       'quiz_completed',
+      'waitlist',
       'tried_app',
       'feedback_opened',
       'submitted',
