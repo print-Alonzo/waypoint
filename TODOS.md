@@ -237,6 +237,19 @@ line and pay later" (see `web/README.md` "Validation funnel"). Two things were l
   returning participant *should* see — whether to prefill, greet, or send them to the planner — and
   that is a product call. Repro: complete the funnel, then reload `/`.
   See `.gstack/qa-reports/qa-report-localhost-2026-08-04.md`.
+- **No automated end-to-end test for the funnel.** (P2, found by `/plan-eng-review` 2026-08-04.)
+  Component and route coverage is strong, but every client test runs in jsdom with `fetch` stubbed,
+  so a fully green suite proves the server contract and proves nothing about whether the effects
+  actually fire in a browser, write `localStorage`, and POST — see the
+  `jsdom-mocked-fetch-never-proves-client-capture-path` learning. The whole channel-link → quiz →
+  landing → signup → planner journey is currently proven only by a `/qa` browse walk someone has to
+  remember to run; the 2026-08-04 walk found two real bugs the unit suite structurally could not
+  see. Adding a Playwright spec would also catch the SWC-vs-esbuild interpolated-space class of bug
+  (`{expr} text` spaces that Next drops and Vitest keeps).
+  **Blocked by:** picking a test-DB or test-mode strategy first. `validation_submissions` holds real
+  participant rows, so an E2E that points at the live collection is not acceptable — either a
+  disposable Mongo, or a test-mode guard on `/api/validation`, plus synthetic
+  `browse-verify-*@example.com` addresses cleaned up behind an email-match guard.
 
 ---
 
