@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   PERSONA_QUESTIONS,
@@ -60,7 +60,28 @@ export default function QuizView() {
   // in between, since the session still holds the old answer until then.
   const persona = scored ?? (retaking ? null : storedPersona)
 
+  // Answering swaps the whole card, so the button that had focus unmounts and
+  // focus falls back to <body>: a keyboard user would tab from the top of the
+  // document again for each of the five questions, and a screen reader would
+  // announce nothing at all. Move focus to the new heading instead — it both
+  // restores a sane tab position and gets the new question read out.
+  //
+  // Guarded by `navigated` so the first render never steals focus: a cold
+  // visitor arriving from a channel link would be scrolled past the intro that
+  // explains what this quiz even is.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const navigated = useRef(false)
+
+  // `persona` is in the deps because completing the quiz swaps in the result
+  // screen without changing `index` — the last answer would otherwise be the
+  // one place focus still gets dropped.
+  useEffect(() => {
+    if (!navigated.current) return
+    headingRef.current?.focus()
+  }, [index, persona])
+
   function retake() {
+    navigated.current = true
     setRetaking(true)
     setScored(null)
     setAnswers([])
@@ -68,6 +89,7 @@ export default function QuizView() {
   }
 
   function choose(optionIndex: number) {
+    navigated.current = true
     const next = [...answers]
     next[index] = optionIndex
     setAnswers(next)
@@ -86,6 +108,7 @@ export default function QuizView() {
 
   function back() {
     if (index === 0) return
+    navigated.current = true
     setIndex(index - 1)
   }
 
@@ -95,7 +118,16 @@ export default function QuizView() {
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
           You&apos;re a
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">{PERSONA_LABEL[persona]}</h1>
+        {/* tabIndex -1 + no focus ring: focus is moved here programmatically,
+            not by the user tabbing to it, so a ring would read as a stray
+            highlight. See the focus effect above. */}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="mt-2 text-3xl font-bold tracking-tight focus:outline-none"
+        >
+          {PERSONA_LABEL[persona]}
+        </h1>
         <p className="mx-auto mt-4 max-w-md text-[var(--color-text-muted)]">
           {PERSONA_BLURB[persona]}
         </p>
@@ -154,7 +186,13 @@ export default function QuizView() {
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold tracking-tight">{question.prompt}</h1>
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="text-2xl font-bold tracking-tight focus:outline-none"
+      >
+        {question.prompt}
+      </h1>
 
       <div className="mt-6 flex flex-col gap-3" role="group" aria-label={question.prompt}>
         {question.options.map((option, i) => (
