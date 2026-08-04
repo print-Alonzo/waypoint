@@ -227,6 +227,16 @@ line and pay later" (see `web/README.md` "Validation funnel"). Two things were l
   so a lift in signups is confounded with anything else that changed in the same window (recruiting
   copy, timing, audience). Compare cautiously; the channel report (`validation-channels.mjs`) is
   still the cleaner signal since attribution is unaffected.
+- **A returning signed-up visitor sees the empty signup form again.** (ISSUE-003, Low, found by
+  `/qa` on `feat/funnel-inversion`, 2026-08-04.) A session already carrying `boundEmail` and
+  `waitlistAt` still gets the full "Be one of the earliest users" card with an empty email field on
+  the next visit, rather than the "You're already in" state `WaitlistForm` can already render —
+  `returning` is only set by a duplicate response during a submit, never seeded from the stored
+  session on mount. It self-heals (resubmitting the same address shows "You're already in"), so this
+  is a small credibility cost, not a broken flow. Deferred because the fix requires deciding what a
+  returning participant *should* see — whether to prefill, greet, or send them to the planner — and
+  that is a product call. Repro: complete the funnel, then reload `/`.
+  See `.gstack/qa-reports/qa-report-localhost-2026-08-04.md`.
 
 ---
 
