@@ -135,10 +135,12 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
   component that branches on `usePathname()`: the landing gets an anchor nav (How it works /
   Features / Roadmap / Early feedback) plus a coral "Get early access" CTA; every other route keeps
   the plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
-  layout shift navigating between the two. "The landing" means `/` and **only** `/` — the
-  channel-attribution slugs render the quiz, not the landing, so the nav's four anchors and the CTA
-  would all point at sections that don't exist on the page. Widening this to `isChannelPath` puts
-  five dead links in the header of every channel link.
+  layout shift navigating between the two. "The landing" means whichever routes actually render
+  `LandingPage`, derived from the same `validation` flag `app/[channel]/page.tsx` branches on: `/`
+  always, plus the channel-attribution slugs **only while the flag is off**. With the flag on those
+  slugs render the quiz, so the nav's four anchors and the CTA would point at sections that aren't
+  on the page; with it off they serve the full landing and need the nav back. Hardcoding either
+  half alone breaks the other state silently — see `tests/components/shared/SiteHeader.test.tsx`.
 - **Landing page** ([`components/landing/LandingPage.tsx`](components/landing/LandingPage.tsx)):
   serves `/` (and the `/[channel]` attribution routes only while the `validation` flag is off) from
   one component (`app/page.tsx` is a thin shim) — a pre-launch marketing page, not

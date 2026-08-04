@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { isChannelPath } from '@/lib/validation/channels'
+import { isEnabled } from '@/lib/features'
 
 // The landing page carries its own anchor nav + early-access CTA; every other
 // route keeps the app's plain wordmark + city pill header. Both live in one
@@ -16,10 +18,15 @@ const LANDING_NAV = [
 
 export default function SiteHeader() {
   const pathname = usePathname()
-  // '/' only. Channel attribution links (/reddit, /facebook, ...) render the
-  // quiz now, not the landing — giving them this nav would point four anchors
-  // and a CTA at sections that don't exist on the page.
-  const isLanding = pathname === '/'
+  // "Is this route showing LandingPage?" — derived from the same flag
+  // app/[channel]/page.tsx branches on, so the two can't disagree.
+  //
+  // Flag on: channel links (/reddit, /facebook, ...) render the quiz, so the
+  // nav's four anchors and its CTA would point at sections that aren't on the
+  // page. Flag off (study over): the same routes fall back to LandingPage, and
+  // without this they'd serve the full landing under a header with no nav and
+  // no signup CTA — silently, since nothing errors.
+  const isLanding = pathname === '/' || (isChannelPath(pathname) && !isEnabled('validation'))
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-5 bg-[var(--color-bg)] border-b border-[var(--color-border)] px-5 py-4">
