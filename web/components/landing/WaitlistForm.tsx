@@ -43,6 +43,12 @@ export default function WaitlistForm() {
 
   const emailValid = EMAIL_RE.test(email.trim())
   const canSubmit = emailValid && consent && status !== 'submitting'
+  // The consent box sits below the button, so someone who types their email and
+  // reaches straight for "Sign me up" gets a dead control and no reason for it —
+  // and this is the conversion the whole study measures, so a silent block reads
+  // in the data as disinterest. Name the blocker only once the email is valid:
+  // that's the exact stuck state, and saying it while they're still typing nags.
+  const consentBlocking = emailValid && !consent && status !== 'submitting'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -167,15 +173,28 @@ export default function WaitlistForm() {
           <button
             type="submit"
             disabled={!canSubmit}
+            aria-describedby={consentBlocking ? 'waitlist-consent-hint' : undefined}
             className={
               canSubmit
                 ? 'rounded-lg bg-[var(--color-primary)] px-5 py-3 text-base font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]'
-                : 'cursor-not-allowed rounded-lg bg-[var(--color-bg-subtle)] px-5 py-3 text-base font-semibold text-[var(--color-text-muted)]'
+                : 'cursor-not-allowed rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-5 py-3 text-base font-semibold text-[var(--color-text-muted)]'
             }
           >
             {status === 'submitting' ? 'Signing up…' : 'Sign me up'}
           </button>
         </div>
+        {/* role="status" so the hint is announced when it appears: `disabled`
+            drops the button out of the tab order, so a screen-reader user never
+            lands on it to hear its aria-describedby. */}
+        {consentBlocking && (
+          <p
+            id="waitlist-consent-hint"
+            role="status"
+            className="mt-3 text-sm font-semibold text-[var(--color-text)]"
+          >
+            Almost there — tick the box below to continue.
+          </p>
+        )}
         <label className="mx-auto mt-3 flex max-w-xs items-start gap-2 text-left text-sm text-[var(--color-text-muted)] sm:max-w-none sm:justify-center">
           <input
             type="checkbox"
