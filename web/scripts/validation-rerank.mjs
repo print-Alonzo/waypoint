@@ -15,7 +15,7 @@
 //   node scripts/validation-rerank.mjs --apply
 
 import { readFileSync, existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 import { MongoClient } from 'mongodb'
 
@@ -35,15 +35,17 @@ function loadEnvLocal() {
   }
 }
 
-loadEnvLocal()
-
 const APPLY = process.argv.includes('--apply')
 
 // Mirrors lib/validation/milestones.ts's MILESTONE_RANK and MILESTONE_FIELD —
 // this script runs standalone via plain `node`, outside Next's module
 // resolution, so the maps are duplicated here rather than imported. `landed`
 // is rank 0 (falsy) — every check below tests `=== undefined`, not `!rank`.
-const MILESTONE_RANK = {
+//
+// Both maps are exported so tests/lib/validation/milestone-drift.test.ts can
+// assert they still equal the TS source of truth. The duplication is tolerable;
+// the copies silently disagreeing is not.
+export const MILESTONE_RANK = {
   landed: 0,
   quiz_completed: 1,
   waitlist: 2,
@@ -52,7 +54,7 @@ const MILESTONE_RANK = {
   submitted: 5,
 }
 
-const MILESTONE_FIELD = {
+export const MILESTONE_FIELD = {
   landed: 'landedAt',
   quiz_completed: 'quizCompletedAt',
   waitlist: 'waitlistAt',
@@ -65,7 +67,7 @@ const MILESTONE_FIELD = {
 // rather than the stored rank. Returns undefined when the doc carries neither
 // timestamps nor a recognizable lastMilestone — a caller should skip it rather
 // than write a guess.
-function trueRank(doc) {
+export function trueRank(doc) {
   let highest
   for (const [milestone, field] of Object.entries(MILESTONE_FIELD)) {
     if (doc[field] == null) continue
@@ -77,6 +79,7 @@ function trueRank(doc) {
 }
 
 async function main() {
+  loadEnvLocal()
   const uri = process.env.MONGODB_URI
   if (!uri) {
     console.error('MONGODB_URI is not set (checked the environment and web/.env.local).')
@@ -120,7 +123,12 @@ async function main() {
   await client.close()
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Only run when invoked directly (`node scripts/validation-rerank.mjs`). Tests
+// import trueRank and the maps from this file; without the guard that import
+// would load .env.local and start rewriting rows in the live study database.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}

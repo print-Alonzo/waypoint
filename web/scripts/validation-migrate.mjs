@@ -14,7 +14,7 @@
 //   node scripts/validation-migrate.mjs --apply
 
 import { readFileSync, existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 import { MongoClient } from 'mongodb'
 
@@ -34,15 +34,18 @@ function loadEnvLocal() {
   }
 }
 
-loadEnvLocal()
-
 const APPLY = process.argv.includes('--apply')
 
 // Mirrors lib/validation/milestones.ts's MILESTONE_RANK — this script runs
 // standalone via plain `node`, outside Next's module resolution, so the map
 // is duplicated here rather than imported. `landed` is rank 0 (falsy) — see
 // the `rank === undefined` check below, not `!rank`.
-const MILESTONE_RANK = {
+//
+// Exported so tests/lib/validation/milestone-drift.test.ts can assert it still
+// equals the TS source of truth. Duplicating the map is survivable; letting the
+// copies silently disagree is not — furthestMilestoneRank is written with $max,
+// so a wrong rank pins the field and can't be walked back.
+export const MILESTONE_RANK = {
   landed: 0,
   quiz_completed: 1,
   waitlist: 2,
@@ -52,6 +55,7 @@ const MILESTONE_RANK = {
 }
 
 async function main() {
+  loadEnvLocal()
   const uri = process.env.MONGODB_URI
   if (!uri) {
     console.error('MONGODB_URI is not set (checked the environment and web/.env.local).')
@@ -132,7 +136,12 @@ async function main() {
   await client.close()
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Only run when invoked directly (`node scripts/validation-migrate.mjs`). Tests
+// import this file for its MILESTONE_RANK; without the guard that import would
+// load .env.local and connect to the live study database.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}
