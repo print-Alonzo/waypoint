@@ -7,10 +7,11 @@ import SmoothAnchorNav from '@/components/landing/SmoothAnchorNav'
 import WaitlistForm from '@/components/landing/WaitlistForm'
 import ChannelCapture from '@/components/landing/ChannelCapture'
 import type { Channel } from '@/lib/validation/channels'
+import { isEnabled } from '@/lib/features'
 
-const TITLE = 'Waypoint — join the waitlist for a Metro Manila day planner you can trust'
+const TITLE = 'Waypoint — a Metro Manila day planner you can trust'
 const DESCRIPTION =
-  'Waypoint sequences the order of your day across Metro Manila and shows its work — flagging anything closed or out of reach instead of quietly dropping it. Join the waitlist for early access.'
+  'Waypoint sequences the order of your day across Metro Manila and shows its work — flagging anything closed or out of reach instead of quietly dropping it. Sign up free to be one of its earliest users.'
 
 // Shared by '/' and every /[channel] link. The openGraph block matters most
 // for the channel routes: they exist to be pasted into Reddit, Facebook,
@@ -213,12 +214,17 @@ export default function LandingPage({ channel = null }: { channel?: Channel | nu
           its work, flagging anything closed or out of reach instead of quietly dropping it.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a href="#waitlist" className={primaryCta}>
-            Join the waitlist →
+          <a href="#early-access" className={primaryCta}>
+            Be one of the first →
           </a>
-          <a href="#how-it-works" className={secondaryCta}>
-            See how it works
-          </a>
+          {/* Direct visitors reach the quiz here; channel links open it
+              directly. Hidden with the flag off, when /quiz only redirects
+              back — "How it works" is still one tap away in the header nav. */}
+          {isEnabled('validation') && (
+            <Link href="/quiz" className={secondaryCta}>
+              Find your travel style
+            </Link>
+          )}
         </div>
 
         {/* Route motif — echoes the result-page map (pin 3 amber = "check hours"). */}
@@ -347,7 +353,7 @@ export default function LandingPage({ channel = null }: { channel?: Channel | nu
             <div className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center">
               <p className="text-sm font-bold">Have an idea?</p>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Join the waitlist and tell us what would make your day easier to plan.
+                Sign up below and tell us what would make your day easier to plan.
               </p>
             </div>
           </div>
@@ -378,8 +384,9 @@ export default function LandingPage({ channel = null }: { channel?: Channel | nu
         </div>
       </Reveal>
 
-      {/* Waitlist */}
-      <section id="waitlist" className="scroll-mt-24 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+      {/* Early access — the id is user-visible surface (it shows in the address
+          bar and in copied links), so it avoids "waitlist" like the copy does. */}
+      <section id="early-access" className="scroll-mt-24 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
         <Reveal as="div" className="mx-auto max-w-xl px-5 py-14 text-center">
           <WaitlistForm />
         </Reveal>

@@ -133,37 +133,63 @@ itinerary. The **landing page** is the one deliberate exception — see "Landing
 - **Header** ([`components/shared/SiteHeader.tsx`](components/shared/SiteHeader.tsx)): sticky, white
   (never translucent — no backdrop blur, see Visual foundations), thin bottom border, `z-10`. A client
   component that branches on `usePathname()`: the landing gets an anchor nav (How it works /
-  Features / Roadmap / Early feedback) plus a coral "Join waitlist" CTA; every other route keeps the
-  plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
-  layout shift navigating between the two. "The landing" means `/` **and** any channel-attribution
-  slug (`isChannelPath`, [`lib/validation/channels.ts`](lib/validation/channels.ts)) — those routes
-  render the same page, and keeping the CTA on them is load-bearing for the channel test. Narrowing
-  this back to `pathname === '/'` silently strips the primary CTA from every channel link.
+  Features / Roadmap / Early feedback) plus a coral "Get early access" CTA; every other route keeps
+  the plain "Waypoint" wordmark + muted "Metro Manila" pill. One `<header>` either way, so there's no
+  layout shift navigating between the two. "The landing" means whichever routes actually render
+  `LandingPage`, derived from the same `validation` flag `app/[channel]/page.tsx` branches on: `/`
+  always, plus the channel-attribution slugs **only while the flag is off**. With the flag on those
+  slugs render the quiz, so the nav's four anchors and the CTA would point at sections that aren't
+  on the page; with it off they serve the full landing and need the nav back. Hardcoding either
+  half alone breaks the other state silently — see `tests/components/shared/SiteHeader.test.tsx`.
 - **Landing page** ([`components/landing/LandingPage.tsx`](components/landing/LandingPage.tsx)):
-  serves both `/` and the `/[channel]` attribution routes from one component (`app/page.tsx` is now
-  a thin shim) — a pre-launch marketing page, not
-  a straight-to-app one. Centered hero (eyebrow + bold headline + thesis subhead + a coral "Join the
-  waitlist →" primary CTA and an outline "See how it works" secondary CTA) with a route motif echoing
-  the map (numbered pins, one amber to hint flags); a 3-step "How it works" band on
+  serves `/` (and the `/[channel]` attribution routes only while the `validation` flag is off) from
+  one component (`app/page.tsx` is a thin shim) — a pre-launch marketing page, not
+  a straight-to-app one. Centered hero (eyebrow + bold headline + thesis subhead + a coral "Be one of
+  the first →" primary CTA and an outline "Find your travel style" secondary CTA into `/quiz`) with a
+  route motif echoing the map (numbered pins, one amber to hint flags); a 3-step "How it works" band on
   `--color-bg-subtle`; a 4-up "Built on trust, not a black box" card grid (icon badge + title + body,
   `rounded-xl border shadow-sm`); a "Where Waypoint is headed" roadmap band — cards for planned,
   not-yet-built features, each marked with a neutral "Coming soon" `Chip` so they're never mistaken
   for something that ships today; an "Early feedback" section quoting real usability-round
-  participants verbatim (see `docs/venture/`, not invented copy); a waitlist band
+  participants verbatim (see `docs/venture/`, not invented copy); an `#early-access` band
   ([`components/landing/WaitlistForm.tsx`](components/landing/WaitlistForm.tsx), email + consent,
   posting a `waitlist` milestone to `/api/validation`); and a footer carrying the estimates caveat
   plus the required "Photo credits" link (see below). Every section below the hero is wrapped in
-  [`components/landing/Reveal.tsx`](components/landing/Reveal.tsx) — see Motion. The selector lives
-  at `/plan`. While the `validation` flag is on, it's reached from the waitlist success state's
-  single primary CTA rather than from the hero — "Take the 2-minute quiz →" into `/quiz` normally, or
-  "Try the live planner →" if the email just submitted already has a waitlist row (a returning
-  visitor is told they're already on the list and sent straight to the planner instead of back
-  through the quiz). While the flag is off, the form itself never renders — `WaitlistForm` short-
+  [`components/landing/Reveal.tsx`](components/landing/Reveal.tsx) — see Motion.
+
+  **No user-visible string anywhere says "waitlist"** — the word reads as "get in line and pay
+  later" to the people being recruited, which is what the funnel inversion was for. That includes the
+  page title, the OG description, both CTAs, and the section id (`#early-access`, since a fragment
+  shows in the address bar and in copied links). The milestone, the DB field, and this component keep
+  the internal name. The signup card is "Be one of the earliest users" / "Sign me up", and every
+  free/no-payment promise is scoped to **signing up**, never to the product — pricing is still being
+  tested by the Van Westendorp survey downstream. A visitor arriving from the quiz is greeted by
+  their persona (`PERSONA_SIGNUP_LINE`, [`lib/validation/persona.ts`](lib/validation/persona.ts));
+  the read is a `useSyncExternalStore` with a `null` server snapshot, because reading `localStorage`
+  during the first client render of a prerendered page would break hydration.
+
+  The selector lives at `/plan`, reached from the signup success state's single primary CTA ("Try the
+  planner →"; a returning email is told it's already on the list and offered "Try the live planner →"
+  instead). While the `validation` flag is off, the form never renders — `WaitlistForm` short-
   circuits to a standalone "Try Waypoint" CTA straight into `/plan`, bypassing the success state
-  entirely (collecting emails nobody will read once the study's over would be worse than not asking).
+  entirely (collecting emails nobody will read once the study's over would be worse than not asking),
+  and the hero's quiz CTA is hidden since `/quiz` only redirects back.
+- **Quiz** ([`components/quiz/QuizView.tsx`](components/quiz/QuizView.tsx)): the funnel's front door
+  — the `/[channel]` short links render it directly, so it opens on visitors who have never heard of
+  Waypoint. Hence an eyebrow + one-line intro above the progress readout ("Answer 5 quick questions
+  … takes about a minute") that the old `/quiz`-only entry point didn't need. One question per card,
+  a thin coral progress bar, and a muted "← Back" from question 2 on. The result screen is the
+  handoff, and carries its weight in copy: eyebrow "You're a", the persona label as `<h1>`, a
+  one-line blurb naming what they told us, then a 2–3 sentence pitch answering that persona's own
+  complaint in Waypoint's terms (`PERSONA_PITCH`). Its single primary CTA goes to `/` — the top of
+  the landing, deliberately not `/#early-access`, because dropping someone straight onto an email
+  field reads as a grab and skips the case the page is there to make. A muted "Retake the quiz"
+  sits underneath. Re-opening a channel link with a persona already stored shows the result
+  immediately rather than replaying five questions.
 - **404 / not found** ([`app/not-found.tsx`](app/not-found.tsx)): a centered column (coral `404`
-  eyebrow, bold headline, muted one-liner) with the landing's own two CTAs — coral "Join the
-  waitlist →" and an outline "Try the planner". It exists because the channel short links get typed
+  eyebrow, bold headline, muted one-liner) with the landing's own two CTAs — coral "Get early
+  access →" (into `/#early-access`) and an outline "Try the planner". It exists because the channel
+  short links get typed
   by hand off a QR code, a poster, or an IG bio, so near-misses like `/redit` are expected traffic,
   not an edge case; Next's built-in 404 renders in its own font stack under Waypoint's header with no
   route back. Button classes are inlined here rather than tokenised — the two CTA recipes are

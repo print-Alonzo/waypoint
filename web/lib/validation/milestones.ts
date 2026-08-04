@@ -22,19 +22,24 @@ export const MILESTONE_FIELD: Record<Milestone, keyof ValidationSession> = {
   waitlist: 'waitlistAt',
 }
 
-// Chronological funnel order (landing -> waitlist -> quiz -> app trial ->
+// Chronological funnel order (landing -> quiz -> signup -> app trial ->
 // survey open -> survey submit — see every track() call site), used with
 // $max so a later beacon (e.g. a stray tried_app after submitted) can never
 // move a row backwards. Must NOT be the Milestone union's declaration order
 // — waitlist is not the visitor's last action.
+//
+// The quiz precedes the email ask as of the funnel inversion: channel links
+// open the quiz, and its result screen hands the visitor to the landing page.
+// Rows written under the old order carry the old numbers; run
+// scripts/validation-rerank.mjs once to recompute them from the timestamps.
 //
 // `landed` is rank 0 — deliberately falsy. Any consumer checking
 // "is this milestone recognized?" must test `=== undefined`, not truthiness
 // (see the falsy-zero fix in scripts/validation-migrate.mjs).
 export const MILESTONE_RANK: Record<Milestone, number> = {
   landed: 0,
-  waitlist: 1,
-  quiz_completed: 2,
+  quiz_completed: 1,
+  waitlist: 2,
   tried_app: 3,
   feedback_opened: 4,
   submitted: 5,

@@ -624,9 +624,11 @@ export default function ResultView() {
     if (!model) router.replace('/')
   }, [model, router])
 
-  // Validation funnel: a visitor who arrived via the quiz (or already has a
-  // session from an earlier quiz completion) has now tried the real app — record
-  // that milestone once per mount, and let them dismiss the feedback banner.
+  // Validation funnel: a visitor anywhere in the funnel has a session by the
+  // time they reach a plan (ChannelCapture or the quiz mints one), so
+  // hasSession() is what actually carries this now — the `from=quiz` clause is
+  // kept for links shared before the funnel inversion. Record the milestone
+  // once per mount, and let them dismiss the feedback banner.
   const [feedbackBannerDismissed, setFeedbackBannerDismissed] = useState(false)
   const triedAppTracked = useRef(false)
   useEffect(() => {

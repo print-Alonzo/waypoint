@@ -8,12 +8,12 @@ import type { Channel } from '@/lib/validation/channels'
 
 // Stamps first-touch marketing-channel attribution onto the visitor's
 // session and fires a `landed` beacon, so every subsequent milestone
-// (waitlist, quiz, ...) carries the channel via track()'s one choke point.
-// Mounted by LandingPage for both '/' (channel=null, buckets as "direct" in
-// the report) and '/[channel]' (channel=<slug>) — see
-// scripts/validation-channels.mjs for why '/' needs a beacon too: without
-// it, direct traffic would have no denominator to compute a conversion rate
-// against.
+// (quiz, signup, ...) carries the channel via track()'s one choke point.
+// Two mount points: app/[channel]/page.tsx (channel=<slug>), which renders the
+// quiz, and LandingPage on '/' (channel=null, buckets as "direct" in the
+// report) — see scripts/validation-channels.mjs for why '/' needs a beacon
+// too: without it, direct traffic would have no denominator to compute a
+// conversion rate against.
 //
 // Modelled on components/validation/SessionResetOnParam.tsx: reads
 // window.location directly rather than useSearchParams(), which forces a

@@ -29,11 +29,11 @@ export default function NotFound() {
       </h1>
       <p className="mx-auto mt-4 max-w-md text-[var(--color-text-muted)]">
         The link may be mistyped or out of date. Waypoint is still here — plan a day in Metro
-        Manila, or join the waitlist for early access.
+        Manila, or sign up to be one of the earliest users.
       </p>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Link href="/#waitlist" className={primaryCta}>
-          Join the waitlist →
+        <Link href="/#early-access" className={primaryCta}>
+          Get early access →
         </Link>
         <Link href="/plan" className={secondaryCta}>
           Try the planner

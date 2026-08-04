@@ -211,6 +211,48 @@ email, `?new=1` moderated-session reset, rank-guarded milestone writes — see `
 
 ---
 
+## Deferred from the funnel inversion (2026-08-04)
+
+Flipped the funnel so the persona quiz comes first and the email ask last, and purged "waitlist"
+from every user-visible string — the team's read is that participants hear "waitlist" as "get in
+line and pay later" (see `web/README.md` "Validation funnel"). Two things were left alone:
+
+- **`furthestMilestoneRank` comparisons across the inversion need the rerank migration.**
+  `quiz_completed` and `waitlist` swapped ranks (1 ↔ 2), so rows written before the change carry the
+  old numbers. `web/scripts/validation-rerank.mjs` recomputes them from each row's milestone
+  timestamps — run it once (`--apply`) before comparing pre- and post-inversion drop-off, or the two
+  cohorts aren't measuring the same thing. Nothing in the app reads the rank, so this is a
+  reporting concern only.
+- **No pre/post A/B — this is a sequential change.** The old funnel is gone rather than split-tested,
+  so a lift in signups is confounded with anything else that changed in the same window (recruiting
+  copy, timing, audience). Compare cautiously; the channel report (`validation-channels.mjs`) is
+  still the cleaner signal since attribution is unaffected.
+- **A returning signed-up visitor sees the empty signup form again.** (ISSUE-003, Low, found by
+  `/qa` on `feat/funnel-inversion`, 2026-08-04.) A session already carrying `boundEmail` and
+  `waitlistAt` still gets the full "Be one of the earliest users" card with an empty email field on
+  the next visit, rather than the "You're already in" state `WaitlistForm` can already render —
+  `returning` is only set by a duplicate response during a submit, never seeded from the stored
+  session on mount. It self-heals (resubmitting the same address shows "You're already in"), so this
+  is a small credibility cost, not a broken flow. Deferred because the fix requires deciding what a
+  returning participant *should* see — whether to prefill, greet, or send them to the planner — and
+  that is a product call. Repro: complete the funnel, then reload `/`.
+  See `.gstack/qa-reports/qa-report-localhost-2026-08-04.md`.
+- **No automated end-to-end test for the funnel.** (P2, found by `/plan-eng-review` 2026-08-04.)
+  Component and route coverage is strong, but every client test runs in jsdom with `fetch` stubbed,
+  so a fully green suite proves the server contract and proves nothing about whether the effects
+  actually fire in a browser, write `localStorage`, and POST — see the
+  `jsdom-mocked-fetch-never-proves-client-capture-path` learning. The whole channel-link → quiz →
+  landing → signup → planner journey is currently proven only by a `/qa` browse walk someone has to
+  remember to run; the 2026-08-04 walk found two real bugs the unit suite structurally could not
+  see. Adding a Playwright spec would also catch the SWC-vs-esbuild interpolated-space class of bug
+  (`{expr} text` spaces that Next drops and Vitest keeps).
+  **Blocked by:** picking a test-DB or test-mode strategy first. `validation_submissions` holds real
+  participant rows, so an E2E that points at the live collection is not acceptable — either a
+  disposable Mongo, or a test-mode guard on `/api/validation`, plus synthetic
+  `browse-verify-*@example.com` addresses cleaned up behind an email-match guard.
+
+---
+
 ## V3+ Items
 
 - **Multi-day scheduling** — single-day is the narrowest viable wedge; multi-day adds

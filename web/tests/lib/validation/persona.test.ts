@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { PERSONA_QUESTIONS, scorePersona } from '@/lib/validation/persona'
+import {
+  PERSONA_QUESTIONS,
+  PERSONA_LABEL,
+  PERSONA_BLURB,
+  PERSONA_PITCH,
+  PERSONA_SIGNUP_LINE,
+  scorePersona,
+} from '@/lib/validation/persona'
 
 describe('scorePersona', () => {
   it('scores all time-poor answers (index 0 on every question) as time-poor', () => {
@@ -39,5 +46,18 @@ describe('scorePersona', () => {
     const answers = PERSONA_QUESTIONS.map(() => 1)
     answers[0] = 0 // one extra time-poor point
     expect(scorePersona(answers).persona).toBe('time-poor')
+  })
+})
+
+describe('persona copy', () => {
+  // The quiz result screen and the landing signup card both index these by
+  // persona at runtime. A missing key renders as an empty paragraph rather
+  // than an error, so a persona added without its copy would ship silently.
+  it('covers every persona in each copy record', () => {
+    const personas = Object.keys(PERSONA_LABEL).sort()
+    for (const record of [PERSONA_BLURB, PERSONA_PITCH, PERSONA_SIGNUP_LINE]) {
+      expect(Object.keys(record).sort()).toEqual(personas)
+      expect(Object.values(record).every((line) => line.trim().length > 0)).toBe(true)
+    }
   })
 })

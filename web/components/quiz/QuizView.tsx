@@ -1,38 +1,95 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
-import { PERSONA_QUESTIONS, PERSONA_LABEL, scorePersona } from '@/lib/validation/persona'
+import {
+  PERSONA_QUESTIONS,
+  PERSONA_LABEL,
+  PERSONA_BLURB,
+  PERSONA_PITCH,
+  scorePersona,
+} from '@/lib/validation/persona'
 import type { Persona } from '@/lib/validation/persona'
-import { patchSession } from '@/lib/validation/session'
+import { getSession, hasSession, patchSession } from '@/lib/validation/session'
 import { track } from '@/lib/validation/track'
 import { usePrefersReducedMotion } from '@/lib/hooks/use-reduced-motion'
 
 // One-question-at-a-time quiz: adapted from PoiSwipeDeck's cursor-through-a-deck
 // shape (index state, one card visible at a time, a progress readout) but without
 // swipe gesture handling — a quiz answer is a deliberate tap, not a discard.
-
-const PERSONA_BLURB: Record<Persona, string> = {
-  'time-poor':
-    "You want a day that's already sorted — pick your places, and let the order take care of itself.",
-  meticulous:
-    'You like knowing exactly why each stop is where it is — Waypoint shows its work so you can fine-tune anything.',
-  explorer:
-    "You're open to however the day unfolds — a solid starting order you're free to make your own.",
-}
+//
+// This is the funnel's front door: the /[channel] short links render it directly,
+// so most visitors meet Waypoint here with no prior context. Hence the intro
+// framing above question 1, and the pitch on the result screen — the result is
+// what has to earn the trip to the landing page.
 
 const TOTAL = PERSONA_QUESTIONS.length
+
+// Nothing to subscribe to: the only writer is this component's own choose(),
+// which sets React state in the same breath.
+const noSubscribe = () => () => {}
+
+// A persona from an earlier visit on this device. hasSession() rather than
+// getSession() so simply opening the quiz doesn't mint a sid — ChannelCapture
+// owns that. quizCompletedAt guards against a half-written session.
+function readCompletedPersona(): Persona | null {
+  if (!hasSession()) return null
+  const session = getSession()
+  return session.quizCompletedAt ? session.persona : null
+}
 
 export default function QuizView() {
   const router = useRouter()
   const reduceMotion = usePrefersReducedMotion()
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<number[]>([])
-  const [persona, setPersona] = useState<Persona | null>(null)
+  const [scored, setScored] = useState<Persona | null>(null)
+  const [retaking, setRetaking] = useState(false)
 
   const question = PERSONA_QUESTIONS[index]
 
+  // Someone re-opening their channel link (a saved Reddit post, a QR code)
+  // already has a persona — replaying five questions to reach the same screen
+  // is a chore, so show their result straight away. The server snapshot is
+  // null because this page is prerendered: reading localStorage during the
+  // first client render would disagree with the server's HTML.
+  const storedPersona = useSyncExternalStore(noSubscribe, readCompletedPersona, () => null)
+
+  // A just-scored persona wins (it's newer than the stored one, and it's what
+  // a completed retake produces); `retaking` is what hides the stored result
+  // in between, since the session still holds the old answer until then.
+  const persona = scored ?? (retaking ? null : storedPersona)
+
+  // Answering swaps the whole card, so the button that had focus unmounts and
+  // focus falls back to <body>: a keyboard user would tab from the top of the
+  // document again for each of the five questions, and a screen reader would
+  // announce nothing at all. Move focus to the new heading instead — it both
+  // restores a sane tab position and gets the new question read out.
+  //
+  // Guarded by `navigated` so the first render never steals focus: a cold
+  // visitor arriving from a channel link would be scrolled past the intro that
+  // explains what this quiz even is.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const navigated = useRef(false)
+
+  // `persona` is in the deps because completing the quiz swaps in the result
+  // screen without changing `index` — the last answer would otherwise be the
+  // one place focus still gets dropped.
+  useEffect(() => {
+    if (!navigated.current) return
+    headingRef.current?.focus()
+  }, [index, persona])
+
+  function retake() {
+    navigated.current = true
+    setRetaking(true)
+    setScored(null)
+    setAnswers([])
+    setIndex(0)
+  }
+
   function choose(optionIndex: number) {
+    navigated.current = true
     const next = [...answers]
     next[index] = optionIndex
     setAnswers(next)
@@ -42,15 +99,16 @@ export default function QuizView() {
       return
     }
 
-    const { persona: scored, scores } = scorePersona(next)
+    const { persona: result, scores } = scorePersona(next)
     const quizAnswers = PERSONA_QUESTIONS.map((q, i) => q.options[next[i]]?.label ?? '')
-    patchSession({ persona: scored, personaScores: scores, quizAnswers })
-    void track('quiz_completed', { persona: scored, personaScores: scores, quizAnswers })
-    setPersona(scored)
+    patchSession({ persona: result, personaScores: scores, quizAnswers })
+    void track('quiz_completed', { persona: result, personaScores: scores, quizAnswers })
+    setScored(result)
   }
 
   function back() {
     if (index === 0) return
+    navigated.current = true
     setIndex(index - 1)
   }
 
@@ -60,23 +118,60 @@ export default function QuizView() {
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
           You&apos;re a
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">{PERSONA_LABEL[persona]}</h1>
+        {/* tabIndex -1 + no focus ring: focus is moved here programmatically,
+            not by the user tabbing to it, so a ring would read as a stray
+            highlight. See the focus effect above. */}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="mt-2 text-3xl font-bold tracking-tight focus:outline-none"
+        >
+          {PERSONA_LABEL[persona]}
+        </h1>
         <p className="mx-auto mt-4 max-w-md text-[var(--color-text-muted)]">
           {PERSONA_BLURB[persona]}
         </p>
+        <p className="mx-auto mt-4 max-w-lg text-[var(--color-text-muted)]">
+          {PERSONA_PITCH[persona]}
+        </p>
+        {/* To '/' rather than '/#early-access': the landing's hero and
+            how-it-works are what make the case, and dropping someone straight
+            onto an email field reads as a grab. The signup card greets them
+            with their persona when they get there. */}
         <button
           type="button"
-          onClick={() => router.push('/plan?from=quiz')}
+          onClick={() => router.push('/')}
           className="mt-8 inline-flex items-center justify-center rounded-lg bg-[var(--color-primary)] px-6 py-3.5 text-base font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
         >
-          Try Waypoint →
+          Show me Waypoint →
         </button>
+        <div>
+          <button
+            type="button"
+            onClick={retake}
+            className="mt-5 text-sm font-semibold text-[var(--color-text-muted)] underline-offset-2 hover:underline"
+          >
+            Retake the quiz
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10">
+      {/* Most visitors land here cold from a channel link, with no idea what
+          Waypoint is or why they're being asked anything. */}
+      <div className="mb-8">
+        <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+          Metro Manila day planner
+        </p>
+        <p className="mt-2 text-[var(--color-text-muted)]">
+          Answer 5 quick questions to see your travel style — and how Waypoint fits it. Takes about
+          a minute.
+        </p>
+      </div>
+
       <div className="mb-6">
         <p className="text-sm font-semibold text-[var(--color-text-muted)]">
           Question {index + 1} of {TOTAL}
@@ -91,7 +186,13 @@ export default function QuizView() {
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold tracking-tight">{question.prompt}</h1>
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="text-2xl font-bold tracking-tight focus:outline-none"
+      >
+        {question.prompt}
+      </h1>
 
       <div className="mt-6 flex flex-col gap-3" role="group" aria-label={question.prompt}>
         {question.options.map((option, i) => (

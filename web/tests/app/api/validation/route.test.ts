@@ -98,7 +98,7 @@ describe('POST /api/validation', () => {
     expect(update.$setOnInsert.sid).toBe('abc-123')
     expect(typeof update.$setOnInsert.startedAt).toBe('number')
     expect(typeof update.$min.triedAppAt).toBe('number')
-    expect(update.$max.furthestMilestoneRank).toBe(3) // waitlist(1) < quiz_completed(2) < tried_app(3)
+    expect(update.$max.furthestMilestoneRank).toBe(3) // quiz_completed(1) < waitlist(2) < tried_app(3)
     expect(update.$set.lastMilestone).toBe('tried_app')
     expect(update.$set.milestone).toBeUndefined()
     expect(typeof update.$set.lastSeenAt).toBe('number')
@@ -114,8 +114,8 @@ describe('POST /api/validation', () => {
   it('ranks milestones in true funnel order (landed first) so furthestMilestoneRank climbs, not maxes out immediately', async () => {
     const order: Array<{ milestone: string; email?: string; consent?: boolean }> = [
       { milestone: 'landed' },
-      { milestone: 'waitlist', email: 'a@example.com', consent: true },
       { milestone: 'quiz_completed' },
+      { milestone: 'waitlist', email: 'a@example.com', consent: true },
       { milestone: 'tried_app' },
       { milestone: 'feedback_opened' },
     ]
